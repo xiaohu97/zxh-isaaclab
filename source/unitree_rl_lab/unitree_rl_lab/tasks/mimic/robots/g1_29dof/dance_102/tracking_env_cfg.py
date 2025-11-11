@@ -24,8 +24,8 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 import unitree_rl_lab.tasks.mimic.mdp as mdp
 
 from .g1 import G1_ACTION_SCALE
-from .g1 import G1_CYLINDER_CFG as ROBOT_CFG  # TODO: replace with unitree official robot cfg
-
+# from .g1 import G1_CYLINDER_CFG as ROBOT_CFG  # TODO: replace with unitree official robot cfg
+from unitree_rl_lab.assets.robots.unitree import UNITREE_G1_29DOF_CFG as ROBOT_CFG
 ##
 # Scene definition
 ##

@@ -130,6 +130,9 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 # 2. Click the mujoco window, and then press 8 to make the robot feet touch the ground.
 # 3. Press [R1 + X] to run the policy.
 # 4. Click the mujoco window, and then press 9 to disable the elastic band.
+# Passive: LT + B.on_pressed
+# Mimic_Dance_102: LT(2s) + down.on_pressed
+# Mimic_Gangnam_Style: LT(2s) + left.on_pressed
 ```
 
 ### Sim2Real
@@ -137,7 +140,17 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 You can use this program to control the robot directly, but make sure the on-borad control program has been closed.
 
 ```bash
-./g1_ctrl --network eth0 # eth0 is the network interface name.
+cd unitree_rl_lab/deploy/robots/g1_29dof/build
+
+./g1_ctrl --network enp5s0 # eth0 is the network interface name.
+
+# 1. press [L2 + Up] to set the robot to stand up
+# 2. Click the mujoco window, and then press 8 to make the robot feet touch the ground.
+# 3. Press [R1 + X] to run the policy.
+# 4. Click the mujoco window, and then press 9 to disable the elastic band.
+# Passive: LT + B.on_pressed
+# Mimic_Dance_102: LT(2s) + down.on_pressed
+# Mimic_Gangnam_Style: LT(2s) + left.on_pressed
 ```
 
 ## Acknowledgements
