@@ -232,6 +232,13 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     # run training
     runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
+    
+    # ==================== 新增：关闭 W&B ====================
+    # 训练完成后，关闭 wandb 并上传所有剩余数据
+    if is_main_process:
+        wandb.finish()
+        print("[INFO] W&B run finished and logs uploaded.")
+    # ======================================================
 
     # close the simulator
     env.close()
