@@ -142,6 +142,8 @@ You can use this program to control the robot directly, but make sure the on-bor
 ```bash
 cd unitree_rl_lab/deploy/robots/g1_29dof/build
 
+cd unitree_rl_lab/deploy/robots/g1_27dof/build
+
 ./g1_ctrl --network enp5s0 # eth0 is the network interface name.
 
 # 1. press [L2 + Up] to set the robot to stand up

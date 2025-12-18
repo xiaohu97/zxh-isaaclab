@@ -154,34 +154,34 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     if agent_cfg.run_name:
         log_dir += f"_{agent_cfg.run_name}"
     log_dir = os.path.join(log_root_path, log_dir)
-    # ==================== 新增：初始化 W&B ====================
-    # 判断是否为主进程（仅主进程初始化 wandb，避免分布式训练中的冲突）
-    is_main_process = not args_cli.distributed or app_launcher.local_rank == 0
+    # # ==================== 新增：初始化 W&B ====================
+    # # 判断是否为主进程（仅主进程初始化 wandb，避免分布式训练中的冲突）
+    # is_main_process = not args_cli.distributed or app_launcher.local_rank == 0
     
-    if is_main_process:
-        # 准备 wandb 配置，将环境和智能体的配置记录下来
-        wandb_config = {
-            "task": args_cli.task,
-            "num_envs": env_cfg.scene.num_envs,
-            "max_iterations": agent_cfg.max_iterations,
-            "seed": agent_cfg.seed,
-            "distributed": args_cli.distributed,
-        }
-        # 可选：添加更多超参数到 config
-        if hasattr(agent_cfg, "algorithm"):
-            wandb_config["algorithm"] = agent_cfg.algorithm.__class__.__name__
+    # if is_main_process:
+    #     # 准备 wandb 配置，将环境和智能体的配置记录下来
+    #     wandb_config = {
+    #         "task": args_cli.task,
+    #         "num_envs": env_cfg.scene.num_envs,
+    #         "max_iterations": agent_cfg.max_iterations,
+    #         "seed": agent_cfg.seed,
+    #         "distributed": args_cli.distributed,
+    #     }
+    #     # 可选：添加更多超参数到 config
+    #     if hasattr(agent_cfg, "algorithm"):
+    #         wandb_config["algorithm"] = agent_cfg.algorithm.__class__.__name__
         
-        # 初始化 wandb
-        wandb.init(
-            project="isaaclab-unitree-rl",  # 修改为你的项目名
-            name=f"{args_cli.task}_{log_dir.split('/')[-1]}",  # 使用任务名和时间戳作为 run 名
-            config=wandb_config,
-            dir=log_dir,  # 将 wandb 文件存储在同一日志目录
-            sync_tensorboard=True,  # 关键：自动同步 TensorBoard 日志到 W&B
-            monitor_gym=True,  # 自动记录 gym 环境的 episode 奖励和长度
-        )
-        print("[INFO] W&B initialized successfully. Logs will sync to wandb.ai")
-    # =========================================================
+    #     # 初始化 wandb
+    #     wandb.init(
+    #         project="isaaclab-unitree-rl",  # 修改为你的项目名
+    #         name=f"{args_cli.task}_{log_dir.split('/')[-1]}",  # 使用任务名和时间戳作为 run 名
+    #         config=wandb_config,
+    #         dir=log_dir,  # 将 wandb 文件存储在同一日志目录
+    #         sync_tensorboard=True,  # 关键：自动同步 TensorBoard 日志到 W&B
+    #         monitor_gym=True,  # 自动记录 gym 环境的 episode 奖励和长度
+    #     )
+    #     print("[INFO] W&B initialized successfully. Logs will sync to wandb.ai")
+    # # =========================================================
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
@@ -233,12 +233,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # run training
     runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
     
-    # ==================== 新增：关闭 W&B ====================
-    # 训练完成后，关闭 wandb 并上传所有剩余数据
-    if is_main_process:
-        wandb.finish()
-        print("[INFO] W&B run finished and logs uploaded.")
-    # ======================================================
+    # # ==================== 新增：关闭 W&B ====================
+    # # 训练完成后，关闭 wandb 并上传所有剩余数据
+    # if is_main_process:
+    #     wandb.finish()
+    #     print("[INFO] W&B run finished and logs uploaded.")
+    # # ======================================================
 
     # close the simulator
     env.close()
