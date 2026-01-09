@@ -125,7 +125,7 @@ cd unitree_mujoco/simulate/build
 
 ```bash
 cd unitree_rl_lab/deploy/robots/g1_29dof/build
-./g1_ctrl
+./g1_ctrl --network lo
 # 1. press [L2 + Up] to set the robot to stand up
 # 2. Click the mujoco window, and then press 8 to make the robot feet touch the ground.
 # 3. Press [R1 + X] to run the policy.
