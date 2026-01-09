@@ -25,7 +25,7 @@ import unitree_rl_lab.tasks.mimic.mdp as mdp
 
 from .g1 import G1_ACTION_SCALE
 # from .g1 import G1_CYLINDER_CFG as ROBOT_CFG  # TODO: replace with unitree official robot cfg
-from unitree_rl_lab.assets.robots.unitree import UNITREE_G1_29DOF_CFG as ROBOT_CFG
+from unitree_rl_lab.assets.robots.unitree import UNITREE_G1_29DOF_CFG as ROBOT_CFG   #使用urdf
 ##
 # Scene definition
 ##
