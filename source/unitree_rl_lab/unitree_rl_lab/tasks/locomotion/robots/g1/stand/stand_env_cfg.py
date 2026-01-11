@@ -42,7 +42,7 @@ class HeightPostureCommandCfg(CommandTermCfg):
     asset_name: str = "robot" 
     
     # [min, max] ranges
-    height_range: tuple[float, float] = (0.65, 1.0) # 目标高度范围 (米)
+    height_range: tuple[float, float] = (0.65, 1.2) # 目标高度范围 (米)
     pitch_range: tuple[float, float] = (-0.3, 0.3)  # 目标俯仰角范围 (弧度)
     roll_range: tuple[float, float] = (-0.2, 0.2)   # 目标侧倾角范围 (弧度)
     
@@ -228,8 +228,8 @@ class EventCfg:
         mode="reset",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
-            "force_range": (0.0, 0.0),
-            "torque_range": (-0.0, 0.0),
+            "force_range": (-5.0, 5.0),
+            "torque_range": (-3.0, 3.0),
         },
     )
     reset_base = EventTerm(
@@ -319,12 +319,12 @@ class RewardsCfg:
     """Reward terms for the MDP."""
     track_height = RewTerm(
         func=track_height_command,
-        weight=3.0,
+        weight=1.0,
         params={"command_name": "base_posture", "asset_cfg": SceneEntityCfg("robot")},
     )
     track_posture = RewTerm(
         func=track_posture_command,
-        weight=2.0,
+        weight=4.0,
         params={"command_name": "base_posture", "asset_cfg": SceneEntityCfg("robot")},
     )
     stand_still_xy = RewTerm(
@@ -345,16 +345,18 @@ class RewardsCfg:
     energy = RewTerm(func=mdp.energy, weight=-1e-5)
     joint_deviation_arms = RewTerm(
         func=mdp.joint_deviation_l1,
-        weight=-0.05,
+        weight=-0.1,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=[".*_shoulder_.*_joint", ".*_elbow_joint", ".*_wrist_.*"]),
         },
     )
+
     joint_deviation_legs = RewTerm(
         func=mdp.joint_deviation_l1,
         weight=-0.02,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_.*", ".*_knee_.*", ".*_ankle_.*"])},
     )
+
     feet_contact = RewTerm(
         func=mdp.feet_contact_without_cmd,
         weight=1.0,
@@ -368,7 +370,7 @@ class RewardsCfg:
 class TerminationsCfg:
     """Termination terms for the MDP."""
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
-    base_height = DoneTerm(func=mdp.root_height_below_minimum, params={"minimum_height": 0.35})
+    base_height = DoneTerm(func=mdp.root_height_below_minimum, params={"minimum_height": 0.45})
     bad_orientation = DoneTerm(func=mdp.bad_orientation, params={"limit_angle": 1.2})
 
 @configclass
