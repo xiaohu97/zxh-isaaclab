@@ -106,7 +106,7 @@ cd unitree_rl_lab/deploy/robots/g1_29dof # or other robots
 mkdir build && cd build
 cmake .. && make
 ```
-安装完共享库后，你没有更新动态链接器缓存，所以系统运行时找不到libddsc.so.0
+安装完共享库后，你可能没有更新动态链接器缓存，所以系统运行时找不到libddsc.so.0
 只需要运行一条命令修复
 ```
 sudo ldconfig
