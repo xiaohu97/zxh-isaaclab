@@ -366,30 +366,14 @@ class CommandsCfg:
 class ActionsCfg:
     """Action specifications for the MDP.
     
-    只控制腿部12个关节，腰部和手臂使用更小的scale抑制动作。
+    重要：必须使用单一的 action 配置，保持与部署代码一致的关节顺序！
+    通过 joint_names=[".*"] 匹配所有关节，顺序由 URDF 决定。
+    腰部和手臂的约束通过奖励函数实现，而不是分离动作。
     """
-    # 腿部关节：主要控制
-    leg_action = mdp.JointPositionActionCfg(
+    JointPositionAction = mdp.JointPositionActionCfg(
         asset_name="robot",
-        joint_names=[
-            ".*_hip_pitch_joint", ".*_hip_roll_joint", ".*_hip_yaw_joint",
-            ".*_knee_joint", ".*_ankle_pitch_joint", ".*_ankle_roll_joint"
-        ],
+        joint_names=[".*"],  # 匹配所有29个关节，保持原始顺序
         scale=0.25,
-        use_default_offset=True
-    )
-    # 腰部关节：非常小的动作范围
-    waist_action = mdp.JointPositionActionCfg(
-        asset_name="robot",
-        joint_names=["waist_yaw_joint", "waist_roll_joint", "waist_pitch_joint"],
-        scale=0.05,  # 很小的scale，基本不动
-        use_default_offset=True
-    )
-    # 手臂关节：锁定在默认位置
-    arm_action = mdp.JointPositionActionCfg(
-        asset_name="robot",
-        joint_names=[".*_shoulder_.*", ".*_elbow_.*", ".*_wrist_.*"],
-        scale=0.02,  # 几乎不动
         use_default_offset=True
     )
 
