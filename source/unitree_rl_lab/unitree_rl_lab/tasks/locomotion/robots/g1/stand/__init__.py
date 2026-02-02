@@ -1,8 +1,8 @@
 import gymnasium as gym
 
-# 原始版本（自定义命令，不兼容部署）
+# V1版本（自定义命令，不兼容部署）
 gym.register(
-    id="Unitree-G1-29dof-Stand",
+    id="Unitree-G1-29dof-Stand-v1",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
