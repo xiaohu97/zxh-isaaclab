@@ -355,9 +355,9 @@ class CommandsCfg:
         default_pitch=0.0,
         default_roll=0.0,
         # 偏移量范围（训练时探索不同高度/姿态）
-        height_delta_range=(-0.12, 0.02),  # 实际高度范围: 0.66m ~ 0.80m
-        pitch_delta_range=(-0.15, 0.15),   # 俯仰变化: ±0.15 rad ≈ ±8.6°
-        roll_delta_range=(-0.1, 0.1),      # 侧倾变化: ±0.1 rad ≈ ±5.7°
+        height_delta_range=(-0.22, 0.02),  # 实际高度范围: 0.66m ~ 0.80m
+        pitch_delta_range=(-0.25, 0.25),   # 俯仰变化: ±0.15 rad ≈ ±8.6°
+        roll_delta_range=(-0.2, 0.2),      # 侧倾变化: ±0.1 rad ≈ ±5.7°
         rel_default_envs=0.4,              # 40%环境保持默认姿态（命令=0）
     )
 
