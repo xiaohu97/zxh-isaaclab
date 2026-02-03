@@ -71,9 +71,9 @@ def track_height_velocity(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg,
 def track_height_command(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """根据速度命令来调整目标高度
     
-    当有前进命令时，略微降低高度（俯身）
-    当有后退命令时，略微提高高度（挺身）
-    这提高了对高度命令的响应性
+    前推摇杆(正vx): 降低高度（蹲下）
+    后拉摇杆(负vx): 提高高度（站直）
+    大幅度响应让控制更明显
     """
     asset = env.scene[asset_cfg.name]
     curr_h = asset.data.root_pos_w[:, 2]
@@ -84,11 +84,14 @@ def track_height_command(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> t
     lin_vel_x = cmd[:, 0]
     
     # 基础高度 0.78m
-    # 有前进命令时降低高度: 0.78 - 0.05*vx_norm
-    # 有后退命令时提高高度: 0.78 + 0.03*(-vx_norm)
+    # 前推摇杆时降低高度（蹲下），最低到0.55m
+    # 后拉摇杆时保持或略提高高度，最高到0.85m
+    # 使用更大的系数实现大幅高度变化
     vx_norm = torch.clamp(lin_vel_x, -1.0, 1.0)
-    target_h = 0.78 - 0.04 * vx_norm  # 前进时降低，后退时提高
-    target_h = torch.clamp(target_h, 0.70, 0.86)
+    # 前推(正vx)时降低高度: 0.78 - 0.20*vx = 最低0.58m
+    # 后拉(负vx)时提高高度: 0.78 + 0.07*(-vx) = 最高0.85m
+    target_h = 0.78 - 0.20 * vx_norm  # 大幅高度变化
+    target_h = torch.clamp(target_h, 0.55, 0.85)
     
     h_error = torch.abs(target_h - curr_h)
     reward = torch.where(
@@ -103,25 +106,70 @@ def track_height_command(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> t
     return reward
 
 
-def maintain_upright_posture(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """奖励保持直立姿态（pitch和roll接近0）
+def track_pitch_command(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """根据速度命令控制俯仰角(pitch)
     
-    使用较宽松的容差避免过度纠正导致抖动
+    前推摇杆(正vx): 身体前倾(正pitch)
+    后拉摇杆(负vx): 身体后仰(负pitch)
+    左右摇杆(vy): 身体左右倾斜(roll)
     """
     asset = env.scene[asset_cfg.name]
     roll, pitch, _ = euler_xyz_from_quat(asset.data.root_quat_w)
     
-    # 容差范围：±0.1 rad (±5.7°)
+    # 获取速度命令
+    cmd_term = env.command_manager.get_term("base_velocity")
+    cmd = cmd_term.command
+    lin_vel_x = cmd[:, 0]
+    lin_vel_y = cmd[:, 1]
+    
+    # 目标俯仰角: 前推时前倾，后拉时后仰
+    # vx=1.0 -> pitch=0.3rad(约17度)，vx=-1.0 -> pitch=-0.2rad(约-11度)
+    vx_norm = torch.clamp(lin_vel_x, -1.0, 1.0)
+    target_pitch = 0.25 * vx_norm  # 大幅俯仰变化
+    target_pitch = torch.clamp(target_pitch, -0.25, 0.35)  # 限制范围
+    
+    # 目标横滚角: 左推时左倾，右推时右倾
+    vy_norm = torch.clamp(lin_vel_y, -1.0, 1.0)
+    target_roll = 0.15 * vy_norm  # 适度横滚变化
+    target_roll = torch.clamp(target_roll, -0.2, 0.2)
+    
+    # 计算误差
+    pitch_error = torch.abs(target_pitch - pitch)
+    roll_error = torch.abs(target_roll - roll)
+    total_error = pitch_error + roll_error
+    
+    # 使用高斯奖励
+    reward = torch.exp(-2.0 * total_error)
+    return reward
+
+
+def maintain_upright_posture(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """当没有命令时保持直立姿态
+    
+    只有在速度命令接近零时才惩罚倾斜
+    有命令时允许倾斜（由pitch/roll跟踪奖励控制）
+    """
+    asset = env.scene[asset_cfg.name]
+    roll, pitch, _ = euler_xyz_from_quat(asset.data.root_quat_w)
+    
+    # 获取速度命令
+    cmd_term = env.command_manager.get_term("base_velocity")
+    cmd = cmd_term.command
+    cmd_magnitude = torch.norm(cmd[:, :2], dim=1)  # vx, vy的幅度
+    
+    # 根据命令大小调整姿态容差
+    # 命令大时允许大幅倾斜，命令小时要求直立
+    base_tolerance = 0.1  # 基础容差
+    cmd_tolerance = 0.4 * cmd_magnitude  # 命令越大容差越大
+    tolerance = base_tolerance + cmd_tolerance
+    
     angle_error = torch.abs(pitch) + torch.abs(roll)
     
+    # 超过容差范围才惩罚
     reward = torch.where(
-        angle_error < 0.1,
+        angle_error < tolerance,
         torch.ones_like(angle_error),
-        torch.where(
-            angle_error < 0.3,
-            1.0 - (angle_error - 0.1) / 0.2,
-            torch.exp(-angle_error / 0.1)
-        )
+        torch.exp(-(angle_error - tolerance) / 0.2)
     )
     return reward
 
@@ -149,6 +197,52 @@ def both_feet_contact(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> tor
     in_contact = forces > 1.0
     both_contact = torch.all(in_contact, dim=1).float()
     return both_contact
+
+
+def penalize_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    """严厉惩罚双脚同时离地（跳跃）
+    
+    当双脚都离地时给予大惩罚，防止跳跃行为
+    至少一只脚着地时不惩罚
+    """
+    contact_sensor = env.scene.sensors[sensor_cfg.name]
+    forces = contact_sensor.data.net_forces_w_history[:, 0, :, 2]
+    in_contact = forces > 1.0  # shape: (num_envs, 2)
+    
+    # 检查是否有任何一只脚着地
+    any_foot_contact = torch.any(in_contact, dim=1)  # 至少一只脚着地
+    
+    # 双脚都离地时惩罚
+    both_feet_air = ~any_foot_contact
+    penalty = -5.0 * both_feet_air.float()  # 强惩罚
+    return penalty
+
+
+def reward_single_foot_step(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, 
+                            asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """奖励单脚迈步稳定（受冲击时的恢复动作）
+    
+    当机器人速度较大（受到冲击）且只有一只脚着地时给予奖励
+    这鼓励机器人在不稳定时迈出一步来恢复平衡
+    """
+    contact_sensor = env.scene.sensors[sensor_cfg.name]
+    asset = env.scene[asset_cfg.name]
+    
+    forces = contact_sensor.data.net_forces_w_history[:, 0, :, 2]
+    in_contact = forces > 1.0  # shape: (num_envs, 2)
+    
+    # 检查单脚着地状态
+    left_contact = in_contact[:, 0]
+    right_contact = in_contact[:, 1]
+    single_foot_contact = (left_contact ^ right_contact)  # 异或：只有一只脚着地
+    
+    # 检查机器人是否在移动/受冲击（速度较大）
+    base_vel = torch.norm(asset.data.root_lin_vel_w[:, :2], dim=1)
+    is_moving = base_vel > 0.3  # 速度超过0.3m/s认为在移动/受冲击
+    
+    # 只有在移动状态下单脚着地才给奖励（迈步恢复）
+    reward = (single_foot_contact & is_moving).float() * 1.0
+    return reward
 
 
 def penalize_joint_velocity(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
@@ -311,29 +405,29 @@ class EventCfg:
 
 @configclass
 class CommandsCfg:
-    """使用标准速度命令，高比例 standing_envs 训练站立
+    """使用标准速度命令控制高度和姿态
     
     关键调整：
-    - ranges: 训练时探索的命令范围（较小）
-    - limit_ranges: 部署时的最大命令范围（较大）
-    - 更频繁的命令更新(8-12s)让策略适应动态变化
+    - 扩大训练范围让策略学习大幅度姿态变化
+    - 降低 standing_envs 比例，增加动态训练
+    - 更频繁的命令更新(3-6s)让策略快速响应
     """
     base_velocity = mdp.UniformLevelVelocityCommandCfg(
         asset_name="robot",
-        resampling_time_range=(6.0, 10.0),  # 更频繁的命令更新，让高度响应更敏捷
-        rel_standing_envs=0.75,  # 75% 环境速度命令为零（训练站立）
+        resampling_time_range=(3.0, 6.0),  # 更频繁的命令更新
+        rel_standing_envs=0.3,  # 只有30%环境站立，70%训练动态响应
         rel_heading_envs=0.0,
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.15, 0.15),  # 扩大训练范围，增强高度响应能力
-            lin_vel_y=(-0.1, 0.1),
-            ang_vel_z=(-0.1, 0.1)
+            lin_vel_x=(-0.8, 1.0),  # 大范围训练，让策略学习完整高度变化
+            lin_vel_y=(-0.5, 0.5),  # 左右倾斜
+            ang_vel_z=(-0.5, 0.5)   # 旋转
         ),
         limit_ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.5, 1.0),  # 部署时的最大范围
-            lin_vel_y=(-0.3, 0.3),
-            ang_vel_z=(-0.2, 0.2)
+            lin_vel_x=(-1.0, 1.5),  # 部署时的最大范围
+            lin_vel_y=(-0.8, 0.8),
+            ang_vel_z=(-0.8, 0.8)
         ),
     )
 
@@ -400,54 +494,40 @@ class ObservationsCfg:
 
 @configclass
 class RewardsCfg:
-    """站立奖励配置 - 平衡稳定性和命令响应性
+    """站立奖励配置 - 增强姿态和高度响应性
     
-    权重调整原则：
-    1. 降低高度/姿态权重，避免过度纠正导致抖动
-    2. 增加关节速度惩罚，平缓运动
-    3. 增加关节位置惩罚，稳定站姿
-    4. 增加动作率惩罚，避免急剧变化
+    设计原则：
+    1. 高权重的姿态/高度跟踪让机器人响应摇杆命令
+    2. 适度的稳定性惩罚防止抖动
+    3. 降低水平速度惩罚，允许姿态变化时的轻微移动
     """
     
-    # === 站立核心奖励 ===
-    # 降低高度跟踪权重，使用新的平缓奖励函数
-    height_tracking = RewTerm(
-        func=track_height_velocity,
-        weight=1.5,  # 从 3.0 降低到 1.5
-        params={"asset_cfg": SceneEntityCfg("robot"), "target_height": 0.78},
-    )
-    
-    # 根据命令调整目标高度 - 增强高度控制性
+    # === 核心姿态控制奖励（高权重）===
+    # 高度跟踪 - 根据命令大幅改变高度
     height_command_tracking = RewTerm(
         func=track_height_command,
-        weight=1.5,  # 新增权重
+        weight=5.0,  # 高权重确保高度响应
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
     
-    # 降低姿态跟踪权重，使用更宽松的容差
+    # 俯仰/横滚跟踪 - 根据命令改变身体姿态
+    pitch_tracking = RewTerm(
+        func=track_pitch_command,
+        weight=4.0,  # 高权重确保姿态响应
+        params={"asset_cfg": SceneEntityCfg("robot")},
+    )
+    
+    # 无命令时保持直立（低权重，不干扰姿态响应）
     posture_tracking = RewTerm(
         func=maintain_upright_posture,
-        weight=1.5,  # 从 3.0 降低到 1.5
+        weight=1.0,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
     
-    # === 速度跟踪（站立时命令为零）===
-    track_lin_vel_xy_exp = RewTerm(
-        func=mdp.track_lin_vel_xy_exp,
-        weight=1.5,  # 从 2.0 降低到 1.5
-        params={"command_name": "base_velocity", "std": 0.5},
-    )
-    
-    track_ang_vel_z_exp = RewTerm(
-        func=mdp.track_ang_vel_z_exp,
-        weight=1.0,  # 从 1.5 降低到 1.0
-        params={"command_name": "base_velocity", "std": 0.5},
-    )
-    
-    # === 稳定性奖励 ===
+    # === 稳定性惩罚（降低权重，允许动态响应）===
     stand_still_xy = RewTerm(
         func=penalize_horizontal_velocity,
-        weight=2.0,  # 保持不变
+        weight=0.5,  # 降低，允许姿态变化时的轻微移动
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
     
@@ -457,10 +537,29 @@ class RewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
     
+    # === 脚部接触奖励 ===
+    # 奖励双脚着地（稳定站立）
     feet_contact = RewTerm(
         func=both_feet_contact,
-        weight=1.0,  # 从 1.5 降低到 1.0
+        weight=2.0,  # 增加权重鼓励双脚着地
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["left_ankle_roll_link", "right_ankle_roll_link"])},
+    )
+    
+    # 严厉惩罚双脚同时离地（禁止跳跃）
+    no_jump_penalty = RewTerm(
+        func=penalize_air_time,
+        weight=1.0,  # 函数内部已有-5.0惩罚
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["left_ankle_roll_link", "right_ankle_roll_link"])},
+    )
+    
+    # 奖励受冲击时单脚迈步恢复平衡
+    step_recovery = RewTerm(
+        func=reward_single_foot_step,
+        weight=1.0,  # 鼓励迈步恢复
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]),
+            "asset_cfg": SceneEntityCfg("robot"),
+        },
     )
     
     # === 关键：解决抖动的惩罚 ===
@@ -471,17 +570,17 @@ class RewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
     
-    # === 关节约束 ===
-    # 腰部保持在默认位置，避免不必要的摆动
+    # === 关节约束（降低权重，允许姿态变化）===
+    # 腰部可以适度运动来实现俯仰变化
     waist_penalty = RewTerm(
         func=penalize_waist_motion,
-        weight=2.0,  # 函数返回负值，权重为正，相乘得负惩罚
+        weight=0.5,  # 大幅降低，允许腰部运动实现姿态
         params={"asset_cfg": SceneEntityCfg("robot"), "waist_indices": [12, 13, 14]},
     )
     
     arm_penalty = RewTerm(
         func=penalize_arm_motion,
-        weight=1.5,  # 函数返回负值，权重为正，相乘得负惩罚
+        weight=1.0,  # 略微降低
         params={"asset_cfg": SceneEntityCfg("robot"), "arm_indices": list(range(15, 29))},
     )
     
@@ -511,7 +610,7 @@ class TerminationsCfg:
     
     bad_orientation = DoneTerm(
         func=mdp.bad_orientation,
-        params={"limit_angle": 0.8},  # 约45度
+        params={"limit_angle": 1.2},  # 从0.8增加到1.2(约70度)，允许更大倾斜
     )
 
 
