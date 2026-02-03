@@ -88,37 +88,37 @@ Currently supports Unitree **Go2**, **H1** and **G1-29dof** robots.
   
   - 查看训练结果
   ```bash
-  
-# 训练效果查看
+    
+  # 训练效果查看
 
-pip install tensorflow
-# 进入训练策略的文件夹,找到当前训练结果文件夹
+  pip install tensorflow
+  # 进入训练策略的文件夹,找到当前训练结果文件夹
 
-  RL/unitree_rl_gym/logs/ustc1
+    RL/unitree_rl_gym/logs/ustc1
 
-# 在终端输入:
-  tensorboard --logdir=path  
+  # 在终端输入:
+    tensorboard --logdir=path  
 
-#同时查看历史训练情况
+  #同时查看历史训练情况
 
- tensorboard --logdir logs/rsl_rl/unitree_g1_29dof_velocity    
+  tensorboard --logdir logs/rsl_rl/unitree_g1_29dof_velocity    
 
- tensorboard --logdir logs文件夹地址  
+  tensorboard --logdir logs文件夹地址  
 
-# 如果训练跑在 服务器 上，可以用端口转发：
+  # 如果训练跑在 服务器 上，可以用端口转发：
 
-  ssh -L 6006:localhost:6006 user@server
-  tensorboard --logdir runs --port 6006
-
-
-  # 然后在本地浏览器打开 http://localhost:6006。
-
-  # 如果多个实验，可以用：
-
-  tensorboard --logdir_spec run1:runs/exp1,run2:runs/exp2
+    ssh -L 6006:localhost:6006 user@server
+    tensorboard --logdir runs --port 6006
 
 
-    在同一个界面对比实验。
+    # 然后在本地浏览器打开 http://localhost:6006。
+
+    # 如果多个实验，可以用：
+
+    tensorboard --logdir_spec run1:runs/exp1,run2:runs/exp2
+
+
+      在同一个界面对比实验。
 
 
   ```
