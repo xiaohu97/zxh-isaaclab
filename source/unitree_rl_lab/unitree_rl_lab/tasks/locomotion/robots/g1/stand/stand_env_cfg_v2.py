@@ -467,7 +467,7 @@ class RewardsCfg:
     # 惩罚高速关节运动 - 鼓励平缓控制
     joint_velocity_penalty = RewTerm(
         func=penalize_joint_velocity,
-        weight=-0.5,  # 新增强的惩罚
+        weight=0.5,  # 函数返回负值，权重为正，相乘得负惩罚
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
     
@@ -475,13 +475,13 @@ class RewardsCfg:
     # 腰部保持在默认位置，避免不必要的摆动
     waist_penalty = RewTerm(
         func=penalize_waist_motion,
-        weight=-2.0,  # 从 -3.0 降低到 -2.0
+        weight=2.0,  # 函数返回负值，权重为正，相乘得负惩罚
         params={"asset_cfg": SceneEntityCfg("robot"), "waist_indices": [12, 13, 14]},
     )
     
     arm_penalty = RewTerm(
         func=penalize_arm_motion,
-        weight=-1.5,  # 从 -2.0 降低到 -1.5
+        weight=1.5,  # 函数返回负值，权重为正，相乘得负惩罚
         params={"asset_cfg": SceneEntityCfg("robot"), "arm_indices": list(range(15, 29))},
     )
     
