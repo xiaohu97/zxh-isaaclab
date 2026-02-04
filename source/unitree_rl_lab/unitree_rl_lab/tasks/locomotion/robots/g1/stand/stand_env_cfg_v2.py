@@ -107,11 +107,11 @@ def track_height_command(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> t
 
 
 def track_pitch_command(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """根据速度命令控制俯仰角(pitch)
+    """根据速度命令控制俯仰角(pitch)和横滚角(roll)
     
-    前推摇杆(正vx): 身体前倾(正pitch)
-    后拉摇杆(负vx): 身体后仰(负pitch)
-    左右摇杆(vy): 身体左右倾斜(roll)
+    摇杆映射（避免与高度控制冲突）：
+    - ang_vel_z (旋转摇杆): 控制俯仰角(pitch) - 正值前倾，负值后仰
+    - lin_vel_y (左右摇杆): 控制横滚角(roll) - 正值右倾，负值左倾
     """
     asset = env.scene[asset_cfg.name]
     roll, pitch, _ = euler_xyz_from_quat(asset.data.root_quat_w)
@@ -119,19 +119,19 @@ def track_pitch_command(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> to
     # 获取速度命令
     cmd_term = env.command_manager.get_term("base_velocity")
     cmd = cmd_term.command
-    lin_vel_x = cmd[:, 0]
-    lin_vel_y = cmd[:, 1]
+    lin_vel_y = cmd[:, 1]   # 左右摇杆 -> 横滚
+    ang_vel_z = cmd[:, 2]   # 旋转摇杆 -> 俯仰
     
-    # 目标俯仰角: 前推时前倾，后拉时后仰
-    # vx=1.0 -> pitch=0.3rad(约17度)，vx=-1.0 -> pitch=-0.2rad(约-11度)
-    vx_norm = torch.clamp(lin_vel_x, -1.0, 1.0)
-    target_pitch = 0.25 * vx_norm  # 大幅俯仰变化
-    target_pitch = torch.clamp(target_pitch, -0.25, 0.35)  # 限制范围
+    # 目标俯仰角: 使用旋转摇杆控制
+    # ang_vel_z > 0 -> 前倾(正pitch)，ang_vel_z < 0 -> 后仰(负pitch)
+    ang_z_norm = torch.clamp(ang_vel_z, -1.0, 1.0)
+    target_pitch = 0.30 * ang_z_norm  # 大幅俯仰变化 (约17度)
+    target_pitch = torch.clamp(target_pitch, -0.35, 0.35)  # 限制范围
     
-    # 目标横滚角: 左推时左倾，右推时右倾
+    # 目标横滚角: 使用左右摇杆控制
     vy_norm = torch.clamp(lin_vel_y, -1.0, 1.0)
-    target_roll = 0.15 * vy_norm  # 适度横滚变化
-    target_roll = torch.clamp(target_roll, -0.2, 0.2)
+    target_roll = 0.20 * vy_norm  # 适度横滚变化 (约11度)
+    target_roll = torch.clamp(target_roll, -0.25, 0.25)
     
     # 计算误差
     pitch_error = torch.abs(target_pitch - pitch)
