@@ -589,7 +589,7 @@ class RewardsCfg:
     dof_torques_l2 = RewTerm(func=mdp.joint_torques_l2, weight=-0.0005)  # 增强到 -0.0005
     
     # 惩罚动作变化率 - 这是抑制抖动的最重要参数！
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.05)  # 从 -0.01 增强到 -0.05
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.2)  # 从 -0.01 增强到 -0.05
     
     # 惩罚加速度 - 平缓运动
     dof_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-1e-6)  # 增强到 -1e-6
