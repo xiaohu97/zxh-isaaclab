@@ -84,6 +84,8 @@ Currently supports Unitree **Go2**, **H1** and **G1-29dof** robots.
     ./unitree_rl_lab.sh -p --task Unitree-G1-29dof-Velocity # support for autocomplete task-name
     # same as
     python scripts/rsl_rl/play.py --task Unitree-G1-29dof-Velocity
+
+    ./unitree_rl_lab.sh -p --task Unitree-G1-29dof-Velocity --load_run "2026-04-30_17-41-04" --checkpoint "model_1500.pt"
     ```
   
   - 查看训练结果
