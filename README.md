@@ -74,7 +74,7 @@ Currently supports Unitree **Go2**, **H1** and **G1-29dof** robots.
 
     ```bash
     ./unitree_rl_lab.sh -t --task Unitree-G1-29dof-Velocity # support for autocomplete task-name
-    ./unitree_rl_lab.sh -t --task Unitree-G1-29dof-Stand --headless
+    ./unitree_rl_lab.sh -t --task Unitree-G1-29dof-Stand-v2 --headless
     # same as
     python scripts/rsl_rl/train.py --headless --task Unitree-G1-29dof-Velocity
     ```

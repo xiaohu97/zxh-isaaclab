@@ -144,6 +144,8 @@ def main():
         for range_name, range_val in detail['ranges'].items():
             if range_val is not None:
                 print(f"      {range_name}: {range_val}")
+    if 'base_velocity' in cmd_info:
+        print("  ✅ 检测到 base_velocity：适用于 Stand-v2/Velocity 的部署兼容命令")
     
     # 检查关键问题
     print("\n" + "=" * 60)
@@ -151,10 +153,6 @@ def main():
     print("=" * 60)
     
     issues = []
-    
-    # 检查命令类型
-    if 'base_velocity' in cmd_info and 'base_posture' not in cmd_info:
-        issues.append("命令类型为 base_velocity (速度命令)，如果训练的是站立策略 (base_posture)，需要修改 deploy.yaml")
     
     # 检查观测中的命令引用
     for obs_name, obs_detail in obs_info['details'].items():
@@ -182,10 +180,10 @@ def main():
   3. 动作维度是否与关节数量匹配
   4. 关节顺序是否与 joint_ids_map 一致
   
-  对于站立策略，需要:
-  - 将 commands 从 base_velocity 改为 base_posture
-  - 修改 velocity_commands 观测的 command_name 为 base_posture
-  - 或者在部署代码中实现 base_posture 命令的生成
+  对于 G1 Stand-v2 策略:
+  - 使用 base_velocity 命令是预期配置，便于复用现有部署输入
+  - velocity_commands 观测的 command_name 应指向已定义命令，通常为 base_velocity
+  - 如果模型输入维度不匹配，优先检查 deploy.yaml 的 observations/actions 导出配置
 """)
 
 
