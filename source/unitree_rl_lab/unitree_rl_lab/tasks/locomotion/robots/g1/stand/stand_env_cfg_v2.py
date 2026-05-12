@@ -106,15 +106,24 @@ def track_height_command(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> t
     return reward
 
 
+def _get_tracked_body_roll_pitch(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> tuple[torch.Tensor, torch.Tensor]:
+    """获取被跟踪 body 的 roll/pitch。用于 torso_link 姿态控制。"""
+    asset = env.scene[asset_cfg.name]
+    body_quat_w = asset.data.body_quat_w[:, asset_cfg.body_ids]
+    if body_quat_w.ndim == 3:
+        body_quat_w = body_quat_w[:, 0, :]
+    roll, pitch, _ = euler_xyz_from_quat(body_quat_w)
+    return roll, pitch
+
+
 def track_pitch_command(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """根据速度命令控制俯仰角(pitch)和横滚角(roll)
+    """根据速度命令控制 torso_link 的俯仰角(pitch)和横滚角(roll)
     
     摇杆映射（避免与高度控制冲突）：
     - ang_vel_z (旋转摇杆): 控制俯仰角(pitch) - 正值前倾，负值后仰
     - lin_vel_y (左右摇杆): 控制横滚角(roll) - 正值右倾，负值左倾
     """
-    asset = env.scene[asset_cfg.name]
-    roll, pitch, _ = euler_xyz_from_quat(asset.data.root_quat_w)
+    roll, pitch = _get_tracked_body_roll_pitch(env, asset_cfg)
     
     # 获取速度命令
     cmd_term = env.command_manager.get_term("base_velocity")
@@ -144,18 +153,17 @@ def track_pitch_command(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> to
 
 
 def maintain_upright_posture(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """当没有命令时保持直立姿态
+    """当没有命令时保持 torso_link 直立姿态
     
     只有在速度命令接近零时才惩罚倾斜
     有命令时允许倾斜（由pitch/roll跟踪奖励控制）
     """
-    asset = env.scene[asset_cfg.name]
-    roll, pitch, _ = euler_xyz_from_quat(asset.data.root_quat_w)
+    roll, pitch = _get_tracked_body_roll_pitch(env, asset_cfg)
     
     # 获取速度命令
     cmd_term = env.command_manager.get_term("base_velocity")
     cmd = cmd_term.command
-    cmd_magnitude = torch.norm(cmd[:, :2], dim=1)  # vx, vy的幅度
+    cmd_magnitude = torch.norm(cmd[:, :3], dim=1)  # vx, vy, yaw/pitch命令的幅度
     
     # 根据命令大小调整姿态容差
     # 命令大时允许大幅倾斜，命令小时要求直立
@@ -193,8 +201,8 @@ def penalize_yaw_rate(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
 def both_feet_contact(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     """奖励双脚同时着地"""
     contact_sensor = env.scene.sensors[sensor_cfg.name]
-    forces = contact_sensor.data.net_forces_w_history[:, 0, :, 2]
-    in_contact = forces > 1.0
+    forces = contact_sensor.data.net_forces_w_history[:, 0, sensor_cfg.body_ids, 2]
+    in_contact = forces > 1.0  # shape: (num_envs, 2)
     both_contact = torch.all(in_contact, dim=1).float()
     return both_contact
 
@@ -206,7 +214,7 @@ def penalize_air_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> tor
     至少一只脚着地时不惩罚
     """
     contact_sensor = env.scene.sensors[sensor_cfg.name]
-    forces = contact_sensor.data.net_forces_w_history[:, 0, :, 2]
+    forces = contact_sensor.data.net_forces_w_history[:, 0, sensor_cfg.body_ids, 2]
     in_contact = forces > 1.0  # shape: (num_envs, 2)
     
     # 检查是否有任何一只脚着地
@@ -228,7 +236,7 @@ def reward_single_foot_step(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg,
     contact_sensor = env.scene.sensors[sensor_cfg.name]
     asset = env.scene[asset_cfg.name]
     
-    forces = contact_sensor.data.net_forces_w_history[:, 0, :, 2]
+    forces = contact_sensor.data.net_forces_w_history[:, 0, sensor_cfg.body_ids, 2]
     in_contact = forces > 1.0  # shape: (num_envs, 2)
     
     # 检查单脚着地状态
@@ -513,15 +521,15 @@ class RewardsCfg:
     # 俯仰/横滚跟踪 - 根据命令改变身体姿态
     pitch_tracking = RewTerm(
         func=track_pitch_command,
-        weight=4.0,  # 高权重确保姿态响应
-        params={"asset_cfg": SceneEntityCfg("robot")},
+        weight=4.0,  # 高权重确保 torso_link 姿态响应
+        params={"asset_cfg": SceneEntityCfg("robot", body_names="torso_link")},
     )
     
     # 无命令时保持直立（低权重，不干扰姿态响应）
     posture_tracking = RewTerm(
         func=maintain_upright_posture,
         weight=1.0,
-        params={"asset_cfg": SceneEntityCfg("robot")},
+        params={"asset_cfg": SceneEntityCfg("robot", body_names="torso_link")},
     )
     
     # === 稳定性惩罚（降低权重，允许动态响应）===
