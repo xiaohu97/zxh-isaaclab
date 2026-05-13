@@ -84,14 +84,15 @@ def track_height_command(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> t
     lin_vel_x = cmd[:, 0]
     
     # 基础高度 0.78m
-    # 前推摇杆时降低高度（蹲下），最低到0.55m
-    # 后拉摇杆时保持或略提高高度，最高到0.85m
-    # 使用更大的系数实现大幅高度变化
+    # 前推摇杆时降低高度（蹲下），最低到0.28m
+    # 后拉摇杆时略提高高度，最高到0.85m
     vx_norm = torch.clamp(lin_vel_x, -1.0, 1.0)
-    # 前推(正vx)时降低高度: 0.78 - 0.20*vx = 最低0.58m
-    # 后拉(负vx)时提高高度: 0.78 + 0.07*(-vx) = 最高0.85m
-    target_h = 0.78 - 0.20 * vx_norm  # 大幅高度变化
-    target_h = torch.clamp(target_h, 0.55, 0.85)
+    target_h = torch.where(
+        vx_norm >= 0.0,
+        0.78 - 0.50 * vx_norm,  # 前推: vx=1.0 -> 0.28m
+        0.78 - 0.07 * vx_norm,  # 后拉: vx=-1.0 -> 0.85m
+    )
+    target_h = torch.clamp(target_h, 0.28, 0.85)
     
     h_error = torch.abs(target_h - curr_h)
     reward = torch.where(
@@ -428,12 +429,12 @@ class CommandsCfg:
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.8, 1.0),  # 大范围训练，让策略学习完整高度变化
+            lin_vel_x=(-1.0, 1.0),  # 覆盖0.28m到0.85m完整高度范围
             lin_vel_y=(-0.5, 0.5),  # 左右倾斜
             ang_vel_z=(-0.5, 0.5)   # 旋转
         ),
         limit_ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
-            lin_vel_x=(-1.0, 1.5),  # 部署时的最大范围
+            lin_vel_x=(-1.0, 1.0),  # 部署时保持在训练覆盖范围内
             lin_vel_y=(-0.8, 0.8),
             ang_vel_z=(-0.8, 0.8)
         ),
