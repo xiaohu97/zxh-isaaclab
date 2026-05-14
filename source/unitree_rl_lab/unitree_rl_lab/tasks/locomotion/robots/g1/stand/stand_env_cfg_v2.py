@@ -640,8 +640,7 @@ class G1StandEnvCfg(ManagerBasedRLEnvCfg):
     terminations: TerminationsCfg = TerminationsCfg()
 
     def __post_init__(self):
-        # 增加减速步数 - 这样策略输出会被平缓化，减少抖动
-        self.decimation = 8  # 从 4 增加到 8，控制频率从 200Hz 降到 100Hz
+        self.decimation = 4  # policy step_dt = sim.dt * decimation = 0.02s
         self.episode_length_s = 20.0
         
         self.sim.dt = 0.005
