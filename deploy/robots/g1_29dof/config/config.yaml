@@ -117,41 +117,41 @@ FSM:
     transitions:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
-    fps: 30
+    fps: 50
     motion_file: config/policy/mimic/pico_dun/params/pico_dun.csv
     policy_dir: config/policy/mimic/pico_dun/
   Mimic_Pico_Taitui:
     transitions:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
-    fps: 30
+    fps: 50
     motion_file: config/policy/mimic/pico_taitui/params/pico_taitui.csv
     policy_dir: config/policy/mimic/pico_taitui/
   Mimic_Pico_Houtaitui:
     transitions:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
-    fps: 30
+    fps: 50
     motion_file: config/policy/mimic/pico_houtaitui/params/pico_houtaitui.csv
     policy_dir: config/policy/mimic/pico_houtaitui/
   Mimic_Pico_Taitui2:
     transitions:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
-    fps: 30
+    fps: 50
     motion_file: config/policy/mimic/pico_taitui2/params/pico_taitui2.csv
     policy_dir: config/policy/mimic/pico_taitui2/
   Mimic_Dun:
     transitions:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
-    fps: 30
+    fps: 50
     motion_file: config/policy/mimic/dun/params/dun.csv
     policy_dir: config/policy/mimic/dun/
   Mimic_Neutral_Walk_Forward:
     transitions:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
-    fps: 30
+    fps: 50
     motion_file: config/policy/mimic/neutral_walk_forward/params/neutral_walk_forward.csv
     policy_dir: config/policy/mimic/neutral_walk_forward/
