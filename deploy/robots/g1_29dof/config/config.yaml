@@ -28,6 +28,18 @@ FSM:
       id: 105
       type: Mimic
 
+    Mimic_Pico_Taitui2:
+      id: 106
+      type: Mimic
+
+    Mimic_Dun:
+      id: 107
+      type: Mimic
+
+    Mimic_Neutral_Walk_Forward:
+      id: 108
+      type: Mimic
+
   Passive:
     transitions: 
       FixStand: LT + up.on_pressed
@@ -81,6 +93,9 @@ FSM:
       Mimic_Pico_Dun: LT(2s) + right.on_pressed
       Mimic_Pico_Taitui: LT(2s) + up.on_pressed
       Mimic_Pico_Houtaitui: LT(2s) + Y.on_pressed
+      Mimic_Pico_Taitui2: LT(2s) + A.on_pressed
+      Mimic_Dun: LT(2s) + X.on_pressed
+      Mimic_Neutral_Walk_Forward: LT(2s) + LB.on_pressed
 
     policy_dir: config/policy/velocity
     # policy_dir: ../../../logs/rsl_rl/unitree_g1_29dof_velocity
@@ -119,3 +134,24 @@ FSM:
     fps: 30
     motion_file: config/policy/mimic/pico_houtaitui/params/pico_houtaitui.csv
     policy_dir: config/policy/mimic/pico_houtaitui/
+  Mimic_Pico_Taitui2:
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    fps: 30
+    motion_file: config/policy/mimic/pico_taitui2/params/pico_taitui2.csv
+    policy_dir: config/policy/mimic/pico_taitui2/
+  Mimic_Dun:
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    fps: 30
+    motion_file: config/policy/mimic/dun/params/dun.csv
+    policy_dir: config/policy/mimic/dun/
+  Mimic_Neutral_Walk_Forward:
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    fps: 30
+    motion_file: config/policy/mimic/neutral_walk_forward/params/neutral_walk_forward.csv
+    policy_dir: config/policy/mimic/neutral_walk_forward/

@@ -181,6 +181,9 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 # Mimic_Pico_Dun: LT(2s) + right.on_pressed
 # Mimic_Pico_Taitui: LT(2s) + up.on_pressed
 # Mimic_Pico_Houtaitui: LT(2s) + Y.on_pressed
+# Mimic_Pico_Taitui2: LT(2s) + A.on_pressed
+# Mimic_Dun: LT(2s) + X.on_pressed
+# Mimic_Neutral_Walk_Forward: LT(2s) + LB.on_pressed
 ```
 
 ### Sim2Real
@@ -204,6 +207,9 @@ cd unitree_rl_lab/deploy/robots/g1_27dof/build
 # Mimic_Pico_Dun: LT(2s) + right.on_pressed
 # Mimic_Pico_Taitui: LT(2s) + up.on_pressed
 # Mimic_Pico_Houtaitui: LT(2s) + Y.on_pressed
+# Mimic_Pico_Taitui2: LT(2s) + A.on_pressed
+# Mimic_Dun: LT(2s) + X.on_pressed
+# Mimic_Neutral_Walk_Forward: LT(2s) + LB.on_pressed
 ```
 
 ## Acknowledgements
