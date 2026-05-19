@@ -207,7 +207,7 @@ cd unitree_rl_lab/deploy/robots/g1_27dof/build
 # Mimic_Pico_Dun: LT(2s) + right.on_pressed   效果可以
 # Mimic_Pico_Taitui: LT(2s) + up.on_pressed   效果可以
 # Mimic_Pico_Houtaitui: LT(2s) + Y.on_pressed 重训了一版
-# Mimic_Pico_Taitui2: LT(2s) + A.on_pressed   脚不离地
+# Mimic_Pico_Taitui2: LT(2s) + A.on_pressed   更新csv重新训练
 # Mimic_Dun: LT(2s) + X.on_pressed            效果可以
 # Mimic_Neutral_Walk_Forward: LT(2s) + LB.on_pressed  
 ```
