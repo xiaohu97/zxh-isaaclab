@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import os
 
+from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.utils import configclass
 
 import unitree_rl_lab.tasks.mimic.mdp as mdp
 from unitree_rl_lab.tasks.mimic.robots.g1_29dof.dance_102.tracking_env_cfg import (
+    RewardsCfg as BaseRewardsCfg,
     VELOCITY_RANGE,
     RobotEnvCfg as BaseRobotEnvCfg,
 )
@@ -51,8 +53,20 @@ class CommandsCfg:
 
 
 @configclass
+class RewardsCfg(BaseRewardsCfg):
+    """Extra rewards for pico_houtaitui."""
+
+    motion_right_ankle_pos = RewTerm(
+        func=mdp.motion_relative_body_position_error_exp,
+        weight=4.0,
+        params={"command_name": "motion", "std": 0.08, "body_names": ["right_ankle_roll_link"]},
+    )
+
+
+@configclass
 class RobotEnvCfg(BaseRobotEnvCfg):
     commands: CommandsCfg = CommandsCfg()
+    rewards: RewardsCfg = RewardsCfg()
 
 
 class RobotPlayEnvCfg(RobotEnvCfg):
