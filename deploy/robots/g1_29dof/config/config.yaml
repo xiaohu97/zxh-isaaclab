@@ -16,6 +16,18 @@ FSM:
       id: 102
       type: Mimic
 
+    Mimic_Pico_Dun:
+      id: 103
+      type: Mimic
+
+    Mimic_Pico_Taitui:
+      id: 104
+      type: Mimic
+
+    Mimic_Pico_Houtaitui:
+      id: 105
+      type: Mimic
+
   Passive:
     transitions: 
       FixStand: LT + up.on_pressed
@@ -66,6 +78,9 @@ FSM:
       Passive: LT + B.on_pressed
       Mimic_Dance_102: LT(2s) + down.on_pressed
       Mimic_Gangnam_Style: LT(2s) + left.on_pressed
+      Mimic_Pico_Dun: LT(2s) + right.on_pressed
+      Mimic_Pico_Taitui: LT(2s) + up.on_pressed
+      Mimic_Pico_Houtaitui: LT(2s) + Y.on_pressed
 
     policy_dir: config/policy/velocity
     # policy_dir: ../../../logs/rsl_rl/unitree_g1_29dof_velocity
@@ -83,4 +98,24 @@ FSM:
     fps: 60
     motion_file: config/policy/mimic/gangnam_style/params/G1_gangnam_style_V01.bvh_60hz.csv
     policy_dir: config/policy/mimic/gangnam_style/
-
+  Mimic_Pico_Dun:
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    fps: 30
+    motion_file: config/policy/mimic/pico_dun/params/pico_dun.csv
+    policy_dir: config/policy/mimic/pico_dun/
+  Mimic_Pico_Taitui:
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    fps: 30
+    motion_file: config/policy/mimic/pico_taitui/params/pico_taitui.csv
+    policy_dir: config/policy/mimic/pico_taitui/
+  Mimic_Pico_Houtaitui:
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    fps: 30
+    motion_file: config/policy/mimic/pico_houtaitui/params/pico_houtaitui.csv
+    policy_dir: config/policy/mimic/pico_houtaitui/

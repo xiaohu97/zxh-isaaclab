@@ -178,6 +178,9 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 # Passive: LT + B.on_pressed
 # Mimic_Dance_102: LT(2s) + down.on_pressed
 # Mimic_Gangnam_Style: LT(2s) + left.on_pressed
+# Mimic_Pico_Dun: LT(2s) + right.on_pressed
+# Mimic_Pico_Taitui: LT(2s) + up.on_pressed
+# Mimic_Pico_Houtaitui: LT(2s) + Y.on_pressed
 ```
 
 ### Sim2Real
@@ -198,6 +201,9 @@ cd unitree_rl_lab/deploy/robots/g1_27dof/build
 # Passive: LT + B.on_pressed
 # Mimic_Dance_102: LT(2s) + down.on_pressed
 # Mimic_Gangnam_Style: LT(2s) + left.on_pressed
+# Mimic_Pico_Dun: LT(2s) + right.on_pressed
+# Mimic_Pico_Taitui: LT(2s) + up.on_pressed
+# Mimic_Pico_Houtaitui: LT(2s) + Y.on_pressed
 ```
 
 ## Acknowledgements
