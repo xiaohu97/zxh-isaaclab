@@ -152,6 +152,6 @@ FSM:
     transitions:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
-    fps: 50
+    fps: 60
     motion_file: config/policy/mimic/neutral_walk_forward/params/neutral_walk_forward.csv
     policy_dir: config/policy/mimic/neutral_walk_forward/
