@@ -176,14 +176,14 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 # 3. Press [R1 + X] to run the policy.
 # 4. Click the mujoco window, and then press 9 to disable the elastic band.
 # Passive: LT + B.on_pressed
-# Mimic_Dance_102: LT(2s) + down.on_pressed
-# Mimic_Gangnam_Style: LT(2s) + left.on_pressed
-# Mimic_Pico_Dun: LT(2s) + right.on_pressed
-# Mimic_Pico_Taitui: LT(2s) + up.on_pressed
-# Mimic_Pico_Houtaitui: LT(2s) + Y.on_pressed
-# Mimic_Pico_Taitui2: LT(2s) + A.on_pressed
-# Mimic_Dun: LT(2s) + X.on_pressed
-# Mimic_Neutral_Walk_Forward: LT(2s) + LB.on_pressed
+# Mimic_Dance_102: LT(2s) + up.on_pressed
+# Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed
+# Mimic_Pico_Dun: LT(2s) + down.on_pressed
+# Mimic_Pico_Taitui: LT(2s) + X.on_pressed
+# Mimic_Pico_Houtaitui: LT(2s) + A.on_pressed
+# Mimic_Pico_Taitui2: LT(2s) + right.on_pressed
+# Mimic_Dun: LT(2s) + LB.on_pressed
+# Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
 ```
 
 ### Sim2Real
@@ -202,14 +202,14 @@ cd unitree_rl_lab/deploy/robots/g1_27dof/build
 # 3. Press [R1 + X] to run the policy.
 # 4. Click the mujoco window, and then press 9 to disable the elastic band.
 # Passive: LT + B.on_pressed
-# Mimic_Dance_102: LT(2s) + down.on_pressed
-# Mimic_Gangnam_Style: LT(2s) + left.on_pressed
-# Mimic_Pico_Dun: LT(2s) + right.on_pressed   效果可以
-# Mimic_Pico_Taitui: LT(2s) + up.on_pressed   效果可以
-# Mimic_Pico_Houtaitui: LT(2s) + Y.on_pressed 重训了一版
-# Mimic_Pico_Taitui2: LT(2s) + A.on_pressed   更新csv重新训练
-# Mimic_Dun: LT(2s) + X.on_pressed            效果可以
-# Mimic_Neutral_Walk_Forward: LT(2s) + LB.on_pressed  
+# Mimic_Dance_102: LT(2s) + up.on_pressed
+# Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed
+# Mimic_Pico_Dun: LT(2s) + down.on_pressed    效果可以
+# Mimic_Pico_Taitui: LT(2s) + X.on_pressed    效果可以
+# Mimic_Pico_Houtaitui: LT(2s) + A.on_pressed 
+# Mimic_Pico_Taitui2: LT(2s) + right.on_pressed 
+# Mimic_Dun: LT(2s) + LB.on_pressed           效果可以
+# Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
 ```
 
 ## Acknowledgements
