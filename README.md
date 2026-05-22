@@ -44,10 +44,10 @@ Currently supports Unitree **Go2**, **H1** and **G1-29dof** robots.
     ```bash
     git clone https://huggingface.co/datasets/unitreerobotics/unitree_model
     ```
-  - Config `UNITREE_MODEL_DIR` in `source/unitree_rl_lab/unitree_rl_lab/assets/robots/unitree.py`.
+  - Set `UNITREE_MODEL_DIR` in your shell or conda activation script.
 
     ```bash
-    UNITREE_MODEL_DIR = "</home/user/projects/unitree_usd>"
+    export UNITREE_MODEL_DIR="/home/user/projects/unitree_model"
     ```
 
   *Method 2: Using URDF Files [Recommended]* Only for Isaacsim >= 5.0
@@ -55,9 +55,17 @@ Currently supports Unitree **Go2**, **H1** and **G1-29dof** robots.
       ```
       git clone https://github.com/unitreerobotics/unitree_ros.git
       ```
-  - Config `UNITREE_ROS_DIR` in `source/unitree_rl_lab/unitree_rl_lab/assets/robots/unitree.py`.
+  - Set `UNITREE_ROS_DIR` in your shell or conda activation script.
     ```bash
-    UNITREE_ROS_DIR = "</home/user/projects/unitree_ros/unitree_ros>"
+    export UNITREE_ROS_DIR="/home/user/projects/unitree_ros"
+    ```
+  - To keep machine-specific paths out of Git, you can put them in your conda environment activation script:
+    ```bash
+    mkdir -p "$CONDA_PREFIX/etc/conda/activate.d"
+    cat > "$CONDA_PREFIX/etc/conda/activate.d/unitree_paths.sh" <<'EOF'
+    export UNITREE_ROS_DIR="/home/user/projects/unitree_ros"
+    export UNITREE_MODEL_DIR="/home/user/projects/unitree_model"
+    EOF
     ```
   - [Optional]: change *robot_cfg.spawn* if you want to use urdf files
 
@@ -206,7 +214,7 @@ cd unitree_rl_lab/deploy/robots/g1_27dof/build
 # Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed      改变质量脚不稳
 # Mimic_Pico_Dun: LT(2s) + down.on_pressed    效果可以
 # Mimic_Pico_Taitui: LT(2s) + X.on_pressed    效果可以 改变质量脚不稳
-# Mimic_Pico_Houtaitui: LT(2s) + A.on_pressed 脚不稳
+# Mimic_Pico_Houtaitui: LT(2s) + A.on_pressed 脚抬的不高
 # Mimic_Pico_Taitui2: LT(2s) + right.on_pressed   改变质量效果可以
 # Mimic_Dun: LT(2s) + LB.on_pressed           效果可以
 # Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
