@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 
 from isaaclab.managers import EventTermCfg as EventTerm
+from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
@@ -12,6 +13,7 @@ from unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg import BasePPORunnerCfg
 from unitree_rl_lab.tasks.mimic.robots.g1_29dof.dance_102.tracking_env_cfg import (
     VELOCITY_RANGE,
     EventCfg as BaseEventCfg,
+    RewardsCfg as BaseRewardsCfg,
     TerminationsCfg as BaseTerminationsCfg,
     RobotEnvCfg as BaseRobotEnvCfg,
 )
@@ -82,17 +84,17 @@ class TerminationsCfg(BaseTerminationsCfg):
 
     anchor_pos = DoneTerm(
         func=mdp.bad_anchor_pos_z_only,
-        params={"command_name": "motion", "threshold": 0.45},
+        params={"command_name": "motion", "threshold": 0.8},
     )
     anchor_ori = DoneTerm(
         func=mdp.bad_anchor_ori,
-        params={"asset_cfg": SceneEntityCfg("robot"), "command_name": "motion", "threshold": 1.2},
+        params={"asset_cfg": SceneEntityCfg("robot"), "command_name": "motion", "threshold": 1.5},
     )
     ee_body_pos = DoneTerm(
         func=mdp.bad_motion_body_pos_z_only,
         params={
             "command_name": "motion",
-            "threshold": 0.8,
+            "threshold": 1.2,
             "body_names": [
                 "left_ankle_roll_link",
                 "right_ankle_roll_link",
@@ -102,9 +104,17 @@ class TerminationsCfg(BaseTerminationsCfg):
 
 
 @configclass
+class RewardsCfg(BaseRewardsCfg):
+    """Softer regularization for jump warmup."""
+
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-5e-2)
+
+
+@configclass
 class RobotEnvCfg(BaseRobotEnvCfg):
     commands: CommandsCfg = CommandsCfg()
     events: EventCfg = EventCfg()
+    rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
 
 
