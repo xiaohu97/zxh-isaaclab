@@ -282,7 +282,7 @@ class TerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     anchor_pos = DoneTerm(
         func=mdp.bad_anchor_pos_z_only,
-        params={"command_name": "motion", "threshold": 0.25},
+        params={"command_name": "motion", "threshold": 0.55},
     )
     anchor_ori = DoneTerm(
         func=mdp.bad_anchor_ori,
@@ -292,7 +292,7 @@ class TerminationsCfg:
         func=mdp.bad_motion_body_pos_z_only,
         params={
             "command_name": "motion",
-            "threshold": 0.25,
+            "threshold": 0.55,
             "body_names": [
                 "left_ankle_roll_link",
                 "right_ankle_roll_link",
