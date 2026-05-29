@@ -305,6 +305,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
             np.savez(args_cli.output_name, **log)
             print("[INFO]: Motion npz file saved to", args_cli.output_name)
+            break
 
 
 def main():
