@@ -1,7 +1,7 @@
 import gymnasium as gym
 
 gym.register(
-    id="Unitree-G1-29dof-Mimic-Pico-Taitui2",
+    id="Unitree-G1-29dof-Mimic-Pico-Righttaitui",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={

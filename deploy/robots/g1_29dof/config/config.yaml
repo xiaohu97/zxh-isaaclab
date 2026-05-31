@@ -28,7 +28,7 @@ FSM:
       id: 105
       type: Mimic
 
-    Mimic_Pico_Taitui2:
+    Mimic_Pico_Righttaitui:
       id: 106
       type: Mimic
 
@@ -101,7 +101,7 @@ FSM:
       Mimic_Pico_Dun: LT(2s) + down.on_pressed
       Mimic_Pico_Taitui: LT(2s) + X.on_pressed
       Mimic_Pico_Houtaitui: LT(2s) + A.on_pressed
-      Mimic_Pico_Taitui2: LT(2s) + right.on_pressed
+      Mimic_Pico_Righttaitui: LT(2s) + right.on_pressed
       Mimic_Dun: LT(2s) + LB.on_pressed
       Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
       Mimic_Jump: LT(2s) + RB.on_pressed
@@ -151,13 +151,13 @@ FSM:
     fps: 50
     motion_file: config/policy/mimic/pico_houtaitui/params/pico_houtaitui.csv
     policy_dir: config/policy/mimic/pico_houtaitui/
-  Mimic_Pico_Taitui2:
+  Mimic_Pico_Righttaitui:
     transitions:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
     fps: 50
-    motion_file: config/policy/mimic/pico_taitui2/params/pico_taitui2.csv
-    policy_dir: config/policy/mimic/pico_taitui2/
+    motion_file: config/policy/mimic/pico_righttaitui/params/pico_righttaitui.csv
+    policy_dir: config/policy/mimic/pico_righttaitui/
   Mimic_Dun:
     transitions:
       Passive: LT + B.on_pressed

@@ -17,7 +17,7 @@ class CommandsCfg:
 
     motion = mdp.MotionCommandCfg(
         asset_name="robot",
-        motion_file=f"{os.path.dirname(__file__)}/pico_taitui2.npz",
+        motion_file=f"{os.path.dirname(__file__)}/pico_righttaitui.npz",
         anchor_body_name="torso_link",
         resampling_time_range=(1.0e9, 1.0e9),
         debug_vis=True,
