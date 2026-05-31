@@ -30,6 +30,12 @@ parser.add_argument(
     help="Use the pre-trained checkpoint from Nucleus.",
 )
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
+parser.add_argument(
+    "--measure_root_displacement",
+    action="store_true",
+    default=False,
+    help="Measure the policy root displacement over one nominal mimic motion.",
+)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -75,6 +81,12 @@ def main():
         entry_point_key="play_env_cfg_entry_point",
     )
     agent_cfg: RslRlOnPolicyRunnerCfg = cli_args.parse_rsl_rl_cfg(args_cli.task, args_cli)
+
+    if args_cli.measure_root_displacement:
+        env_cfg.scene.num_envs = 1
+        for event_name in ("physics_material", "add_joint_default_pos", "base_com", "push_robot"):
+            if hasattr(env_cfg.events, event_name):
+                setattr(env_cfg.events, event_name, None)
 
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
@@ -153,6 +165,37 @@ def main():
 
     dt = env.unwrapped.step_dt
 
+    measurement = None
+    if args_cli.measure_root_displacement:
+        command = env.unwrapped.command_manager.get_term("motion")
+        robot = command.robot
+        command.time_steps.fill_(-1)
+        command._update_command()
+        robot.write_joint_state_to_sim(command.joint_pos, command.joint_vel)
+        robot.write_root_state_to_sim(
+            torch.cat(
+                [
+                    command.body_pos_w[:, 0],
+                    command.body_quat_w[:, 0],
+                    command.body_lin_vel_w[:, 0],
+                    command.body_ang_vel_w[:, 0],
+                ],
+                dim=-1,
+            )
+        )
+        env.unwrapped.scene.write_data_to_sim()
+        env.unwrapped.sim.forward()
+        env.unwrapped.scene.update(dt=env.unwrapped.physics_dt)
+        measurement = {
+            "command": command,
+            "robot": robot,
+            "steps": command.motion.time_step_total - 1,
+            "start": command.body_pos_w[0, 0].clone(),
+            "reference_start": command.motion.body_pos_w[0, 0].clone(),
+            "reference_end": command.motion.body_pos_w[-1, 0].clone(),
+        }
+        print(f"[INFO] Measuring nominal root displacement over {measurement['steps']} policy steps.")
+
     # reset environment
     obs = env.get_observations()
     if version("rsl-rl-lib").startswith("2.3."):
@@ -166,9 +209,38 @@ def main():
             # agent stepping
             actions = policy(obs)
             # env stepping
-            obs, _, _, _ = env.step(actions)
-        if args_cli.video:
+            obs, _, dones, _ = env.step(actions)
+        if args_cli.video or measurement is not None:
             timestep += 1
+        if measurement is not None:
+            if dones[0]:
+                termination_manager = env.unwrapped.termination_manager
+                termination_reasons = [
+                    name for name in termination_manager.active_terms if termination_manager.get_term(name)[0]
+                ]
+                print(
+                    f"[ERROR] Measurement rollout terminated early at policy step {timestep}: "
+                    f"{termination_reasons}"
+                )
+                break
+            if timestep == measurement["steps"]:
+                end = measurement["robot"].data.root_pos_w[0].clone()
+                displacement = end - measurement["start"]
+                reference_displacement = measurement["reference_end"] - measurement["reference_start"]
+                print("[RESULT] Root displacement measurement")
+                print(f"  policy_steps: {timestep}")
+                print(f"  duration_s: {timestep * dt:.6f}")
+                print(f"  actual_start_xyz: {measurement['start'].tolist()}")
+                print(f"  actual_end_xyz: {end.tolist()}")
+                print(f"  actual_delta_xyz: {displacement.tolist()}")
+                print(f"  actual_horizontal_displacement: {torch.linalg.norm(displacement[:2]).item():.6f}")
+                print(f"  reference_delta_xyz: {reference_displacement.tolist()}")
+                print(
+                    "  reference_horizontal_displacement: "
+                    f"{torch.linalg.norm(reference_displacement[:2]).item():.6f}"
+                )
+                break
+        if args_cli.video:
             # Exit the play loop after recording one video
             if timestep == args_cli.video_length:
                 break
