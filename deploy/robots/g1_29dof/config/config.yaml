@@ -8,7 +8,7 @@ FSM:
       id: 3
       type: RLBase
 
-    Mimic_Dance_102: # uncomment to enable
+    Mimic_Houtaitui:
       id: 101
       type: Mimic
 
@@ -42,6 +42,10 @@ FSM:
 
     Mimic_Jump:
       id: 109
+      type: Mimic
+
+    Mimic_Banyun:
+      id: 110
       type: Mimic
 
   Passive:
@@ -92,7 +96,7 @@ FSM:
   Velocity:
     transitions: 
       Passive: LT + B.on_pressed
-      Mimic_Dance_102: LT(2s) + up.on_pressed
+      Mimic_Houtaitui: LT(2s) + up.on_pressed
       Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed
       Mimic_Pico_Dun: LT(2s) + down.on_pressed
       Mimic_Pico_Taitui: LT(2s) + X.on_pressed
@@ -101,6 +105,7 @@ FSM:
       Mimic_Dun: LT(2s) + LB.on_pressed
       Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
       Mimic_Jump: LT(2s) + RB.on_pressed
+      Mimic_Banyun: LT(2s) + RT.on_pressed
 
     policy_dir: config/policy/velocity
     # policy_dir: ../../../logs/rsl_rl/unitree_g1_29dof_velocity
@@ -111,6 +116,13 @@ FSM:
     fps: 60
     motion_file: config/policy/mimic/dance_102/params/G1_Take_102.bvh_60hz.csv
     policy_dir: config/policy/mimic/dance_102/
+  Mimic_Houtaitui:
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    fps: 60
+    motion_file: config/policy/mimic/houtaitui/params/houtaitui.csv
+    policy_dir: config/policy/mimic/houtaitui/
   Mimic_Pico_Houtaitui4:
     transitions:
       Passive: LT + B.on_pressed
@@ -167,3 +179,10 @@ FSM:
     fps: 50
     motion_file: config/policy/mimic/jump/params/jump.csv
     policy_dir: config/policy/mimic/jump/
+  Mimic_Banyun:
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    fps: 60
+    motion_file: config/policy/mimic/banyun/params/banyun.csv
+    policy_dir: config/policy/mimic/banyun/
