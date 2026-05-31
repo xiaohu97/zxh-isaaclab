@@ -120,7 +120,7 @@ FSM:
     transitions:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
-    fps: 60
+    fps: 120
     motion_file: config/policy/mimic/houtaitui/params/houtaitui.csv
     policy_dir: config/policy/mimic/houtaitui/
   Mimic_Pico_Houtaitui4:
@@ -183,6 +183,6 @@ FSM:
     transitions:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
-    fps: 60
+    fps: 120
     motion_file: config/policy/mimic/banyun/params/banyun.csv
     policy_dir: config/policy/mimic/banyun/
