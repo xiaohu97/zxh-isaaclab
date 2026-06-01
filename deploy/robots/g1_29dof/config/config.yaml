@@ -48,6 +48,10 @@ FSM:
       id: 110
       type: Mimic
 
+    Mimic_Jump1:
+      id: 111
+      type: Mimic
+
   Passive:
     transitions: 
       FixStand: LT + up.on_pressed
@@ -100,7 +104,7 @@ FSM:
       Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed
       Mimic_Pico_Dun: LT(2s) + down.on_pressed
       Mimic_Pico_Taitui: LT(2s) + X.on_pressed
-      Mimic_Pico_Houtaitui: LT(2s) + A.on_pressed
+      Mimic_Jump1: LT(2s) + A.on_pressed
       Mimic_Pico_Righttaitui: LT(2s) + right.on_pressed
       Mimic_Dun: LT(2s) + LB.on_pressed
       Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
@@ -179,6 +183,13 @@ FSM:
     fps: 50
     motion_file: config/policy/mimic/jump/params/jump.csv
     policy_dir: config/policy/mimic/jump/
+  Mimic_Jump1:
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    fps: 50
+    motion_file: config/policy/mimic/jump1/params/jump1.csv
+    policy_dir: config/policy/mimic/jump1/
   Mimic_Banyun:
     transitions:
       Passive: LT + B.on_pressed

@@ -188,7 +188,7 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 # Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed
 # Mimic_Pico_Dun: LT(2s) + down.on_pressed
 # Mimic_Pico_Taitui: LT(2s) + X.on_pressed
-# Mimic_Pico_Houtaitui: LT(2s) + A.on_pressed
+# Mimic_Pico_Houtaitui: 数据不佳暂时不用
 # Mimic_Pico_Righttaitui: LT(2s) + right.on_pressed
 # Mimic_Dun: LT(2s) + LB.on_pressed
 # Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
@@ -215,10 +215,12 @@ cd unitree_rl_lab/deploy/robots/g1_27dof/build
 # Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed      改变质量脚不稳
 # Mimic_Pico_Dun: LT(2s) + down.on_pressed    效果可以
 # Mimic_Pico_Taitui: LT(2s) + X.on_pressed    效果可以 改变质量脚不稳
-# Mimic_Pico_Houtaitui: LT(2s) + A.on_pressed 脚抬的不高
+# Mimic_Pico_Houtaitui:         脚抬的不高
+# Mimic_Jump1: LT(2s) + A.on_pressed : LT(2s) + A.on_pressed   跳得远的
 # Mimic_Pico_Righttaitui: LT(2s) + right.on_pressed   改变质量效果可以
 # Mimic_Dun: LT(2s) + LB.on_pressed           效果可以
 # Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
+# Mimic_Jump:                  LT(2s) + RB.on_pressed
 # Mimic_Banyun: LT(2s) + RT.on_pressed
 ```
 
