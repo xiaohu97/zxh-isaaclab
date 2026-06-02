@@ -52,6 +52,10 @@ FSM:
       id: 111
       type: Mimic
 
+    Mimic_Jump3:
+      id: 112
+      type: Mimic
+
   Passive:
     transitions: 
       FixStand: LT + up.on_pressed
@@ -110,6 +114,7 @@ FSM:
       Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
       Mimic_Jump: LT(2s) + RB.on_pressed
       Mimic_Banyun: LT(2s) + RT.on_pressed
+      Mimic_Jump3: LT(2s) + start.on_pressed
 
     policy_dir: config/policy/velocity
     # policy_dir: ../../../logs/rsl_rl/unitree_g1_29dof_velocity
@@ -190,6 +195,13 @@ FSM:
     fps: 50
     motion_file: config/policy/mimic/jump1/params/jump1.csv
     policy_dir: config/policy/mimic/jump1/
+  Mimic_Jump3:
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    fps: 120
+    motion_file: config/policy/mimic/jump3/params/jump3.csv
+    policy_dir: config/policy/mimic/jump3/
   Mimic_Banyun:
     transitions:
       Passive: LT + B.on_pressed

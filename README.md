@@ -193,6 +193,7 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 # Mimic_Dun: LT(2s) + LB.on_pressed
 # Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
 # Mimic_Banyun: LT(2s) + RT.on_pressed
+# Mimic_Jump3: LT(2s) + start.on_pressed
 ```
 
 ### Sim2Real
@@ -222,6 +223,7 @@ cd unitree_rl_lab/deploy/robots/g1_27dof/build
 # Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
 # Mimic_Jump:                  LT(2s) + RB.on_pressed
 # Mimic_Banyun: LT(2s) + RT.on_pressed
+# Mimic_Jump3: LT(2s) + start.on_pressed
 ```
 
 ## Acknowledgements
