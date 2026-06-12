@@ -20,6 +20,16 @@ def format_value(x):
 
 
 def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir):
+    robot_cfg = getattr(getattr(env.cfg, "scene", None), "robot", None)
+    if (
+        robot_cfg is None
+        or not hasattr(robot_cfg, "joint_sdk_names")
+        or not hasattr(env, "action_manager")
+        or not hasattr(env, "observation_manager")
+    ):
+        print("[INFO] Skipping deployment configuration export for environments without Unitree SDK mappings.")
+        return
+
     asset: Articulation = env.scene["robot"]
     joint_sdk_names = env.cfg.scene.robot.joint_sdk_names
     joint_ids_map, _ = resolve_matching_names(asset.data.joint_names, joint_sdk_names, preserve_order=True)

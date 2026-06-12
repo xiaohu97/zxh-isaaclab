@@ -4,8 +4,8 @@ Script to print all the available environments in Isaac Lab.
 The script iterates over all registered environments and stores the details in a table.
 It prints the name of the environment, the entry point and the config file.
 
-All the environments are registered in the `unitree_rl_lab` extension. They start
-with `Unitree` in their name.
+All the environments are registered in the `unitree_rl_lab` extension. They use
+the `Unitree-` or `USTC-` task prefix.
 """
 
 """Launch Isaac Sim Simulator first."""
@@ -62,6 +62,9 @@ def import_packages():
         package = importlib.import_module(package)
         for _ in _walk_packages(package.__path__, package.__name__ + "."):
             pass
+    # Humanoid Ultra registers its environments from the package root. Avoid
+    # importing its Isaac Sim-dependent implementation modules before AppLauncher.
+    importlib.import_module("humanoid_ultra")
     sys.path.pop(0)
 
 
@@ -87,7 +90,7 @@ def main():
     index = 0
     # acquire all Isaac environments names
     for task_spec in gym.registry.values():
-        if "Unitree" in task_spec.id and "Isaac" not in task_spec.id:
+        if task_spec.id.startswith(("Unitree-", "USTC-")) and "Isaac" not in task_spec.id:
             # add details to table
             table.add_row([index + 1, task_spec.id, task_spec.entry_point, task_spec.kwargs["env_cfg_entry_point"]])
             # increment count

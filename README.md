@@ -10,7 +10,12 @@
 
 This project provides a set of reinforcement learning environments for Unitree robots, built on top of [IsaacLab](https://github.com/isaac-sim/IsaacLab).
 
-Currently supports Unitree **Go2**, **H1** and **G1-29dof** robots.
+Currently supports Unitree **Go2**, **H1**, **G1-29dof**, and the integrated
+**Humanoid Ultra 12/27-DOF** reference robot.
+
+Humanoid Ultra assets, task names, training commands, and the procedure for
+adding another robot are documented in
+[doc/humanoid_ultra_training.md](doc/humanoid_ultra_training.md).
 
 <div align="center">
 

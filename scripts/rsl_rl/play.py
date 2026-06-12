@@ -36,6 +36,12 @@ parser.add_argument(
     default=False,
     help="Measure the policy root displacement over one nominal mimic motion.",
 )
+parser.add_argument(
+    "--export_only",
+    action="store_true",
+    default=False,
+    help="Export the loaded policy as JIT/ONNX and exit without running the simulation loop.",
+)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -81,6 +87,7 @@ def main():
         entry_point_key="play_env_cfg_entry_point",
     )
     agent_cfg: RslRlOnPolicyRunnerCfg = cli_args.parse_rsl_rl_cfg(args_cli.task, args_cli)
+    agent_cfg.device = args_cli.device if args_cli.device is not None else agent_cfg.device
 
     if args_cli.measure_root_displacement:
         env_cfg.scene.num_envs = 1
@@ -162,6 +169,10 @@ def main():
     export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
     export_policy_as_jit(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.pt")
     export_policy_as_onnx(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.onnx")
+    if args_cli.export_only:
+        print(f"[INFO] Exported policy to: {export_model_dir}")
+        env.close()
+        return
 
     dt = env.unwrapped.step_dt
 
