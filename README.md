@@ -91,6 +91,40 @@ adding another robot are documented in
     # same as
     python scripts/rsl_rl/train.py --headless --task Unitree-G1-29dof-Velocity
     ```
+  - Humanoid Ultra 27 自由度站立任务：
+
+    ```bash
+    conda activate ustc_isaaclab
+    ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Stand
+    ```
+
+    从已有站立策略继续进行抗扰动训练：
+
+    ```bash
+    ./unitree_rl_lab.sh -t \
+      --task USTC-Humanoid-Ultra-27dof-Stand \
+      --resume \
+      --load_run 2026-06-13_22-58-22 \
+      --checkpoint model_20000.pt \
+      --max_iterations 15000 \
+      --run_name robust_v2
+    ```
+
+    抗扰动训练会在前 10000 次迭代内逐步增强水平冲击和躯干角速度冲击，
+    同时允许策略通过迈步和摆臂恢复平衡。原有 27 关节动作顺序保持不变。
+
+    可视化训练结果：
+
+    ```bash
+    ./unitree_rl_lab.sh -p \
+      --task USTC-Humanoid-Ultra-27dof-Stand \
+      --checkpoint /absolute/path/to/model_XXXX.pt
+    ```
+
+    该任务保持 Humanoid Ultra 现有的 27 维动作、90 维单帧观测和 10 帧历史。
+    所有腿部、腰部和手臂奖励均按关节名称解析；环境启动时还会校验 Isaac Lab
+    实际关节顺序，防止策略动作与关节映射错位。
+
   - Inference with a trained agent:
 
     ```bash
