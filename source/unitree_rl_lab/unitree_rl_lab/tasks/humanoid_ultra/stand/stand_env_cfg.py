@@ -33,6 +33,8 @@ STAND_FLAT_TERRAIN_CFG = TerrainGeneratorCfg(
 )
 
 FEET_BODY_NAMES = ["left_ankle_roll_link", "right_ankle_roll_link"]
+ROLL_TARGET_SCALE = 0.20
+PITCH_TARGET_SCALE = 0.60
 LEG_JOINT_PATTERNS = [
     ".*_hip_roll_joint",
     ".*_hip_yaw_joint",
@@ -118,14 +120,22 @@ def track_height_command(
     )
 
 
-def track_torso_attitude_command(env, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Map command vy to roll and command yaw to pitch."""
-    roll, pitch = _torso_roll_pitch(env, asset_cfg)
+def track_torso_roll_command(env, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Map command vy to the trunk roll target."""
+    roll, _ = _torso_roll_pitch(env, asset_cfg)
     command = env.command_generator.command
-    target_roll = 0.20 * torch.clamp(command[:, 1], -1.0, 1.0)
-    target_pitch = 0.30 * torch.clamp(command[:, 2], -1.0, 1.0)
-    attitude_error = torch.abs(target_roll - roll) + torch.abs(target_pitch - pitch)
-    return torch.exp(-2.0 * attitude_error)
+    target_roll = ROLL_TARGET_SCALE * torch.clamp(command[:, 1], -1.0, 1.0)
+    roll_error = torch.abs(target_roll - roll)
+    return torch.exp(-2.0 * roll_error)
+
+
+def track_torso_pitch_command(env, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Map command yaw slot to the trunk pitch target in stand mode."""
+    _, pitch = _torso_roll_pitch(env, asset_cfg)
+    command = env.command_generator.command
+    target_pitch = PITCH_TARGET_SCALE * torch.clamp(command[:, 2], -1.0, 1.0)
+    pitch_error = torch.abs(target_pitch - pitch)
+    return torch.exp(-2.0 * pitch_error)
 
 
 def maintain_upright_posture(env, asset_cfg: SceneEntityCfg) -> torch.Tensor:
@@ -208,9 +218,14 @@ class HumanoidUltra27dofStandRewardCfg(RewardCfg):
         weight=5.0,
         params={"asset_cfg": SceneEntityCfg("robot"), "nominal_height": 1.005},
     )
-    torso_attitude_tracking = RewTerm(
-        func=track_torso_attitude_command,
-        weight=4.0,
+    roll_attitude_tracking = RewTerm(
+        func=track_torso_roll_command,
+        weight=2.0,
+        params={"asset_cfg": SceneEntityCfg("robot", body_names=["trunk_link"])},
+    )
+    pitch_attitude_tracking = RewTerm(
+        func=track_torso_pitch_command,
+        weight=8.0,
         params={"asset_cfg": SceneEntityCfg("robot", body_names=["trunk_link"])},
     )
     upright_without_command = RewTerm(
@@ -295,7 +310,7 @@ class HumanoidUltra27dofStandEnvCfg(Humanoidultra27dofFlatEnvCfg):
         )
 
         self.commands.resampling_time_range = (3.0, 6.0)
-        self.commands.rel_standing_envs = 0.6
+        self.commands.rel_standing_envs = 0.35
         self.commands.rel_heading_envs = 0.0
         self.commands.heading_command = False
         self.commands.debug_vis = True
