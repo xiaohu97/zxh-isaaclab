@@ -36,6 +36,21 @@ from unitree_rl_lab.tasks.locomotion import mdp
 
 
 # ==============================================================================
+# 关节集合（按名字！）
+# ------------------------------------------------------------------------------
+# 注意：Isaac 内部关节顺序是按运动树深度的“左右交替”序，与 SDK 线性序不同。
+# 历史上这里曾用硬编码索引 [:12] / [12,13,14] / range(15,29)，实际选错了关节：
+#   [:12]        误含 left_shoulder_pitch(11)
+#   [12,13,14]   实为 right_shoulder_pitch + left/right_ankle_pitch（根本不是腰）
+#   range(15,29) 混入 left/right_ankle_roll(17,18) 且漏掉 shoulder_pitch(11,12)
+# 因此一律改为按名字解析（SceneEntityCfg(joint_names=...) -> asset_cfg.joint_ids）。
+# ==============================================================================
+LEG_JOINTS = [".*_hip_.*", ".*_knee_joint", ".*_ankle_.*"]  # 12 条腿关节
+WAIST_JOINTS = ["waist_.*_joint"]  # waist_yaw/roll/pitch
+ARM_JOINTS = [".*_shoulder_.*", ".*_elbow_joint", ".*_wrist_.*"]  # 左右两臂 14 条
+
+
+# ==============================================================================
 # 自定义奖励函数
 # ==============================================================================
 
@@ -255,34 +270,29 @@ def reward_single_foot_step(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg,
 
 
 def penalize_joint_velocity(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """惩罚关节速度过大 - 这是解决抖动的关键
-    
-    抖动的根本原因是关节在快速往复运动
-    通过惩罚高速运动可以鼓励平缓的控制
+    """惩罚（腿部）关节速度过大 - 这是解决抖动的关键
+
+    抖动的根本原因是关节在快速往复运动，通过惩罚高速运动可以鼓励平缓的控制。
+    关节集合由 asset_cfg.joint_names 决定（按名字解析，见文件顶部说明）。
     """
     asset = env.scene[asset_cfg.name]
-    # 特别对腿部关节进行惩罚 (关节 0-11)
-    joint_vel = asset.data.joint_vel[:, :12]  # 只看腿部关节
+    joint_vel = asset.data.joint_vel[:, asset_cfg.joint_ids]
     vel_penalty = torch.mean(torch.square(joint_vel), dim=1)
     return -vel_penalty
 
 
-def penalize_waist_motion(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg,
-                          waist_indices: list = [12, 13, 14]) -> torch.Tensor:
-    """惩罚腰部关节偏离默认位置"""
+def penalize_waist_motion(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """惩罚腰部关节偏离默认位置（关节集合由 asset_cfg.joint_names 决定）。"""
     asset = env.scene[asset_cfg.name]
-    joint_pos_rel = asset.data.joint_pos - asset.data.default_joint_pos
-    waist_deviation = torch.sum(torch.square(joint_pos_rel[:, waist_indices]), dim=1)
-    return -waist_deviation
+    joint_pos_rel = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    return -torch.sum(torch.square(joint_pos_rel), dim=1)
 
 
-def penalize_arm_motion(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg,
-                        arm_indices: list = list(range(15, 29))) -> torch.Tensor:
-    """惩罚手臂关节偏离默认位置"""
+def penalize_arm_motion(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """惩罚手臂关节偏离默认位置（关节集合由 asset_cfg.joint_names 决定）。"""
     asset = env.scene[asset_cfg.name]
-    joint_pos_rel = asset.data.joint_pos - asset.data.default_joint_pos
-    arm_deviation = torch.sum(torch.square(joint_pos_rel[:, arm_indices]), dim=1)
-    return -arm_deviation
+    joint_pos_rel = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    return -torch.sum(torch.square(joint_pos_rel), dim=1)
 
 
 # ==============================================================================
@@ -576,21 +586,21 @@ class RewardsCfg:
     joint_velocity_penalty = RewTerm(
         func=penalize_joint_velocity,
         weight=0.5,  # 函数返回负值，权重为正，相乘得负惩罚
-        params={"asset_cfg": SceneEntityCfg("robot")},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINTS)},
     )
-    
+
     # === 关节约束（降低权重，允许姿态变化）===
     # 腰部可以适度运动来实现俯仰变化
     waist_penalty = RewTerm(
         func=penalize_waist_motion,
         weight=0.5,  # 大幅降低，允许腰部运动实现姿态
-        params={"asset_cfg": SceneEntityCfg("robot"), "waist_indices": [12, 13, 14]},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=WAIST_JOINTS)},
     )
-    
+
     arm_penalty = RewTerm(
         func=penalize_arm_motion,
         weight=1.0,  # 略微降低
-        params={"asset_cfg": SceneEntityCfg("robot"), "arm_indices": list(range(15, 29))},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=ARM_JOINTS)},
     )
     
     # === 正则化惩罚（关键：这些可以很好地抑制抖动）===
