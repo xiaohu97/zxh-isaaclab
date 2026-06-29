@@ -2,3 +2,4 @@
 
 from .base import *
 from .stand import *
+from .stand_leftarm import *
