@@ -200,3 +200,7 @@ class LeftArmJointTrajectoryCommandCfg(CommandTermCfg):
 
     ref_vel_scale: float = 0.25
     """观测中参考速度 dq_ref 的缩放，使其量级 ~O(1)。"""
+
+    toggle_button: str = "RB + A.on_pressed"
+    """部署端(C++)切换手臂激励开/关的手柄组合键(joystick DSL 语法)。仅导出到 deploy.yaml，
+    供 g1_ctrl 的 arm_command 观测使用；训练侧不读取。"""

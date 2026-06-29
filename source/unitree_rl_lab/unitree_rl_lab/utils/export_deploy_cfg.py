@@ -116,6 +116,44 @@ def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir):
             del term_cfg[_]
         cfg["observations"][obs_name] = term_cfg
 
+    # --- left-arm trajectory command: stash Fourier data to inject at FULL precision ---
+    # The C++ `arm_command` observation reproduces q_ref_rel / dq_ref from a Fourier series;
+    # coefficients must NOT go through the 3-sig-fig `format_value` rounding, so we inject
+    # them after formatting. Coeffs are exported RELATIVE to the default pose (fold default
+    # into the DC term) so the C++ side evaluates q_ref_rel directly with no extra data.
+    arm_injections = {}
+    try:
+        from unitree_rl_lab.tasks.locomotion.mdp.commands.left_arm_command import (
+            LeftArmJointTrajectoryCommand,
+        )
+    except Exception:
+        LeftArmJointTrajectoryCommand = None
+    if LeftArmJointTrajectoryCommand is not None:
+        for obs_name, obs_cfg in zip(obs_names, env.observation_manager._group_obs_term_cfgs["policy"]):
+            cmd_name = (obs_cfg.params or {}).get("command_name")
+            if cmd_name is None:
+                continue
+            try:
+                cmd = env.command_manager.get_term(cmd_name)
+            except Exception:
+                continue
+            if not isinstance(cmd, LeftArmJointTrajectoryCommand):
+                continue
+            a = cmd.fa.detach().cpu().numpy().copy()  # (K, n) cos coeffs of q_traj
+            b = cmd.fb.detach().cpu().numpy().copy()  # (K, n) sin coeffs
+            default = cmd.default_q[0].detach().cpu().numpy()  # (n,)
+            a[0] = a[0] - default  # fold default -> coeffs of (q_traj - default) = q_ref_rel
+            arm_injections[obs_name] = {
+                "n_joints": int(cmd.num_joints),
+                "period": float(cmd.period),
+                "blend_time_s": float(cmd.blend_time),
+                "ref_vel_scale": float(cmd.cfg.ref_vel_scale),
+                "toggle": str(getattr(cmd.cfg, "toggle_button", "RB + A.on_pressed")),
+                "omega": cmd.omega.detach().cpu().numpy().tolist(),  # (K,)
+                "a_rel": a.tolist(),  # (K, n)
+                "b_rel": b.tolist(),  # (K, n)
+            }
+
     # --- save config file ---
     filename = os.path.join(log_dir, "params", "deploy.yaml")
     if not os.path.exists(os.path.dirname(filename)):
@@ -123,5 +161,9 @@ def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir):
     if not isinstance(cfg, dict):
         cfg = class_to_dict(cfg)
     cfg = format_value(cfg)
+    # inject full-precision trajectory data AFTER rounding
+    for obs_name, extra in arm_injections.items():
+        cfg["observations"][obs_name].setdefault("params", {})
+        cfg["observations"][obs_name]["params"].update(extra)
     with open(filename, "w") as f:
         yaml.dump(cfg, f, default_flow_style=None, sort_keys=False)

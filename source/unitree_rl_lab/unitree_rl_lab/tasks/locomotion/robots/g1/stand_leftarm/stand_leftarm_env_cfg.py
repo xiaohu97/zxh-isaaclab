@@ -47,6 +47,14 @@ LEFT_ARM_JOINTS = [
 # 腰/腿速/双臂 的索引修正已在 Stand-v2 基类（stand_env_cfg_v2）完成并被继承。
 RIGHT_ARM_JOINTS = ["right_shoulder_.*", "right_elbow_joint", "right_wrist_.*"]
 
+# 抗劈叉：约束髋外展(roll)/外旋(yaw)，让降高度时腿留在身体下方而非岔开。
+HIP_LATERAL_JOINTS = [
+    "left_hip_roll_joint",
+    "right_hip_roll_joint",
+    "left_hip_yaw_joint",
+    "right_hip_yaw_joint",
+]
+
 _TRAJ_FILE = os.path.join(os.path.dirname(__file__), "left_wrist_traj.csv")
 
 
@@ -71,6 +79,43 @@ def track_left_arm_vel(env: ManagerBasedRLEnv, command_name: str, std: float) ->
     cur = cmd.robot.data.joint_vel[:, cmd.joint_ids]
     err = torch.mean(torch.square(cur - cmd.dq_ref), dim=1)
     return torch.exp(-err / std**2)
+
+
+def track_height_command_squat(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """(A) 高度跟踪——与 Stand-v2 同款分段奖励，但**最低目标抬到 0.50m**。
+
+    0.28m 双脚踩平在运动学上几乎只能靠劈叉达成；抬到 0.50m 后，屈膝(蹲)成为可行解，
+    配合 (B) 髋外展惩罚即可让机器人屈膝下蹲而非劈叉。
+    """
+    asset = env.scene[asset_cfg.name]
+    curr_h = asset.data.root_pos_w[:, 2]
+
+    cmd = env.command_manager.get_term("base_velocity").command
+    vx_norm = torch.clamp(cmd[:, 0], -1.0, 1.0)
+    target_h = torch.where(
+        vx_norm >= 0.0,
+        0.78 - 0.28 * vx_norm,  # 前推: vx=1.0 -> 0.50m（原 0.28m）
+        0.78 - 0.07 * vx_norm,  # 后拉: vx=-1.0 -> 0.85m
+    )
+    target_h = torch.clamp(target_h, 0.50, 0.85)
+
+    h_error = torch.abs(target_h - curr_h)
+    return torch.where(
+        h_error < 0.05,
+        torch.ones_like(h_error),
+        torch.where(
+            h_error < 0.15,
+            1.0 - (h_error - 0.05) / 0.1,
+            -0.5 * torch.square(h_error - 0.15),
+        ),
+    )
+
+
+def penalize_joint_deviation_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """按名字解析的关节偏离默认位姿惩罚（用于 (B) 髋外展约束）。"""
+    asset = env.scene[asset_cfg.name]
+    rel = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    return -torch.sum(torch.square(rel), dim=1)
 
 
 # ==============================================================================
@@ -152,12 +197,18 @@ class LeftArmRewardsCfg(RewardsCfg):
     left_arm_pos_tracking = RewTerm(
         func=track_left_arm_pos,
         weight=4.0,
-        params={"command_name": "left_arm", "std": 0.25},
+        params={"command_name": "left_arm", "std": 0.15},
     )
     left_arm_vel_tracking = RewTerm(
         func=track_left_arm_vel,
         weight=0.7,
-        params={"command_name": "left_arm", "std": 0.6},
+        params={"command_name": "left_arm", "std": 1.4},
+    )
+    # (B) 抗劈叉：罚髋 roll/yaw 偏离默认 -> 腿保持在身体下方，降高度时屈膝而非岔腿
+    hip_posture_penalty = RewTerm(
+        func=penalize_joint_deviation_l2,
+        weight=1.5,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=HIP_LATERAL_JOINTS)},
     )
 
 
@@ -194,6 +245,9 @@ class G1StandLeftArmEnvCfg(G1StandEnvCfg):
         self.rewards.arm_penalty.params = {
             "asset_cfg": SceneEntityCfg("robot", joint_names=RIGHT_ARM_JOINTS)
         }
+
+        # (A) 抗劈叉：把高度跟踪换成最低 0.50m 的版本（屈膝可达，劈叉不再被逼出）。
+        self.rewards.height_command_tracking.func = track_height_command_squat
 
 
 @configclass

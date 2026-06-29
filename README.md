@@ -222,15 +222,19 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 # 2. Click the mujoco window, and then press 8 to make the robot feet touch the ground.
 # 3. Press [R1 + X] to run the policy.
 # 4. Click the mujoco window, and then press 9 to disable the elastic band.
+# RB + Y → 进入 Stand_LeftArmTrack(站立策略,左臂初始收手在默认位姿)
+# RB + A → 开/关左臂激励(平滑渐入/渐出,1.5s)
 # Passive: LT + B.on_pressed
 # Mimic_Houtaitui: LT(2s) + up.on_pressed
-# Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed
-# Mimic_Pico_Dun: LT(2s) + down.on_pressed
-# Mimic_Pico_Taitui: LT(2s) + X.on_pressed
-# Mimic_Pico_Houtaitui: 数据不佳暂时不用
-# Mimic_Pico_Righttaitui: LT(2s) + right.on_pressed
-# Mimic_Dun: LT(2s) + LB.on_pressed
+# Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed      改变质量脚不稳
+# Mimic_Pico_Dun: LT(2s) + down.on_pressed    效果可以
+# Mimic_Pico_Taitui: LT(2s) + X.on_pressed    效果可以 改变质量脚不稳
+# Mimic_Pico_Houtaitui:         脚抬的不高
+# Mimic_Jump1: LT(2s) + A.on_pressed : LT(2s) + A.on_pressed   跳得远的
+# Mimic_Pico_Righttaitui: LT(2s) + right.on_pressed   改变质量效果可以
+# Mimic_Dun: LT(2s) + LB.on_pressed           效果可以
 # Mimic_Neutral_Walk_Forward: LT(2s) + Y.on_pressed
+# Mimic_Jump:                  LT(2s) + RB.on_pressed
 # Mimic_Banyun: LT(2s) + RT.on_pressed
 # Mimic_Jump3: LT(2s) + start.on_pressed
 ```

@@ -8,6 +8,10 @@ FSM:
       id: 3
       type: RLBase
 
+    Stand_LeftArmTrack:
+      id: 4
+      type: RLBase
+
     Mimic_Houtaitui:
       id: 101
       type: Mimic
@@ -74,9 +78,10 @@ FSM:
       3,3,3,3,3,3,3,  
     ]
   FixStand:
-    transitions: 
+    transitions:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
+      Stand_LeftArmTrack: RB + Y.on_pressed
     kp: [
       100., 100., 100., 150., 40., 40.,
       100., 100., 100., 150., 40., 40.,
@@ -102,8 +107,9 @@ FSM:
       ]
     ]
   Velocity:
-    transitions: 
+    transitions:
       Passive: LT + B.on_pressed
+      Stand_LeftArmTrack: RB + Y.on_pressed
       Mimic_Houtaitui: LT(2s) + up.on_pressed
       Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed
       Mimic_Pico_Dun: LT(2s) + down.on_pressed
@@ -118,6 +124,14 @@ FSM:
 
     policy_dir: config/policy/velocity
     # policy_dir: ../../../logs/rsl_rl/unitree_g1_29dof_velocity
+  Stand_LeftArmTrack:
+    # 站立 + 左臂轨迹激励。进入: 在 FixStand/Velocity 下按 RB + Y。
+    # 左臂激励开关: 按 RB + A (见 deploy.yaml 的 arm_command.toggle)。
+    # 摇杆: ly/lx/rx 控制站立高度/俯仰/横滚 (沿用 Stand-v2)。
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    policy_dir: config/policy/stand_leftarm
   Mimic_Dance_102:
     transitions: 
       Passive: LT + B.on_pressed
