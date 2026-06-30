@@ -5,8 +5,11 @@
 2. 左臂位置/速度跟踪奖励；并把原 ``arm_deviation`` 收窄为只管右臂（左臂交给跟踪）。
 3. 观测每帧 +15 维（在 env 里追加），observation/state space 同步更新。
 
-站立高度/姿态控制沿用 humanoid_ultra stand（最低高度已是 0.55m + feet_slide/feet_distance，
-本就不易劈叉），此处不再额外加抗劈叉项。
+对高度调节做了修正（见 _commanded_height / track_height_command_squat / hip_posture_penalty）：
+基类 stand 的高度奖励最低目标 0.55m、前推斜率 -0.455（≈55% 腿长、贴近 0.45 死亡线），
+且 stand 奖励集继承的是空 RewardCfg、并未继承 locomotion 的 feet_distance/knee_distance/hip
+偏离等抗劈叉项 —— 没有任何项阻止机器人靠岔腿降高度。故这里对齐 G1 Stand-LeftArmTrack：
+把最低目标抬到 0.70m + 改用分段平滑高度奖励 + 新增 hip_posture_penalty。
 """
 from __future__ import annotations
 
@@ -45,6 +48,22 @@ LEFT_ARM_JOINTS = [
 RIGHT_ARM_JOINTS = ["right_shoulder_.*", "right_elbow_joint", "right_wrist_.*"]
 _TRAJ_FILE = os.path.join(os.path.dirname(__file__), "left_wrist_pitch_traj.csv")
 
+# 抗劈叉：约束髋外展(roll)/外旋(yaw)，让降高度时腿留在身体下方而非岔开（对齐 G1）。
+HIP_LATERAL_JOINTS = [
+    "left_hip_roll_joint",
+    "right_hip_roll_joint",
+    "left_hip_yaw_joint",
+    "right_hip_yaw_joint",
+]
+
+# 高度目标常量（替换基类 -0.455 斜率 / 最低 0.55m 的版本）。
+# 想要更深的蹲，逐步调小 _HEIGHT_FWD_SLOPE / _HEIGHT_MIN 即可（注意与 0.45 死亡线留足余量）。
+_HEIGHT_NOMINAL = 1.005
+_HEIGHT_FWD_SLOPE = 0.305  # vx=+1 -> 0.70m（原 0.455 -> 0.55m）
+_HEIGHT_BWD_SLOPE = 0.045  # vx=-1 -> 1.05m
+_HEIGHT_MIN = 0.70
+_HEIGHT_MAX = 1.05
+
 
 # ==============================================================================
 # 奖励函数（读取 env 上由 env 子类计算好的左臂参考）
@@ -61,6 +80,55 @@ def track_left_arm_vel(env, std: float) -> torch.Tensor:
     cur = env.robot.data.joint_vel[:, env.arm_joint_ids]
     err = torch.mean(torch.square(cur - env.arm_dq_ref), dim=1)
     return torch.exp(-err / std**2)
+
+
+# ==============================================================================
+# 高度调节奖励（修正：抬高最低目标 + 平滑分段 + 抗劈叉）
+# ==============================================================================
+def _commanded_height(env) -> torch.Tensor:
+    """由 vx 指令映射目标站立高度（前推蹲下 / 后拉略升）。"""
+    vx = torch.clamp(env.command_generator.command[:, 0], -1.0, 1.0)
+    target = torch.where(
+        vx >= 0.0,
+        _HEIGHT_NOMINAL - _HEIGHT_FWD_SLOPE * vx,
+        _HEIGHT_NOMINAL - _HEIGHT_BWD_SLOPE * vx,
+    )
+    return torch.clamp(target, _HEIGHT_MIN, _HEIGHT_MAX)
+
+
+def track_height_command_squat(env, asset_cfg, nominal_height: float = 1.005, std: float = 0.10) -> torch.Tensor:
+    """分段高度跟踪，替换基类 exp 版：误差大时仍保留平滑梯度，引导屈膝下蹲而非站死。
+
+    nominal_height / std 仅为兼容基类 RewTerm 的 params 签名而保留，实际目标由模块常量给出。
+    """
+    asset = env.scene[asset_cfg.name]
+    curr_h = asset.data.root_pos_w[:, 2]
+    h_error = torch.abs(_commanded_height(env) - curr_h)
+    return torch.where(
+        h_error < 0.05,
+        torch.ones_like(h_error),
+        torch.where(
+            h_error < 0.15,
+            1.0 - (h_error - 0.05) / 0.1,
+            -0.5 * torch.square(h_error - 0.15),
+        ),
+    )
+
+
+def height_command_error_squat(env, asset_cfg, nominal_height: float = 1.005) -> torch.Tensor:
+    """与跟踪项共用同一目标高度的 L1 误差（配负权重直接 shaping/日志）。"""
+    asset = env.scene[asset_cfg.name]
+    return torch.abs(_commanded_height(env) - asset.data.root_pos_w[:, 2])
+
+
+def hip_lateral_deviation_l2(env, asset_cfg) -> torch.Tensor:
+    """抗劈叉：髋 roll/yaw 偏离默认位姿的平方和（正值，配负权重）。"""
+    asset = env.scene[asset_cfg.name]
+    rel = (
+        asset.data.joint_pos[:, asset_cfg.joint_ids]
+        - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    )
+    return torch.sum(torch.square(rel), dim=1)
 
 
 # ==============================================================================
@@ -83,6 +151,12 @@ class ArmCommandCfg:
 class StandLeftArmRewardCfg(HumanoidUltra27dofStandRewardCfg):
     left_arm_pos_tracking = RewTerm(func=track_left_arm_pos, weight=4.0, params={"std": 0.15})
     left_arm_vel_tracking = RewTerm(func=track_left_arm_vel, weight=0.7, params={"std": 1.4})
+    # 抗劈叉：罚髋 roll/yaw 偏离默认 -> 降高度时屈膝而非岔腿（对齐 G1）。
+    hip_posture_penalty = RewTerm(
+        func=hip_lateral_deviation_l2,
+        weight=-1.5,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=HIP_LATERAL_JOINTS)},
+    )
 
 
 @configclass
@@ -119,6 +193,11 @@ class HumanoidUltra27dofStandLeftArmEnvCfg(HumanoidUltra27dofStandEnvCfg):
         self.reward.arm_deviation.params["asset_cfg"] = SceneEntityCfg(
             "robot", joint_names=RIGHT_ARM_JOINTS
         )
+
+        # 修正高度调节：把基类"最低 0.55m / -0.455 斜率 / exp"换成"最低 0.70m / 分段平滑"，
+        # 与新增的 hip_posture_penalty 一起，让机器人靠屈膝调高度而非站死/岔腿。
+        self.reward.height_command_tracking.func = track_height_command_squat
+        self.reward.height_command_error.func = height_command_error_squat
 
         # 每帧观测 +15 (q_ref_rel 7 + dq_ref 7 + enabled 1)；与基类约定一致按“每帧维度”记
         self.observation_space = 90 + 15
