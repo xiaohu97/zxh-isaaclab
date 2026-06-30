@@ -68,6 +68,28 @@ python sim2sim/humanoid_ultra/sim2sim.py \
   --policy /home/zxh/unitree_rl_lab/logs/rsl_rl/humanoidultra27dof_stand/2026-06-13_22-58-22/exported/policy.pt
 ```
 
+### 左臂轨迹策略
+
+`stand_leftarm` 策略每帧比普通 stand 多 15 维观测：左臂 7 维参考位置、
+7 维参考速度和 1 维启用标志。部署脚本会从 TorchScript 第一层自动识别：
+
+- 普通 stand：`90 × 10 = 900` 维输入
+- stand_leftarm：`105 × 10 = 1050` 维输入
+
+运行左臂轨迹策略：
+
+```bash
+python sim2sim/humanoid_ultra/sim2sim.py \
+  --mode stand \
+  --dof 27 \
+  --policy /home/zxh/unitree_rl_lab/logs/rsl_rl/humanoidultra27dof_stand_leftarm/2026-06-30_01-48-26/exported/policy.pt
+```
+
+脚本默认读取同目录的 `left_wrist_pitch_traj.csv`，按训练时相同的 Fourier
+轨迹、6 秒周期、2 秒渐入和 `0.25` 参考速度缩放生成观测。按 `L` 可切换
+轨迹跟踪/返回默认姿态；启动时需要关闭轨迹可添加 `--no-left-arm-track`。
+使用其他轨迹文件时传入 `--left-arm-traj /absolute/path/to/traj.csv`。
+
 Stand 模式默认关闭弹力带，与训练环境保持一致。需要吊带保护时显式添加
 `--elastic-band`。
 
@@ -114,6 +136,7 @@ S/下方向键              减小高度命令，即站高
 A/D                    调节躯干横滚
 Q/E 或 左/右方向键       调节躯干俯仰
 X/空格                  三个姿态命令清零
+L                      左臂轨迹跟踪/默认姿态切换（仅 leftarm 策略）
 ```
 
 每次按键会改变 `0.1` 的对应速度指令，并在终端输出当前的

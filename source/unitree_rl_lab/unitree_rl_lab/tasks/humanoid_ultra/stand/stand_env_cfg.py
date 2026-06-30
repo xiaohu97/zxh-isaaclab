@@ -98,6 +98,7 @@ def track_height_command(
     env,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     nominal_height: float = 1.005,
+    std: float = 0.10,
 ) -> torch.Tensor:
     """Map command vx to standing height, matching the G1 Stand-v2 interface."""
     asset: Articulation = env.scene[asset_cfg.name]
@@ -109,15 +110,24 @@ def track_height_command(
     )
     target_height = torch.clamp(target_height, 0.55, 1.05)
     height_error = torch.abs(target_height - asset.data.root_pos_w[:, 2])
-    return torch.where(
-        height_error < 0.05,
-        torch.ones_like(height_error),
-        torch.where(
-            height_error < 0.15,
-            1.0 - (height_error - 0.05) / 0.10,
-            -0.5 * torch.square(height_error - 0.15),
-        ),
+    return torch.exp(-height_error / std)
+
+
+def height_command_error_l1(
+    env,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    nominal_height: float = 1.005,
+) -> torch.Tensor:
+    """Return absolute commanded-height error for direct shaping and logging."""
+    asset: Articulation = env.scene[asset_cfg.name]
+    vx = torch.clamp(env.command_generator.command[:, 0], -1.0, 1.0)
+    target_height = torch.where(
+        vx >= 0.0,
+        nominal_height - 0.455 * vx,
+        nominal_height - 0.045 * vx,
     )
+    target_height = torch.clamp(target_height, 0.55, 1.05)
+    return torch.abs(target_height - asset.data.root_pos_w[:, 2])
 
 
 def track_torso_roll_command(env, asset_cfg: SceneEntityCfg) -> torch.Tensor:
@@ -215,7 +225,16 @@ def selected_joint_velocity_l2(env, asset_cfg: SceneEntityCfg) -> torch.Tensor:
 class HumanoidUltra27dofStandRewardCfg(RewardCfg):
     height_command_tracking = RewTerm(
         func=track_height_command,
-        weight=5.0,
+        weight=8.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+            "nominal_height": 1.005,
+            "std": 0.10,
+        },
+    )
+    height_command_error = RewTerm(
+        func=height_command_error_l1,
+        weight=-2.0,
         params={"asset_cfg": SceneEntityCfg("robot"), "nominal_height": 1.005},
     )
     roll_attitude_tracking = RewTerm(

@@ -59,6 +59,17 @@ ISAAC_27DOF_JOINTS = (
     "right_wrist_pitch_joint",
 )
 
+LEFT_ARM_JOINTS = (
+    "left_shoulder_pitch_joint",
+    "left_shoulder_roll_joint",
+    "left_shoulder_yaw_joint",
+    "left_elbow_joint",
+    "left_wrist_roll_joint",
+    "left_wrist_pitch_joint",
+    "left_wrist_yaw_joint",
+)
+LEFT_ARM_COMMAND_DIM = 2 * len(LEFT_ARM_JOINTS) + 1
+
 URDF_12DOF_JOINTS = (
     "left_hip_roll_joint",
     "left_hip_yaw_joint",
@@ -248,6 +259,107 @@ def quaternion_to_rotation_matrix(quaternion: np.ndarray) -> np.ndarray:
     )
 
 
+def policy_input_dim(policy: torch.jit.ScriptModule) -> int:
+    """Read the actor input width from the exported TorchScript policy."""
+    state_dict = policy.state_dict()
+    first_layer = state_dict.get("actor.0.weight")
+    if first_layer is None or first_layer.ndim != 2:
+        raise RuntimeError(
+            "Cannot determine policy input size: actor.0.weight is missing from policy.pt."
+        )
+    return int(first_layer.shape[1])
+
+
+class LeftArmTrajectory:
+    """Reproduce the 15-D left-arm command used by the Isaac Lab task."""
+
+    def __init__(
+        self,
+        traj_path: Path,
+        profile: RobotProfile,
+        enabled: bool,
+        period: float = 6.0,
+        blend_time: float = 2.0,
+        ref_vel_scale: float = 0.25,
+    ):
+        if profile.dof != 27:
+            raise ValueError("Left-arm trajectory policies require the 27-DOF robot.")
+        if not traj_path.is_file():
+            raise FileNotFoundError(f"Left-arm trajectory CSV not found: {traj_path}")
+
+        with traj_path.open("r", encoding="utf-8") as file:
+            header = file.readline().strip().split(",")
+        raw = np.loadtxt(traj_path, delimiter=",", skiprows=1)
+        column_indices = [header.index(name) for name in LEFT_ARM_JOINTS]
+        samples = raw[:, column_indices]
+
+        sample_count = samples.shape[0]
+        coefficients = np.fft.rfft(samples, axis=0)
+        self.cos_coeff = (2.0 / sample_count) * coefficients.real
+        self.sin_coeff = (-2.0 / sample_count) * coefficients.imag
+        self.cos_coeff[0] *= 0.5
+        if sample_count % 2 == 0:
+            self.cos_coeff[-1] *= 0.5
+            self.sin_coeff[-1] = 0.0
+
+        harmonics = np.arange(coefficients.shape[0], dtype=np.float64)
+        self.omega = 2.0 * np.pi * harmonics / period
+        joint_index = {name: index for index, name in enumerate(profile.joint_names)}
+        self.default_q = np.asarray(
+            [profile.default_joint_pos[joint_index[name]] for name in LEFT_ARM_JOINTS],
+            dtype=np.float64,
+        )
+        self.period = period
+        self.blend_time = blend_time
+        self.ref_vel_scale = ref_vel_scale
+        self.default_enabled = enabled
+        self.enabled = enabled
+        self.elapsed = 0.0
+
+    def reset(self) -> None:
+        self.enabled = self.default_enabled
+        self.elapsed = 0.0
+
+    def toggle(self) -> None:
+        self.enabled = not self.enabled
+        if self.enabled:
+            self.elapsed = 0.0
+
+    def advance(self, dt: float) -> None:
+        self.elapsed += dt
+
+    def observation(self) -> np.ndarray:
+        if not self.enabled:
+            return np.zeros(LEFT_ARM_COMMAND_DIM, dtype=np.float32)
+
+        phase = self.elapsed % self.period
+        angles = phase * self.omega
+        cosines = np.cos(angles)
+        sines = np.sin(angles)
+        q_traj = cosines @ self.cos_coeff + sines @ self.sin_coeff
+        dq_traj = (
+            -(sines * self.omega) @ self.cos_coeff
+            + (cosines * self.omega) @ self.sin_coeff
+        )
+        delta = q_traj - self.default_q
+
+        if self.blend_time > 0.0:
+            u = np.clip(self.elapsed / self.blend_time, 0.0, 1.0)
+            alpha = 6.0 * u**5 - 15.0 * u**4 + 10.0 * u**3
+            alpha_dot = (
+                30.0 * u**4 - 60.0 * u**3 + 30.0 * u**2
+            ) / self.blend_time
+        else:
+            alpha = 1.0
+            alpha_dot = 0.0
+
+        q_ref_rel = alpha * delta
+        dq_ref = alpha_dot * delta + alpha * dq_traj
+        return np.concatenate(
+            (q_ref_rel, dq_ref * self.ref_vel_scale, np.ones(1))
+        ).astype(np.float32)
+
+
 class ElasticBand:
     """Apply two spring-damper suspension forces at the shoulder sockets."""
 
@@ -358,6 +470,8 @@ class HumanoidUltraSim2Sim:
         dof: int,
         policy_path: Path,
         command: np.ndarray,
+        left_arm_traj_path: Path | None,
+        left_arm_enabled: bool,
         elastic_band_enabled: bool,
         band_lift: float,
         band_anchor_height: float,
@@ -413,14 +527,36 @@ class HumanoidUltraSim2Sim:
             self.model.jnt_range[self.model.joint(name).id] = limits
         self.policy = torch.jit.load(str(policy_path), map_location="cpu")
         self.policy.eval()
+        input_dim = policy_input_dim(self.policy)
+        if input_dim % self.HISTORY_LENGTH != 0:
+            raise RuntimeError(
+                f"Policy input size {input_dim} is not divisible by history length "
+                f"{self.HISTORY_LENGTH}."
+            )
+        frame_observation_dim = input_dim // self.HISTORY_LENGTH
+        if frame_observation_dim == self.profile.observation_dim:
+            self.left_arm_trajectory = None
+        elif frame_observation_dim == self.profile.observation_dim + LEFT_ARM_COMMAND_DIM:
+            trajectory_path = left_arm_traj_path or Path(__file__).with_name(
+                "left_wrist_pitch_traj.csv"
+            )
+            self.left_arm_trajectory = LeftArmTrajectory(
+                trajectory_path.resolve(), self.profile, left_arm_enabled
+            )
+        else:
+            raise RuntimeError(
+                "Unsupported policy observation size: "
+                f"{frame_observation_dim} per frame ({input_dim} total). Expected "
+                f"{self.profile.observation_dim} for standard stand/locomotion or "
+                f"{self.profile.observation_dim + LEFT_ARM_COMMAND_DIM} for stand-leftarm."
+            )
         self.command = command.astype(np.float64)
         self.previous_action = np.zeros(self.profile.dof, dtype=np.float64)
         self.target_joint_pos = self.profile.default_joint_pos.copy()
         self.observation_history: deque[np.ndarray] = deque(maxlen=self.HISTORY_LENGTH)
 
-        expected_input = self.profile.observation_dim * self.HISTORY_LENGTH
         with torch.inference_mode():
-            test_output = self.policy(torch.zeros(1, expected_input, dtype=torch.float32))
+            test_output = self.policy(torch.zeros(1, input_dim, dtype=torch.float32))
         if not isinstance(test_output, torch.Tensor) or tuple(test_output.shape) != (1, self.profile.dof):
             raise RuntimeError(
                 f"Policy shape mismatch: expected [1, {self.profile.dof}], got "
@@ -445,6 +581,8 @@ class HumanoidUltraSim2Sim:
         self.previous_action.fill(0.0)
         self.target_joint_pos[:] = self.profile.default_joint_pos
         self.observation_history.clear()
+        if self.left_arm_trajectory is not None:
+            self.left_arm_trajectory.reset()
         mujoco.mj_forward(self.model, self.data)
         self.elastic_band.reset_anchors(self.data)
 
@@ -454,16 +592,17 @@ class HumanoidUltraSim2Sim:
         body_angular_velocity = self.data.sensor("BodyGyro").data.copy()
         body_rotation = quaternion_to_rotation_matrix(self.data.qpos[3:7])
         projected_gravity = body_rotation.T @ np.asarray([0.0, 0.0, -1.0])
-        observation = np.concatenate(
-            (
-                body_angular_velocity,
-                projected_gravity,
-                self.command,
-                joint_pos - self.profile.default_joint_pos,
-                joint_vel,
-                self.previous_action,
-            )
-        )
+        observation_parts = [
+            body_angular_velocity,
+            projected_gravity,
+            self.command,
+            joint_pos - self.profile.default_joint_pos,
+            joint_vel,
+            self.previous_action,
+        ]
+        if self.left_arm_trajectory is not None:
+            observation_parts.append(self.left_arm_trajectory.observation())
+        observation = np.concatenate(observation_parts)
         return np.clip(observation, -100.0, 100.0).astype(np.float32)
 
     def update_policy(self) -> None:
@@ -511,11 +650,15 @@ class HumanoidUltraSim2Sim:
         for _ in range(steps):
             self.physics_step()
         self.observation_history.clear()
+        if self.left_arm_trajectory is not None:
+            self.left_arm_trajectory.reset()
 
     def control_step(self) -> None:
         self.update_policy()
         for _ in range(self.CONTROL_DECIMATION):
             self.physics_step()
+        if self.left_arm_trajectory is not None:
+            self.left_arm_trajectory.advance(self.SIM_DT * self.CONTROL_DECIMATION)
 
 
 def parse_args() -> argparse.Namespace:
@@ -549,6 +692,29 @@ def parse_args() -> argparse.Namespace:
         default=0.0,
         help="Stand mode torso pitch command.",
     )
+    parser.add_argument(
+        "--left-arm-traj",
+        type=Path,
+        default=None,
+        help=(
+            "Trajectory CSV for a stand-leftarm policy. Defaults to "
+            "left_wrist_pitch_traj.csv next to this script."
+        ),
+    )
+    arm_group = parser.add_mutually_exclusive_group()
+    arm_group.add_argument(
+        "--left-arm-track",
+        dest="left_arm_enabled",
+        action="store_true",
+        help="Start a stand-leftarm policy with trajectory tracking enabled.",
+    )
+    arm_group.add_argument(
+        "--no-left-arm-track",
+        dest="left_arm_enabled",
+        action="store_false",
+        help="Start a stand-leftarm policy with its arm command disabled.",
+    )
+    parser.set_defaults(left_arm_enabled=True)
     parser.add_argument(
         "--stand-seconds",
         type=float,
@@ -608,6 +774,8 @@ def main() -> None:
         dof=args.dof,
         policy_path=args.policy.resolve(),
         command=command,
+        left_arm_traj_path=args.left_arm_traj,
+        left_arm_enabled=args.left_arm_enabled,
         elastic_band_enabled=elastic_band_enabled,
         band_lift=args.band_lift,
         band_anchor_height=args.band_anchor_height,
@@ -616,6 +784,9 @@ def main() -> None:
         band_support_ratio=args.band_support_ratio,
     )
     simulator.stand(args.stand_seconds)
+    if simulator.left_arm_trajectory is not None:
+        state = "ON" if simulator.left_arm_trajectory.enabled else "OFF"
+        print(f"Left-arm trajectory: {state} (L toggles tracking).")
     if args.mode == "stand":
         print(
             f"Loaded {args.dof}-DOF stand policy. Command: "
@@ -649,6 +820,11 @@ def main() -> None:
 
     def print_status() -> None:
         band_status = "ON" if simulator.elastic_band.enabled else "OFF"
+        arm_status = (
+            "N/A"
+            if simulator.left_arm_trajectory is None
+            else "ON" if simulator.left_arm_trajectory.enabled else "OFF"
+        )
         if args.mode == "stand":
             command_status = (
                 f"height={simulator.command[0]:.2f}, "
@@ -661,7 +837,8 @@ def main() -> None:
             )
         print(
             f"command {command_status} | "
-            f"band={band_status}, length={simulator.elastic_band.length:.2f}m"
+            f"band={band_status}, length={simulator.elastic_band.length:.2f}m, "
+            f"left_arm={arm_status}"
         )
 
     def key_callback(keycode: int) -> None:
@@ -692,6 +869,11 @@ def main() -> None:
             simulator.elastic_band.adjust_length(0.1)
         elif keycode in (ord("9"), ord("B"), ord("b")):
             simulator.elastic_band.toggle()
+        elif keycode in (ord("L"), ord("l")):
+            if simulator.left_arm_trajectory is None:
+                print("This policy has no left-arm trajectory observation.")
+            else:
+                simulator.left_arm_trajectory.toggle()
         else:
             handled = False
         if handled:
@@ -703,6 +885,8 @@ def main() -> None:
     else:
         print("Move: W/S or Up/Down, A/D lateral, Q/E or Left/Right yaw.")
     print("Band: 7 shorter/raise, 8 longer/lower, 9/B release or attach.")
+    if simulator.left_arm_trajectory is not None:
+        print("Left arm: L toggles trajectory tracking or returns to the default pose.")
     print("Other: X/Space stop, R reset and restore the default band state.")
     print_status()
     with mujoco.viewer.launch_passive(
