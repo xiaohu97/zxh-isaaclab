@@ -151,6 +151,155 @@ class RobotProfile:
         return 9 + 3 * self.dof
 
 
+class GamepadCommandSource:
+    """Poll an SDL-mapped gamepad without blocking the MuJoCo control loop."""
+
+    AXIS_MAX = 32768.0
+    RECONNECT_PERIOD = 1.0
+
+    def __init__(self, index: int, deadzone: float):
+        try:
+            import pygame
+            from pygame._sdl2 import controller
+        except ImportError as exc:
+            raise RuntimeError(
+                "Gamepad control requires pygame. Install it with `pip install pygame`."
+            ) from exc
+
+        self._pygame = pygame
+        self._controller_module = controller
+        self.index = index
+        self.deadzone = deadzone
+        self._controller = None
+        self._next_connect_attempt = 0.0
+        self._waiting_reported = False
+        self._previous_y = False
+        self._previous_x = False
+        self._previous_stop = False
+        self.left_arm_toggle_requested = False
+        self.enabled = True
+        self.connected = False
+
+        self._controller_module.init()
+        self._try_connect()
+
+    def _try_connect(self) -> None:
+        now = time.monotonic()
+        if now < self._next_connect_attempt:
+            return
+        self._next_connect_attempt = now + self.RECONNECT_PERIOD
+
+        try:
+            self._controller_module.update()
+            if (
+                self.index >= self._controller_module.get_count()
+                or not self._controller_module.is_controller(self.index)
+            ):
+                if not self._waiting_reported:
+                    print(
+                        f"Gamepad {self.index} is unavailable or has no SDL mapping; "
+                        "waiting for a controller."
+                    )
+                    self._waiting_reported = True
+                return
+            self._controller = self._controller_module.Controller(self.index)
+        except (self._pygame.error, self._controller_module.error) as exc:
+            if not self._waiting_reported:
+                print(f"Cannot open gamepad {self.index}: {exc}; waiting for a controller.")
+                self._waiting_reported = True
+            return
+
+        self.connected = True
+        self._waiting_reported = False
+        self._previous_y = False
+        self._previous_x = False
+        self._previous_stop = False
+        self.left_arm_toggle_requested = False
+        state = "enabled" if self.enabled else "disabled; press Y to enable"
+        print(f"Gamepad connected: {self._controller.name} ({state}).")
+
+    def _disconnect(self) -> None:
+        if self._controller is not None:
+            try:
+                self._controller.quit()
+            except self._pygame.error:
+                pass
+        self._controller = None
+        self.connected = False
+        self.enabled = False
+        self._previous_y = False
+        self._previous_x = False
+        self._previous_stop = False
+        self.left_arm_toggle_requested = False
+        self._next_connect_attempt = 0.0
+        if not self._waiting_reported:
+            print("Gamepad disconnected: command cleared; reconnect and press Y to enable.")
+            self._waiting_reported = True
+
+    def _axis(self, axis: int) -> float:
+        assert self._controller is not None
+        value = float(np.clip(self._controller.get_axis(axis) / self.AXIS_MAX, -1.0, 1.0))
+        magnitude = abs(value)
+        if magnitude <= self.deadzone:
+            return 0.0
+        return float(np.copysign((magnitude - self.deadzone) / (1.0 - self.deadzone), value))
+
+    def poll(self, mode: str) -> np.ndarray:
+        self.left_arm_toggle_requested = False
+        zero_command = np.zeros(3, dtype=np.float64)
+        if self._controller is None:
+            self._try_connect()
+            if self._controller is None:
+                return zero_command
+
+        try:
+            self._controller_module.update()
+            if not self._controller.attached():
+                self._disconnect()
+                return zero_command
+
+            y_pressed = bool(self._controller.get_button(self._pygame.CONTROLLER_BUTTON_Y))
+            x_pressed = bool(self._controller.get_button(self._pygame.CONTROLLER_BUTTON_X))
+            stop_pressed = bool(
+                self._controller.get_button(self._pygame.CONTROLLER_BUTTON_LEFTSHOULDER)
+                and self._controller.get_button(self._pygame.CONTROLLER_BUTTON_RIGHTSHOULDER)
+            )
+            if stop_pressed and not self._previous_stop:
+                self.enabled = False
+                print("Gamepad LB+RB: command cleared and gamepad control disabled.")
+            elif y_pressed and not self._previous_y:
+                self.enabled = not self.enabled
+                print(f"Gamepad control: {'ON' if self.enabled else 'OFF (command cleared)'}.")
+            if x_pressed and not self._previous_x and not stop_pressed:
+                self.left_arm_toggle_requested = True
+            self._previous_y = y_pressed
+            self._previous_x = x_pressed
+            self._previous_stop = stop_pressed
+
+            if not self.enabled:
+                return zero_command
+
+            left_x = self._axis(self._pygame.CONTROLLER_AXIS_LEFTX)
+            left_y = self._axis(self._pygame.CONTROLLER_AXIS_LEFTY)
+            right_x = self._axis(self._pygame.CONTROLLER_AXIS_RIGHTX)
+        except (self._pygame.error, self._controller_module.error):
+            self._disconnect()
+            return zero_command
+
+        if mode == "stand":
+            return np.asarray((-left_y, -0.5 * left_x, 0.5 * right_x), dtype=np.float64)
+
+        forward = -left_y
+        vx = forward * (1.0 if forward >= 0.0 else 0.6)
+        return np.asarray((vx, -0.5 * left_x, 1.57 * right_x), dtype=np.float64)
+
+    def close(self) -> None:
+        if self._controller is not None:
+            self._controller.quit()
+            self._controller = None
+        self._controller_module.quit()
+
+
 def _gain_for_joint(name: str) -> tuple[float, float, float]:
     if "hip_roll" in name:
         return 150.0, 2.5, 300.0
@@ -751,8 +900,27 @@ def parse_args() -> argparse.Namespace:
         default=0.3,
         help="Fraction of robot weight supported by the two shoulder bands.",
     )
+    parser.add_argument(
+        "--gamepad",
+        action="store_true",
+        help="Read policy commands from an SDL-mapped gamepad using pygame.",
+    )
+    parser.add_argument("--gamepad-index", type=int, default=0, help="SDL gamepad device index.")
+    parser.add_argument(
+        "--gamepad-deadzone",
+        type=float,
+        default=0.08,
+        help="Normalized joystick deadzone in [0, 1).",
+    )
     parser.add_argument("--headless", action="store_true")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.gamepad_index < 0:
+        parser.error("--gamepad-index must be non-negative")
+    if not 0.0 <= args.gamepad_deadzone < 1.0:
+        parser.error("--gamepad-deadzone must be in [0, 1)")
+    if args.gamepad and args.headless:
+        parser.error("--gamepad cannot be combined with --headless")
+    return args
 
 
 def main() -> None:
@@ -766,6 +934,8 @@ def main() -> None:
     else:
         command = np.asarray([args.vx, args.vy, args.yaw_rate], dtype=np.float64)
         command = np.clip(command, (-0.6, -0.5, -1.57), (1.0, 0.5, 1.57))
+    if args.gamepad:
+        command.fill(0.0)
     elastic_band_enabled = args.elastic_band_enabled
     if elastic_band_enabled is None:
         elastic_band_enabled = args.mode == "locomotion"
@@ -784,6 +954,11 @@ def main() -> None:
         band_support_ratio=args.band_support_ratio,
     )
     simulator.stand(args.stand_seconds)
+    gamepad = (
+        GamepadCommandSource(args.gamepad_index, args.gamepad_deadzone)
+        if args.gamepad
+        else None
+    )
     if simulator.left_arm_trajectory is not None:
         state = "ON" if simulator.left_arm_trajectory.enabled else "OFF"
         print(f"Left-arm trajectory: {state} (L toggles tracking).")
@@ -835,11 +1010,23 @@ def main() -> None:
                 f"vx={simulator.command[0]:.2f}, "
                 f"vy={simulator.command[1]:.2f}, yaw={simulator.command[2]:.2f}"
             )
+        if gamepad is None:
+            gamepad_status = "OFF"
+        elif not gamepad.connected:
+            gamepad_status = "DISCONNECTED"
+        else:
+            gamepad_status = "ON" if gamepad.enabled else "DISABLED"
         print(
             f"command {command_status} | "
             f"band={band_status}, length={simulator.elastic_band.length:.2f}m, "
-            f"left_arm={arm_status}"
+            f"left_arm={arm_status}, gamepad={gamepad_status}"
         )
+
+    def toggle_left_arm() -> None:
+        if simulator.left_arm_trajectory is None:
+            print("This policy has no left-arm trajectory observation.")
+        else:
+            simulator.left_arm_trajectory.toggle()
 
     def key_callback(keycode: int) -> None:
         handled = True
@@ -870,10 +1057,7 @@ def main() -> None:
         elif keycode in (ord("9"), ord("B"), ord("b")):
             simulator.elastic_band.toggle()
         elif keycode in (ord("L"), ord("l")):
-            if simulator.left_arm_trajectory is None:
-                print("This policy has no left-arm trajectory observation.")
-            else:
-                simulator.left_arm_trajectory.toggle()
+            toggle_left_arm()
         else:
             handled = False
         if handled:
@@ -888,19 +1072,35 @@ def main() -> None:
     if simulator.left_arm_trajectory is not None:
         print("Left arm: L toggles trajectory tracking or returns to the default pose.")
     print("Other: X/Space stop, R reset and restore the default band state.")
+    if gamepad is not None:
+        if args.mode == "stand":
+            print("Gamepad: left Y=height, left X=roll, right X=pitch.")
+        else:
+            print("Gamepad: left Y=vx, left X=vy, right X=yaw rate.")
+        print("Gamepad buttons: Y toggles control; X toggles the left-arm trajectory.")
+        print("Gamepad safety: LB+RB clears the command and disables control.")
     print_status()
-    with mujoco.viewer.launch_passive(
-        simulator.model, simulator.data, key_callback=key_callback
-    ) as viewer:
-        while viewer.is_running():
-            step_start = time.perf_counter()
-            simulator.control_step()
-            viewer.sync()
-            if args.duration > 0.0 and time.perf_counter() - start_time >= args.duration:
-                break
-            sleep_time = control_dt - (time.perf_counter() - step_start)
-            if sleep_time > 0.0:
-                time.sleep(sleep_time)
+    try:
+        with mujoco.viewer.launch_passive(
+            simulator.model, simulator.data, key_callback=key_callback
+        ) as viewer:
+            while viewer.is_running():
+                step_start = time.perf_counter()
+                if gamepad is not None:
+                    simulator.command[:] = gamepad.poll(args.mode)
+                    if gamepad.left_arm_toggle_requested:
+                        toggle_left_arm()
+                        print_status()
+                simulator.control_step()
+                viewer.sync()
+                if args.duration > 0.0 and time.perf_counter() - start_time >= args.duration:
+                    break
+                sleep_time = control_dt - (time.perf_counter() - step_start)
+                if sleep_time > 0.0:
+                    time.sleep(sleep_time)
+    finally:
+        if gamepad is not None:
+            gamepad.close()
 
 
 if __name__ == "__main__":
