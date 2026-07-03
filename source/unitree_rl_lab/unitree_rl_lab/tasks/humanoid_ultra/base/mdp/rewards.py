@@ -148,6 +148,17 @@ def feet_slide(
     return reward
 
 
+def feet_impact_velocity(
+    env: BaseEnv, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Penalize downward foot velocity at first contact to encourage soft landings."""
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
+    asset: Articulation = env.scene[asset_cfg.name]
+    downward_vel = torch.clamp(-asset.data.body_lin_vel_w[:, asset_cfg.body_ids, 2], min=0.0)
+    return torch.sum(first_contact * downward_vel, dim=1)
+
+
 def body_force(
     env: BaseEnv, sensor_cfg: SceneEntityCfg, threshold: float = 500, max_reward: float = 400
 ) -> torch.Tensor:
