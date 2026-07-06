@@ -310,6 +310,9 @@ class HumanoidUltra27dofStandRewardCfg(RewardCfg):
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.03)
     action_smoothness_l2 = RewTerm(func=mdp.action_smoothness_l2, weight=-0.01)
     joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)
+    # 实机臂/躯干有 24-29 Hz 结构模态；惩罚 dq 二阶差分抑制高频抖动。
+    # stand_leftarm 环境提供 arm_dq_ref 时自动扣除激励参考，不影响臂激励跟踪。
+    joint_oscillation_l2 = RewTerm(func=mdp.joint_oscillation_l2, weight=-5e-3)
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
 
 

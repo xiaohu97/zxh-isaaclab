@@ -370,3 +370,35 @@ def action_penalty_interrupt(env: BaseEnv, asset_cfg: SceneEntityCfg) -> torch.T
     )
     reward *= env.interrupt_mask
     return reward
+
+
+def joint_oscillation_l2(env: BaseEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize high-frequency joint velocity oscillation (second difference of dq).
+
+    The second difference scales with frequency cubed, so smooth low-frequency
+    motion contributes little while step-to-step dither near the control Nyquist
+    (the band that pumps the ~25 Hz structural arm mode on the real robot) is
+    penalized strongly.  If the env carries an arm excitation reference
+    (``arm_joint_ids`` / ``arm_dq_ref``, see the stand_leftarm env), the reference
+    velocity is subtracted on those joints first, so only tracking-error
+    oscillation is penalized and the commanded excitation itself is free.
+
+    Keeps a two-step dq history on the env; use this function in a single reward
+    term only, otherwise the history advances more than once per step.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    dq = asset.data.joint_vel.clone()
+    arm_ids = getattr(env, "arm_joint_ids", None)
+    arm_dq_ref = getattr(env, "arm_dq_ref", None)
+    if arm_ids is not None and arm_dq_ref is not None:
+        dq[:, arm_ids] -= arm_dq_ref
+    hist = getattr(env, "_osc_dq_hist", None)
+    if hist is None or hist[0].shape != dq.shape:
+        env._osc_dq_hist = [dq, dq.clone()]
+        return torch.zeros(env.num_envs, device=dq.device)
+    jerk = dq - 2.0 * hist[1] + hist[0]
+    env._osc_dq_hist = [hist[1], dq]
+    reward = torch.sum(torch.square(jerk[:, asset_cfg.joint_ids]), dim=1)
+    # history is stale right after reset (dq jumps); gate those envs off
+    reward = torch.where(env.episode_length_buf < 3, torch.zeros_like(reward), reward)
+    return reward
