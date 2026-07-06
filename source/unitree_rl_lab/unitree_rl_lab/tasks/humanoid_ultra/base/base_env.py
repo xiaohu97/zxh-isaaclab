@@ -178,7 +178,7 @@ class BaseEnv(DirectRLEnv):
         ],
         dim=-1,
         )
-        feet_height = torch.clamp(feet_height - 0.046568, min=0.0, max=1.0)
+        feet_height = torch.clamp(feet_height - 0.05055, min=0.0, max=1.0)
         feet_height = torch.nan_to_num(feet_height, nan=1.0, posinf=1.0, neginf=0)
         joint_torque = robot.data.applied_torque
         joint_acc = robot.data.joint_acc

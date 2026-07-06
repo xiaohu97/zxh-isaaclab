@@ -1,29 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
-     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     Commit Version: 1.5.1-0-g916b5db  Build Version: 1.5.7152.31018
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot
-  name="humanoidultra01">
+  name="humanoid_ultra_description">
+
 
   <mujoco>
     <compiler 
-        meshdir="../meshes/" 
+        meshdir="package://humanoid_ultra_description/meshes/" 
         balanceinertia="true" 
         discardvisual="false" />
   </mujoco>
 
 
-
-
   <!-- [CAUTION] uncomment when convert to mujoco -->
-  <!-- <link name="world"></link>
+   <!-- link name="world"></link>
   <joint name="floating_base_joint" type="floating">
     <parent link="world"/>
+    <child link="dummy_link"/>
+  </joint --> 
+
+
+  <link name="dummy_link">
+    </link>
+  <joint name="dummy_to_base_link" type="fixed">
+    <parent link="dummy_link"/>
     <child link="base_link"/>
-  </joint> -->
-
-
-
+    <!-- <origin rpy="0 0 0" xyz="0.115315 0.0 -0.015775"/> -->
+    <origin rpy="0 0 0" xyz="0.0 0.0 -0.015775"/>
+  </joint>
 
 
 
@@ -31,17 +37,17 @@
     name="base_link">
     <inertial>
       <origin
-        xyz="-0.07487175 0.0 -0.01623465"
+        xyz="-0.0781031796966807 6.40013990763078E-09 -0.017579881731855"
         rpy="0 0 0" />
       <mass
-        value="7.87598286" />
+        value="7.89106591706423" />
       <inertia
-        ixx="0.14888813"
-        ixy="0.00000971"
-        ixz="-0.00995509"
-        iyy="0.04658629"
-        iyz="0.00000344"
-        izz="0.16717120" />
+        ixx="0.152421"
+        ixy="0.0"
+        ixz="-0.010408"
+        iyy="0.048900"
+        iyz="0.000005"
+        izz="0.173453" />
     </inertial>
     <visual>
       <origin
@@ -49,7 +55,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/base_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/base_link.STL" />
       </geometry>
       <material
         name="">
@@ -57,55 +63,37 @@
           rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/base_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/base_link.STL" />
       </geometry>
-    </collision> -->
-    <collision>
-      <origin xyz="-0.1365 0.14976666050 -0.03435863854" rpy="0.0 1.5708 0.0"/>
-      <geometry>
-        <sphere  radius="0.062"/>
-      </geometry>
-    </collision>
-    <collision>
-      <origin xyz="-0.1365 -0.14976666050 -0.03435863854" rpy="0.0 1.5708 0.0"/>
-      <geometry>
-        <sphere  radius="0.062"/>
-      </geometry>
-    </collision>
-    <collision>
-      <origin xyz="0.0 0.0 -0.03117931927" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.114 0.405 0.06235863854"/>
-      </geometry>
-    </collision>
+    </collision -->
     <collision>
       <origin xyz="0.0 0.0 0.04" rpy="0 0 0"/>
       <geometry>
         <box size="0.15 0.26 0.01"/>
       </geometry>
-    </collision>         
+    </collision>
   </link>
   <link
     name="left_hip_roll_link">
     <inertial>
       <origin
-        xyz=" 0.08200592 0.0  -0.00835245"
+        xyz="0.0821378265385484 -1.90284105194838E-07 -0.010336566648555"
         rpy="0 0 0" />
       <mass
-        value="1.58332093" />
+        value="1.73664512071164" />
       <inertia
-        ixx="0.00214795"
-        ixy="0.00000206"
-        ixz="0.00001901"
-        iyy="0.00274011"
-        iyz="0.00000032"
-        izz="0.00331047" />
+        ixx="0.002319"
+        ixy="0.0"
+        ixz="0.000025"
+        iyy="0.002908"
+        iyz="0.0"
+        izz="0.003214" />
     </inertial>
     <visual>
       <origin
@@ -113,7 +101,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_hip_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_hip_roll_link.STL" />
       </geometry>
       <material
         name="">
@@ -121,15 +109,21 @@
           rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_hip_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_hip_roll_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
+    <collision>
+      <origin xyz="0.0718 0.0 0.0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.114 0.105 0.056"/>
+      </geometry>
+    </collision>
   </link>
   <joint
     name="left_hip_roll_joint"
@@ -145,25 +139,25 @@
       xyz="1 0 0" />
     <limit
       lower="-0.25"
-      upper="1.57"
-      effort="300"
+      upper="1.5708"
+      effort="320.0"
       velocity="12.0" />
   </joint>
   <link
     name="left_hip_yaw_link">
     <inertial>
       <origin
-        xyz="0.0 0.02295677 -0.10046069"
+        xyz="7.67233315920879E-07 0.0205003549393846 -0.104309383404206"
         rpy="0 0 0" />
       <mass
-        value="1.47113700" />
+        value="1.46284235577634" />
       <inertia
-        ixx="0.01511326"
-        ixy="0.00000014"
-        ixz="-0.00000046"
-        iyy="0.00628345"
-        iyz="0.00259908"
-        izz="0.01009579" />
+        ixx="0.015550"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="0.006170"
+        iyz="0.002239"
+        izz="0.010649" />
     </inertial>
     <visual>
       <origin
@@ -171,7 +165,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_hip_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_hip_yaw_link.STL" />
       </geometry>
       <material
         name="">
@@ -179,15 +173,21 @@
           rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_hip_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_hip_yaw_link.STL" />
       </geometry>
-    </collision> -->    
+    </collision -->
+    <collision>
+      <origin xyz="0.0 0.0 -0.03" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.055853 0.055853 0.026"/>
+      </geometry>
+    </collision>
   </link>
   <joint
     name="left_hip_yaw_joint"
@@ -202,26 +202,26 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="-1.57"
-      upper="1.57"
-      effort="90"
+      lower="-1.5708"
+      upper="1.5708"
+      effort="90.0"
       velocity="12.0" />
   </joint>
   <link
     name="left_hip_pitch_link">
     <inertial>
       <origin
-        xyz="0.00287587 0.00519374 -0.03121791"
+        xyz="0.00290200689361373 0.00322728209220917 -0.0315016344748031"
         rpy="0 0 0" />
       <mass
-        value="8.43224915" />
+        value="8.35630276269156" />
       <inertia
-        ixx="0.09210620"
-        ixy="0.00013064"
-        ixz="0.00323324"
-        iyy="0.08127823"
-        iyz="-0.00138559"
-        izz="0.03527599" />
+        ixx="0.094208"
+        ixy="0.000088"
+        ixz="0.003221"
+        iyy="0.085535"
+        iyz="-0.000867"
+        izz="0.037424" />
     </inertial>
     <visual>
       <origin
@@ -229,7 +229,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_hip_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_hip_pitch_link.STL" />
       </geometry>
       <material
         name="">
@@ -237,15 +237,15 @@
           rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_hip_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_hip_pitch_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
     <collision>
       <origin xyz="0.025 0.0 -0.18" rpy="0 0 0"/>
       <geometry>
@@ -253,15 +253,21 @@
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.0 0.0578 0.0" rpy="1.5708 0.0 0"/>
+      <origin xyz="0.0 0.065 0.0" rpy="1.5708 0.0 0"/>
       <geometry>
-        <sphere  radius="0.085"/>
+        <cylinder length="0.045" radius="0.085"/>
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.0 -0.0252 0.0" rpy="1.5708 0.0 0"/>
+      <origin xyz="0.0 -0.065 0.0" rpy="1.5708 0.0 0"/>
       <geometry>
-        <sphere  radius="0.085"/>
+        <box size="0.12019 0.12019 0.045"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0.0 -0.100.2 0.0" rpy="1.5708 0.0 0"/>
+      <geometry>
+        <box size="0.06 0.06 0.01"/>
       </geometry>
     </collision>
   </link>
@@ -269,7 +275,7 @@
     name="left_hip_pitch_joint"
     type="revolute">
     <origin
-      xyz="0 -0.00680000000000071 -0.1652"
+      xyz="0 -0.00679999999999965 -0.1652"
       rpy="0 0 0" />
     <parent
       link="left_hip_yaw_link" />
@@ -278,26 +284,26 @@
     <axis
       xyz="0 -1 0" />
     <limit
-      lower="-1.57"
-      upper="1.57"
-      effort="320"
-      velocity="12.0" />
+      lower="-1.5708"
+      upper="1.5708"
+      effort="320.0"
+      velocity="12.0" /> 
   </joint>
   <link
     name="left_knee_link">
     <inertial>
       <origin
-        xyz="0.00450302 -0.00000288 -0.14699369"
+        xyz="0.00683418872966539 0.000124264638843172 -0.143091896877221"
         rpy="0 0 0" />
       <mass
-        value="2.20062290" />
+        value="2.02536692124872" />
       <inertia
-        ixx="0.02367744"
-        ixy="0.00000505"
-        ixz="-0.00189145"
-        iyy="0.02406466"
-        iyz="-0.00031563"
-        izz="0.00185217" />
+        ixx="0.021688"
+        ixy="0.000011"
+        ixz="-0.001627"
+        iyy="0.021880"
+        iyz="-0.000008"
+        izz="0.001623" />
     </inertial>
     <visual>
       <origin
@@ -305,7 +311,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_knee_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -313,19 +319,19 @@
           rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_knee_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_knee_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
     <collision>
-      <origin xyz="0.0 0.0 -0.18" rpy="0 0 0"/>
+      <origin xyz="0.0 0.0 -0.2" rpy="0 0 0"/>
       <geometry>
-        <box size="0.05 0.027 0.26"/>
+        <box size="0.05 0.027 0.3"/>
       </geometry>
     </collision>
   </link>
@@ -333,7 +339,7 @@
     name="left_knee_joint"
     type="revolute">
     <origin
-      xyz="0 0 -0.38"
+      xyz="0 0 -0.379999999999996"
       rpy="0 0 0" />
     <parent
       link="left_hip_pitch_link" />
@@ -343,25 +349,25 @@
       xyz="0 1 0" />
     <limit
       lower="0.0"
-      upper="2.36"
-      effort="320"
-      velocity="12.0" />
+      upper="2.356"
+      effort="320.0"
+      velocity="12.0" />  
   </joint>
   <link
     name="left_ankle_pitch_link">
     <inertial>
       <origin
-        xyz="0.0 -0.0002 0.0"
+        xyz="-2.93852466665134E-10 3.75665804019931E-10 1.29602995002642E-11"
         rpy="0 0 0" />
       <mass
-        value="0.05651532" />
+        value="0.0241612944467329" />
       <inertia
-        ixx="0.00000836"
+        ixx="0.00000160"
         ixy="0.0"
-        ixz="0.00000010"
-        iyy="0.00000369"
+        ixz="0.00000004"
+        iyy="0.00000112"
         iyz="0.0"
-        izz="0.00001065" />
+        izz="0.00000242" />
     </inertial>
     <visual>
       <origin
@@ -369,7 +375,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_ankle_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_ankle_pitch_link.STL" />
       </geometry>
       <material
         name="">
@@ -377,21 +383,21 @@
           rgba="0.650980392156863 0.619607843137255 0.588235294117647 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_ankle_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_ankle_pitch_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
   </link>
   <joint
     name="left_ankle_pitch_joint"
     type="revolute">
     <origin
-      xyz="0.000178842126592992 0 -0.367370694199002"
+      xyz="0 0 -0.3713667324878"
       rpy="0 0 0" />
     <parent
       link="left_knee_link" />
@@ -402,24 +408,24 @@
     <limit
       lower="-0.7"
       upper="0.95"
-      effort="72"
+      effort="72.0"
       velocity="12.0" />
   </joint>
   <link
     name="left_ankle_roll_link">
     <inertial>
       <origin
-        xyz="0.00491477 -0.00019240  -0.03027853"
+        xyz="0.00570789769823378 3.0151629592523E-06 -0.0291442245743845"
         rpy="0 0 0" />
       <mass
-        value="0.75938458" />
+        value="0.828995344627804" />
       <inertia
-        ixx="0.00045878"
-        ixy="0.00000035"
-        ixz="0.00022686"
-        iyy="0.00224096"
-        iyz="-0.00000012"
-        izz="0.00237129" />
+        ixx="0.00050987"
+        ixy="0.00000015"
+        ixz="0.00020221"
+        iyy="0.00272950"
+        iyz="-0.00000008"
+        izz="0.00301510" />
     </inertial>
     <visual>
       <origin
@@ -427,7 +433,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_ankle_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_ankle_roll_link.STL" />
       </geometry>
       <material
         name="">
@@ -441,29 +447,17 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_ankle_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_ankle_roll_link.STL" />
       </geometry>
     </collision> -->
     <collision>
-      <origin xyz="0.0212765 -0.037 -0.04755" rpy="0 1.5707963 0"/>
-      <geometry>
-        <cylinder length="0.099745" radius="0.003"/> 
-      </geometry>
-    </collision>
-    <collision>
-      <origin xyz="0.0212765 0.037 -0.04755" rpy="0 1.5707963 0"/>
-      <geometry>
-        <cylinder length="0.099745" radius="0.003"/> 
-      </geometry>
-    </collision>
-    <collision>
-      <origin xyz="0.02662359693 -0.0220429 -0.04755" rpy="0 1.5707963 0"/>
+      <origin xyz="0.02662359693 -0.037 -0.04356851577" rpy="0 1.5707963 0"/>
       <geometry>
         <cylinder length="0.20267795214" radius="0.003"/> 
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.02662359693 0.0220429 -0.04755" rpy="0 1.5707963 0"/>
+      <origin xyz="0.02662359693 0.037 -0.04356851577" rpy="0 1.5707963 0"/>
       <geometry>
         <cylinder length="0.20267795214" radius="0.003"/> 
       </geometry>
@@ -480,28 +474,28 @@
     <child
       link="left_ankle_roll_link" />
     <axis
-      xyz="0.996194698091745 0 -0.0871557427476591" />
+      xyz="0.996194698091743 0 -0.0871557427476896" />
     <limit
-      lower="-0.45"
-      upper="0.45"
-      effort="72"
+      lower="-0.5236"
+      upper="0.5236"
+      effort="72.0"
       velocity="12.0" />
-  </joint>
+  </joint> 
   <link
     name="right_hip_roll_link">
     <inertial>
       <origin
-        xyz="0.08200592 0.0  -0.00835245"
+        xyz="0.0821378265385484 -1.90284107415284E-07 -0.010336566648554"
         rpy="0 0 0" />
       <mass
-        value="1.58332093" />
+        value="1.73664512071165" />
       <inertia
-        ixx="0.00214795"
-        ixy="0.00000206"
-        ixz="0.00001901"
-        iyy="0.00274011"
-        iyz="0.00000032"
-        izz="0.00331047" />
+        ixx="0.002319"
+        ixy="0.0"
+        ixz="0.000025"
+        iyy="0.002908"
+        iyz="0.0"
+        izz="0.003214" />
     </inertial>
     <visual>
       <origin
@@ -509,7 +503,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_hip_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_hip_roll_link.STL" />
       </geometry>
       <material
         name="">
@@ -517,15 +511,21 @@
           rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_hip_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_hip_roll_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
+    <collision>
+      <origin xyz="0.0718 0.0 0.0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.114 0.105 0.056"/>
+      </geometry>
+    </collision>
   </link>
   <joint
     name="right_hip_roll_joint"
@@ -540,26 +540,26 @@
     <axis
       xyz="1 0 0" />
     <limit
-      lower="-1.57"
+      lower="-1.5708"
       upper="0.25"
-      effort="300"
+      effort="320.0"
       velocity="12.0" />
   </joint>
   <link
     name="right_hip_yaw_link">
     <inertial>
       <origin
-        xyz="0.0 -0.02295677  -0.10046069"
+        xyz="-7.67233316153332E-07 -0.0205003549393837 -0.104309383404206"
         rpy="0 0 0" />
       <mass
-        value="1.47113700" />
+        value="1.46284235577635" />
       <inertia
-        ixx="0.01511326"
-        ixy="0.00000014"
-        ixz="0.00000046"
-        iyy="0.00628345"
-        iyz="-0.00259908"
-        izz="0.01009579" />
+        ixx="0.015550"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="0.006170"
+        iyz="-0.002239"
+        izz="0.010649" />
     </inertial>
     <visual>
       <origin
@@ -567,7 +567,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_hip_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_hip_yaw_link.STL" />
       </geometry>
       <material
         name="">
@@ -575,15 +575,21 @@
           rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_hip_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_hip_yaw_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
+    <collision>
+      <origin xyz="0.0 0.0 -0.03" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.055853 0.055853 0.026"/>
+      </geometry>
+    </collision>
   </link>
   <joint
     name="right_hip_yaw_joint"
@@ -598,26 +604,26 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="-1.57"
-      upper="1.57"
-      effort="90"
+      lower="-1.5708"
+      upper="1.5708"
+      effort="90.0"
       velocity="12.0" />
   </joint>
   <link
     name="right_hip_pitch_link">
     <inertial>
       <origin
-        xyz="0.00286304 -0.00508632 -0.03095516"
+        xyz="0.00289910739639842 -0.00314608705638994 -0.0312335752006904"
         rpy="0 0 0" />
       <mass
-        value="8.45830779" />
+        value="8.38236123080177" />
       <inertia
-        ixx="0.09189738"
-        ixy="-0.00012254"
-        ixz="0.00321880"
-        iyy="0.08110974"
-        iyz="0.00134185"
-        izz="0.03535418" />
+        ixx="0.093997"
+        ixy="-0.000086"
+        ixz="0.003199"
+        iyy="0.085363"
+        iyz="0.000840"
+        izz="0.037505" />
     </inertial>
     <visual>
       <origin
@@ -625,7 +631,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_hip_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_hip_pitch_link.STL" />
       </geometry>
       <material
         name="">
@@ -633,15 +639,15 @@
           rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_hip_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_hip_pitch_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
     <collision>
       <origin xyz="0.025 0.0 -0.18" rpy="0 0 0"/>
       <geometry>
@@ -649,23 +655,29 @@
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.0 -0.0578 0.0" rpy="1.5708 0.0 0"/>
+      <origin xyz="0.0 0.065 0.0" rpy="1.5708 0.0 0"/>
       <geometry>
-        <sphere  radius="0.085"/>
+        <box size="0.12019 0.12019 0.045"/>
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.0 0.0252 0.0" rpy="1.5708 0.0 0"/>
+      <origin xyz="0.0 0.100.2 0.0" rpy="1.5708 0.0 0"/>
       <geometry>
-        <sphere  radius="0.085"/>
+        <box size="0.06 0.06 0.01"/>
       </geometry>
-    </collision>        
+    </collision>
+    <collision>
+      <origin xyz="0.0 -0.065 0.0" rpy="1.5708 0.0 0"/>
+      <geometry>
+        <cylinder length="0.045" radius="0.085"/>
+      </geometry>
+    </collision>
   </link>
   <joint
     name="right_hip_pitch_joint"
     type="revolute">
     <origin
-      xyz="0 0.00680000000000022 -0.1652"
+      xyz="0 0.00680000000000042 -0.165200000000001"
       rpy="0 0 0" />
     <parent
       link="right_hip_yaw_link" />
@@ -674,26 +686,26 @@
     <axis
       xyz="0 -1 0" />
     <limit
-      lower="-1.57"
-      upper="1.57"
-      effort="320"
+      lower="-1.5708"
+      upper="1.5708"
+      effort="320.0"
       velocity="12.0" />
   </joint>
   <link
     name="right_knee_link">
     <inertial>
       <origin
-        xyz="0.00447782 0.00002168  -0.14827850"
+        xyz="0.00683419554473487 -0.000104858302558852 -0.143091869088048"
         rpy="0 0 0" />
       <mass
-        value="2.21352893" />
+        value="2.02536771173414" />
       <inertia
-        ixx="0.02430725"
-        ixy="-0.00000593"
-        ixz="-0.00190369"
-        iyy="0.02468919"
-        iyz="0.00030951"
-        izz="0.00185900" />
+        ixx="0.021688"
+        ixy="-0.000012"
+        ixz="-0.001627"
+        iyy="0.021880"
+        iyz="0.000001"
+        izz="0.001624" />
     </inertial>
     <visual>
       <origin
@@ -701,7 +713,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_knee_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_knee_link.STL" />
       </geometry>
       <material
         name="">
@@ -709,27 +721,27 @@
           rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_knee_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_knee_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
     <collision>
-      <origin xyz="0.0 0.0 -0.18" rpy="0 0 0"/>
+      <origin xyz="0.0 0.0 -0.2" rpy="0 0 0"/>
       <geometry>
-        <box size="0.05 0.027 0.26"/>
+        <box size="0.05 0.027 0.3"/>
       </geometry>
-    </collision>    
+    </collision>
   </link>
   <joint
     name="right_knee_joint"
     type="revolute">
     <origin
-      xyz="0 0 -0.380000000000003"
+      xyz="0 0 -0.38"
       rpy="0 0 0" />
     <parent
       link="right_hip_pitch_link" />
@@ -739,25 +751,25 @@
       xyz="0 1 0" />
     <limit
       lower="0.0"
-      upper="2.36"
-      effort="320"
-      velocity="12.0" />
+      upper="2.356"
+      effort="320.0"
+      velocity="12.0" /> 
   </joint>
   <link
     name="right_ankle_pitch_link">
     <inertial>
       <origin
-        xyz="0.0 0.00020000 0.0"
+        xyz="-2.94115183596677E-10 -3.75663944396365E-10 1.29813937377321E-11"
         rpy="0 0 0" />
       <mass
-        value="0.05651532" />
+        value="0.0241612944467328" />
       <inertia
-        ixx="0.00000836"
+        ixx="0.00000160"
         ixy="0.0"
-        ixz="0.00000010"
-        iyy="0.00000369"
+        ixz="0.00000004"
+        iyy="0.00000112"
         iyz="0.0"
-        izz="0.00001065" />
+        izz="0.00000242" />
     </inertial>
     <visual>
       <origin
@@ -765,7 +777,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_ankle_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_ankle_pitch_link.STL" />
       </geometry>
       <material
         name="">
@@ -773,21 +785,21 @@
           rgba="0.650980392156863 0.619607843137255 0.588235294117647 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_ankle_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_ankle_pitch_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
   </link>
   <joint
     name="right_ankle_pitch_joint"
     type="revolute">
     <origin
-      xyz="0.000178827472855806 0 -0.36737068203755"
+      xyz="0 0 -0.371366732487818"
       rpy="0 0 0" />
     <parent
       link="right_knee_link" />
@@ -798,24 +810,24 @@
     <limit
       lower="-0.7"
       upper="0.95"
-      effort="72"
+      effort="72.0"
       velocity="12.0" />
   </joint>
   <link
     name="right_ankle_roll_link">
     <inertial>
       <origin
-        xyz="0.00491479 0.00020760 -0.03027855"
+        xyz="0.00570789769797468 3.01516296186133E-06 -0.0291442245743543"
         rpy="0 0 0" />
       <mass
-        value="0.75938458" />
+        value="0.828995344627804" />
       <inertia
-        ixx=" 0.000458784"
-        ixy="0.00000035"
-        ixz="0.00022686"
-        iyy="0.00224096"
-        iyz="-0.00000012"
-        izz="0.00237129" />
+        ixx="0.00050987"
+        ixy="0.00000015"
+        ixz="0.00020221"
+        iyy="0.00272950"
+        iyz="-0.00000008"
+        izz="0.00301510" />
     </inertial>
     <visual>
       <origin
@@ -823,7 +835,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_ankle_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_ankle_roll_link.STL" />
       </geometry>
       <material
         name="">
@@ -837,29 +849,17 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_ankle_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_ankle_roll_link.STL" />
       </geometry>
     </collision> -->
     <collision>
-      <origin xyz="0.0212765 -0.037 -0.04755" rpy="0 1.5707963 0"/>
-      <geometry>
-        <cylinder length="0.099745" radius="0.003"/> 
-      </geometry>
-    </collision>
-    <collision>
-      <origin xyz="0.0212765 0.037 -0.04755" rpy="0 1.5707963 0"/>
-      <geometry>
-        <cylinder length="0.099745" radius="0.003"/> 
-      </geometry>
-    </collision>
-    <collision>
-      <origin xyz="0.02662359693 -0.0220429 -0.04755" rpy="0 1.5707963 0"/>
+      <origin xyz="0.02662359693 -0.037 -0.04356851577" rpy="0 1.5707963 0"/>
       <geometry>
         <cylinder length="0.20267795214" radius="0.003"/> 
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.02662359693 0.0220429 -0.04755" rpy="0 1.5707963 0"/>
+      <origin xyz="0.02662359693 0.037 -0.04356851577" rpy="0 1.5707963 0"/>
       <geometry>
         <cylinder length="0.20267795214" radius="0.003"/> 
       </geometry>
@@ -870,34 +870,34 @@
     type="revolute">
     <origin
       xyz="0 0 0"
-      rpy="0 -0.0428243667780054 0" />
+      rpy="0 -0.042824366778005 0" />
     <parent
       link="right_ankle_pitch_link" />
     <child
       link="right_ankle_roll_link" />
     <axis
-      xyz="0.996194698091745 0 -0.0871557427476598" />
+      xyz="0.996194698091743 0 -0.0871557427476899" />
     <limit
-      lower="-0.45"
-      upper="0.45"
-      effort="72"
+      lower="-0.5236"
+      upper="0.5236"
+      effort="72.0"
       velocity="12.0" />
-  </joint>
+  </joint>  
   <link
     name="trunk_link">
     <inertial>
       <origin
-        xyz=" -0.00361584 0.00001177 0.18862374"
+        xyz="-0.000551 0.000371 0.184600"
         rpy="0 0 0" />
       <mass
-        value="11.2484619397318" />
+        value="12.364176" />
       <inertia
-        ixx="0.29618358"
-        ixy="0.00018050"
-        ixz="0.00712966"
-        iyy="0.24546083"
-        iyz="-0.00000289"
-        izz="0.09088092" />
+        ixx="0.268086"
+        ixy="-0.0000003"
+        ixz="0.000182"
+        iyy="0.218767"
+        iyz="0.000073"
+        izz="0.093435" />
     </inertial>
     <visual>
       <origin
@@ -905,23 +905,23 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/trunk_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/trunk_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/trunk_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/trunk_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
     <collision>
       <origin xyz="0.0 0.0 0.2" rpy="0 0 0"/>
       <geometry>
@@ -929,13 +929,13 @@
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.0 -0.129 0.2" rpy="0 0 0"/>
+      <origin xyz="0.0 -0.124 0.2" rpy="0 0 0"/>
       <geometry>
         <box size="0.108 0.06 0.201"/>
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.0 0.129 0.2" rpy="0 0 0"/>
+      <origin xyz="0.0 0.124 0.2" rpy="0 0 0"/>
       <geometry>
         <box size="0.108 0.06 0.201"/>
       </geometry>
@@ -954,26 +954,26 @@
     <axis
       xyz="0 0 1" />
     <limit
-      lower="-2.62"
-      upper="2.62"
-      effort="150"
+      lower="-2.618"
+      upper="2.618"
+      effort="150.0"
       velocity="6.28" />
   </joint>
   <link
     name="left_shoulder_pitch_link">
     <inertial>
       <origin
-        xyz="0.00690853 0.05543982 0.0"
+        xyz="0.001691 0.056382 0.0"
         rpy="0 0 0" />
       <mass
-        value="0.69960149" />
+        value="0.674662" />
       <inertia
-        ixx="0.00048554"
-        ixy="-0.00004023"
-        ixz="-0.00000048"
-        iyy="0.00044891"
-        iyz="-0.00000004"
-        izz="0.00062265" />
+        ixx="0.000472"
+        ixy="-0.000006"
+        ixz="0.0"
+        iyy="0.000473"
+        iyz="0.0"
+        izz="0.000618" />
     </inertial>
     <visual>
       <origin
@@ -981,36 +981,36 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_shoulder_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_shoulder_pitch_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_shoulder_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_shoulder_pitch_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
     <collision>
       <origin xyz="0.0 0.063 0.0" rpy="0 1.5708 0"/>
       <geometry>
         <cylinder length="0.076" radius="0.033"/>
       </geometry>
-    </collision>    
+    </collision>
   </link>
   <joint
     name="left_shoulder_pitch_joint"
     type="revolute">
     <origin
-      xyz="0 0.128943749506644 0.352787572334531"
-      rpy="0.261799387799149 0 0" />
+      xyz="0 0.128943749506644 0.351787572334531"
+      rpy="0.261799387799151 0 0" />
     <parent
       link="trunk_link" />
     <child
@@ -1020,24 +1020,24 @@
     <limit
       lower="-2.4"
       upper="1.2"
-      effort="72"
-      velocity="8.164" />
+      effort="70.0"
+      velocity="6.28" />
   </joint>
   <link
     name="left_shoulder_roll_link">
     <inertial>
       <origin
-        xyz="-0.00198558 0.05034978 -0.05220954"
+        xyz="-0.002074 0.048804 -0.047117"
         rpy="0 0 0" />
       <mass
-        value="0.76368656" />
+        value="0.752079" />
       <inertia
-        ixx="0.00104781"
-        ixy="-0.00008007"
-        ixz="0.00008323"
-        iyy="0.00103921"
-        iyz="0.00031983"
-        izz="0.00088550" />
+        ixx="0.000999"
+        ixy="-0.000076"
+        ixz="0.000073"
+        iyy="0.001009"
+        iyz="0.000283"
+        izz="0.000885" />
     </inertial>
     <visual>
       <origin
@@ -1045,30 +1045,30 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_shoulder_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_shoulder_roll_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!--collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_shoulder_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_shoulder_roll_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
   </link>
   <joint
     name="left_shoulder_roll_joint"
     type="revolute">
     <origin
-      xyz="0 0.0630000000000002 0"
-      rpy="-0.26179938779915 0 0" />
+      xyz="0 0.0629999999999999 0"
+      rpy="-0.261799387799151 0 0" />
     <parent
       link="left_shoulder_pitch_link" />
     <child
@@ -1076,26 +1076,26 @@
     <axis
       xyz="1 0 0" />
     <limit
-      lower="-0.6"
+      lower="-0.3"
       upper="2.7"
-      effort="72"
-      velocity="8.164" />
+      effort="70.0"
+      velocity="6.28" />  
   </joint>
   <link
     name="left_shoulder_yaw_link">
     <inertial>
       <origin
-        xyz="-0.00053458 0.00054648 -0.11813711"
+        xyz="-0.005260 0.000565 -0.120127"
         rpy="0 0 0" />
       <mass
-        value="0.78058169" />
+        value="0.755247" />
       <inertia
-        ixx="0.00212153"
-        ixy="-0.00000009"
-        ixz="0.00000956"
-        iyy="0.00216666"
-        iyz="0.00000337"
-        izz="0.00038335" />
+        ixx="0.001943"
+        ixy="-0.000002"
+        ixz="-0.000119"
+        iyy="0.002046"
+        iyz="0.000003"
+        izz="0.000455" />
     </inertial>
     <visual>
       <origin
@@ -1103,36 +1103,36 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_shoulder_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_shoulder_yaw_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_shoulder_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_shoulder_yaw_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
     <collision>
       <origin xyz="0.0 0.0 -0.0535" rpy="0 0 0"/>
       <geometry>
         <box size="0.05 0.05 0.081"/>
       </geometry>
-    </collision>    
+    </collision>
   </link>
   <joint
     name="left_shoulder_yaw_joint"
     type="revolute">
     <origin
-      xyz="0 0.065813 -0.091069"
-      rpy="0.2618 0 0" />
+      xyz="0 0.0658130327873276 -0.0910694499562512"
+      rpy="0.261799387799152 0 0" />
     <parent
       link="left_shoulder_roll_link" />
     <child
@@ -1140,26 +1140,26 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="-3.7175512"
-      upper="1.623156"
-      effort="72.0"
-      velocity="8.164" />
+      lower="-2.5"
+      upper="2.5"
+      effort="6.28"
+      velocity="70.0" />   
   </joint>
   <link
     name="left_elbow_link">
     <inertial>
       <origin
-        xyz="0.00525148 0.00025856 -0.06316864"
+        xyz="0.004919 0.0 -0.059209"
         rpy="0 0 0" />
       <mass
-        value="0.53459108" />
+        value="0.527226" />
       <inertia
-        ixx="0.00037825"
+        ixx="0.000404"
         ixy="0.0"
-        ixz="-0.00008529"
-        iyy="0.00042105"
-        iyz="-0.00000004"
-        izz="0.00026037" />
+        ixz="-0.000072"
+        iyy="0.000444"
+        iyz="0.0"
+        izz="0.000277" />
     </inertial>
     <visual>
       <origin
@@ -1167,21 +1167,27 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_elbow_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_elbow_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_elbow_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_elbow_link.STL" />
+      </geometry>
+    </collision -->
+    <collision>
+      <origin xyz="0.0 0.0 -0.06225" rpy="0 0.0 0"/>
+      <geometry>
+        <box size="0.066 0.066 0.0585"/>
       </geometry>
     </collision>
   </link>
@@ -1189,7 +1195,7 @@
     name="left_elbow_joint"
     type="revolute">
     <origin
-      xyz="0 -0.00025881904510211 -0.151965925826289"
+      xyz="0 0 -0.151"
       rpy="0 0 0" />
     <parent
       link="left_shoulder_yaw_link" />
@@ -1199,25 +1205,25 @@
       xyz="1 0 0" />
     <limit
       lower="-2.17"
-      upper="0"
-      effort="72"
-      velocity="8.164" />
+      upper="0.0"
+      effort="70.0"
+      velocity="6.28" />   
   </joint>
   <link
     name="left_wrist_yaw_link">
     <inertial>
       <origin
-        xyz="0.00689678 0.00006671 -0.05588964"
+        xyz="0.002808 0.0 -0.057986"
         rpy="0 0 0" />
       <mass
-        value="0.63301211" />
+        value="0.616108" />
       <inertia
-        ixx="0.00046432"
-        ixy="-0.00000052"
-        ixz="0.00003416"
-        iyy="0.00054274"
-        iyz="0.00000452"
-        izz="0.00037831" />
+        ixx="0.000451"
+        ixy="0.0"
+        ixz="0.000011"
+        iyy="0.000537"
+        iyz="0.0"
+        izz="0.000396" />
     </inertial>
     <visual>
       <origin
@@ -1225,23 +1231,23 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_wrist_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_wrist_yaw_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_wrist_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_wrist_yaw_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
     <collision>
       <origin xyz="0.0 0.0 -0.065" rpy="0 1.5708 0"/>
       <geometry>
@@ -1262,26 +1268,26 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="-1.1519173"
-      upper="4.043510"
-      effort="30"
-      velocity="6.28" />
+      lower="-2.5"
+      upper="2.5"
+      effort="30.0"
+      velocity="6.28" />   
   </joint>
   <link
     name="left_wrist_roll_link">
     <inertial>
       <origin
-        xyz="-0.00300548 -0.00019258 -0.05178742"
+        xyz="-0.001914 0.004268 -0.054172"
         rpy="0 0 0" />
       <mass
-        value="0.61394363" />
+        value="0.587201" />
       <inertia
-        ixx="0.00055258"
-        ixy="0.00000045"
-        ixz="0.00009579"
-        iyy="0.00072795"
-        iyz="-0.00000117"
-        izz="0.00038948" />
+        ixx="0.000532"
+        ixy="-0.000005"
+        ixz="0.000061"
+        iyy="0.000654"
+        iyz="0.000029"
+        izz="0.000434" />
     </inertial>
     <visual>
       <origin
@@ -1289,29 +1295,35 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_wrist_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_wrist_roll_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_wrist_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_wrist_roll_link.STL" />
       </geometry>
-    </collision> -->   
+    </collision -->
+    <collision>
+      <origin xyz="0.0 0.0 -0.065" rpy="0 1.5708 1.5708"/>
+      <geometry>
+        <cylinder length="0.0695" radius="0.028"/>
+      </geometry>
+    </collision>
   </link>
   <joint
     name="left_wrist_roll_joint"
     type="revolute">
     <origin
-      xyz="0 0.00025882 -0.064034"
+      xyz="0 0 -0.0649999999999999"
       rpy="0 0 0" />
     <parent
       link="left_wrist_yaw_link" />
@@ -1322,24 +1334,24 @@
     <limit
       lower="-1.11"
       upper="1.11"
-      effort="30"
-      velocity="6.28" />
+      effort="30.0"
+      velocity="6.28" />   
   </joint>
   <link
     name="left_wrist_pitch_link">
     <inertial>
       <origin
-        xyz="0.00486556 -0.00565958 -0.09968261"
+        xyz="0.00 -0.0175327 -0.0216013"
         rpy="0 0 0" />
       <mass
-        value="0.37464276" />
+        value="0.0673920" />
       <inertia
-        ixx="0.00115705"
-        ixy="0.00000292"
-        ixz="0.00005095"
-        iyy="0.00123990"
-        iyz="0.00000063"
-        izz="0.00026026" />
+        ixx="0.0000430"
+        ixy="0.0000000"
+        ixz="0.0000000"
+        iyy="0.0000369"
+        iyz="0.0000123"
+        izz="0.0000228" />
     </inertial>
     <visual>
       <origin
@@ -1347,29 +1359,29 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_wrist_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_wrist_pitch_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_wrist_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/left_wrist_pitch_link.STL" />
       </geometry>
-    </collision>    
+    </collision -->
   </link>
   <joint
     name="left_wrist_pitch_joint"
     type="revolute">
     <origin
-      xyz="0 0 -0.065"
+      xyz="0 0 -0.0650000000000001"
       rpy="0 0 0" />
     <parent
       link="left_wrist_roll_link" />
@@ -1380,24 +1392,24 @@
     <limit
       lower="-1.05"
       upper="1.05"
-      effort="30"
-      velocity="6.28" />
+      effort="30.0"
+      velocity="6.28" />   
   </joint>
   <link
     name="right_shoulder_pitch_link">
     <inertial>
       <origin
-        xyz=" 0.00690853 -0.05543982 0.0"
+        xyz="0.001691 -0.056382 0.0"
         rpy="0 0 0" />
       <mass
-        value="0.69960149" />
+        value="0.674662" />
       <inertia
-        ixx="0.00048554"
-        ixy="0.00004023"
-        ixz="0.00000048"
-        iyy="0.00044891"
-        iyz="-0.00000004"
-        izz="0.00062265" />
+        ixx="0.000472"
+        ixy="0.000006"
+        ixz="0.0"
+        iyy="0.000473"
+        iyz="0.0"
+        izz="0.000618" />
     </inertial>
     <visual>
       <origin
@@ -1405,23 +1417,23 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_shoulder_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_shoulder_pitch_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_shoulder_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_shoulder_pitch_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
     <collision>
       <origin xyz="0.0 -0.063 0.0" rpy="0 1.5708 0"/>
       <geometry>
@@ -1433,8 +1445,8 @@
     name="right_shoulder_pitch_joint"
     type="revolute">
     <origin
-      xyz="0 -0.128943749506644 0.352787572334531"
-      rpy="-0.26179938779915 0 0" />
+      xyz="0 -0.128943749506644 0.351787572334532"
+      rpy="-0.261799387799149 0 0" />
     <parent
       link="trunk_link" />
     <child
@@ -1444,24 +1456,24 @@
     <limit
       lower="-1.2"
       upper="2.4"
-      effort="72"
-      velocity="8.164" />
+      effort="70.0"
+      velocity="6.28" />   
   </joint>
   <link
     name="right_shoulder_roll_link">
     <inertial>
       <origin
-        xyz="-0.00198552 -0.05034978 -0.05220954"
+        xyz="-0.002074 -0.048804 -0.047117"
         rpy="0 0 0" />
       <mass
-        value="0.76368656" />
+        value="0.752079" />
       <inertia
-        ixx="0.00104781"
-        ixy="0.00008008"
-        ixz="0.00008294"
-        iyy="0.00103921"
-        iyz="-0.00031983"
-        izz="0.00088550" />
+        ixx="0.000999"
+        ixy="0.000076"
+        ixz="0.000073"
+        iyy="0.001009"
+        iyz="-0.000283"
+        izz="0.000885" />
     </inertial>
     <visual>
       <origin
@@ -1469,30 +1481,30 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_shoulder_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_shoulder_roll_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_shoulder_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_shoulder_roll_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
   </link>
   <joint
     name="right_shoulder_roll_joint"
     type="revolute">
     <origin
       xyz="0 -0.063 0"
-      rpy="0.26179938779915 0 0" />
+      rpy="0.261799387799149 0 0" />
     <parent
       link="right_shoulder_pitch_link" />
     <child
@@ -1501,25 +1513,25 @@
       xyz="1 0 0" />
     <limit
       lower="-2.7"
-      upper="0.6"
-      effort="72"
-      velocity="8.164" />
+      upper="0.3"
+      effort="70.0"
+      velocity="6.28" />   
   </joint>
   <link
     name="right_shoulder_yaw_link">
     <inertial>
       <origin
-        xyz="-0.00053451  -0.00054647 -0.11813708"
+        xyz="-0.005260 -0.000565 -0.120127"
         rpy="0 0 0" />
       <mass
-        value="0.78058104" />
+        value="0.755247" />
       <inertia
-        ixx="0.00212153"
-        ixy="0.00000037"
-        ixz="0.00000956"
-        iyy="0.00216667"
-        iyz="-0.00000344"
-        izz="0.00038336" />
+        ixx="0.001943"
+        ixy="0.000002"
+        ixz="-0.000119"
+        iyy="0.002046"
+        iyz="-0.000003"
+        izz="0.000455" />
     </inertial>
     <visual>
       <origin
@@ -1527,36 +1539,36 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_shoulder_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_shoulder_yaw_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_shoulder_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_shoulder_yaw_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
     <collision>
       <origin xyz="0.0 0.0 -0.0535" rpy="0 0 0"/>
       <geometry>
         <box size="0.05 0.05 0.081"/>
       </geometry>
-    </collision>    
+    </collision>
   </link>
   <joint
     name="right_shoulder_yaw_joint"
     type="revolute">
     <origin
-      xyz="0 -0.065813 -0.091069"
-      rpy="-0.2618 0 0" />
+      xyz="0 -0.0658130327873273 -0.0910694499562514"
+      rpy="-0.261799387799149 0 0" />
     <parent
       link="right_shoulder_roll_link" />
     <child
@@ -1564,26 +1576,26 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="-1.623156"
-      upper="3.7175512"
-      effort="72"
-      velocity="8.164" />
+      lower="-2.5"
+      upper="2.5"
+      effort="70.0"
+      velocity="6.28" />    
   </joint>
   <link
     name="right_elbow_link">
     <inertial>
       <origin
-        xyz="0.00525148 -0.00025908 -0.06316864"
+        xyz="0.004919 0.0 -0.059209"
         rpy="0 0 0" />
       <mass
-        value="0.53459108" />
+        value="0.527226" />
       <inertia
-        ixx="0.00037825"
+        ixx="0.000404"
         ixy="0.0"
-        ixz="-0.00008529"
-        iyy="0.00042105"
-        iyz="-0.00000004"
-        izz="0.00026037" />
+        ixz="-0.000072"
+        iyy="0.000444"
+        iyz="0.0"
+        izz="0.000277" />
     </inertial>
     <visual>
       <origin
@@ -1591,21 +1603,27 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_elbow_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_elbow_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_elbow_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_elbow_link.STL" />
+      </geometry>
+    </collision -->
+    <collision>
+      <origin xyz="0.0 0.0 -0.06225" rpy="0 0.0 0"/>
+      <geometry>
+        <box size="0.066 0.066 0.0585"/>
       </geometry>
     </collision>
   </link>
@@ -1613,7 +1631,7 @@
     name="right_elbow_joint"
     type="revolute">
     <origin
-      xyz="0 0.00025881904510261 -0.151965925826289"
+      xyz="0 0 -0.151"
       rpy="0 0 0" />
     <parent
       link="right_shoulder_yaw_link" />
@@ -1624,24 +1642,24 @@
     <limit
       lower="0.0"
       upper="2.17"
-      effort="72"
-      velocity="8.164" />
+      effort="70.0"
+      velocity="6.28" />   
   </joint>
   <link
     name="right_wrist_yaw_link">
     <inertial>
       <origin
-        xyz="0.00689678  -0.00006671 -0.05588964"
+        xyz="0.002884 0.0 -0.057970"
         rpy="0 0 0" />
       <mass
-        value="0.63301211" />
+        value="0.614736" />
       <inertia
-        ixx="0.00046432"
-        ixy="0.00000116"
-        ixz="0.00003416"
-        iyy="0.00054274"
-        iyz="-0.00000453"
-        izz="0.00037831" />
+        ixx="0.000449"
+        ixy="0.0"
+        ixz="0.000011"
+        iyy="0.000535"
+        iyz="0.0"
+        izz="0.000393" />
     </inertial>
     <visual>
       <origin
@@ -1649,29 +1667,29 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_wrist_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_wrist_yaw_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_wrist_yaw_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_wrist_yaw_link.STL" />
       </geometry>
-    </collision> -->
+    </collision -->
     <collision>
       <origin xyz="0.0 0.0 -0.065" rpy="0 1.5708 0"/>
       <geometry>
         <cylinder length="0.071" radius="0.033"/>
       </geometry>
-    </collision>    
+    </collision>
   </link>
   <joint
     name="right_wrist_yaw_joint"
@@ -1686,26 +1704,26 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="-4.043510"
-      upper="1.1519173"
-      effort="30"
-      velocity="6.28" />
+      lower="-2.5"
+      upper="2.5"
+      effort="30.0"
+      velocity="6.28" />   
   </joint>
   <link
     name="right_wrist_roll_link">
     <inertial>
       <origin
-        xyz="-0.00316436 0.00021316 -0.05151221"
+        xyz="-0.001914 -0.004268 -0.054172"
         rpy="0 0 0" />
       <mass
-        value="0.61737346" />
+        value="0.587201" />
       <inertia
-        ixx="0.00056267"
-        ixy="-0.00000074"
-        ixz="0.00010064"
-        iyy="0.00074008"
-        iyz="0.00000036"
-        izz="0.00039308" />
+        ixx="0.000532"
+        ixy="0.000005"
+        ixz="0.000061"
+        iyy="0.000654"
+        iyz="-0.000029"
+        izz="0.000434" />
     </inertial>
     <visual>
       <origin
@@ -1713,35 +1731,35 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_wrist_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_wrist_roll_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <!-- <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_wrist_roll_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_wrist_roll_link.STL" />
       </geometry>
-    </collision> -->
-    <!-- <collision>
+    </collision -->
+    <collision>
       <origin xyz="0.0 0.0 -0.065" rpy="0 1.5708 1.5708"/>
       <geometry>
         <cylinder length="0.0695" radius="0.028"/>
       </geometry>
-    </collision>     -->
+    </collision>
   </link>
   <joint
     name="right_wrist_roll_joint"
     type="revolute">
     <origin
-      xyz="0 -0.00025882 -0.064034"
+      xyz="0 0 -0.0650000000000002"
       rpy="0 0 0" />
     <parent
       link="right_wrist_yaw_link" />
@@ -1752,24 +1770,24 @@
     <limit
       lower="-1.11"
       upper="1.11"
-      effort="30"
-      velocity="6.28" />
+      effort="30.0"
+      velocity="6.28" />  
   </joint>
   <link
     name="right_wrist_pitch_link">
     <inertial>
       <origin
-        xyz="0.00486558 0.00565958 -0.09968261"
+        xyz="0.00 0.0175327 -0.0216013"
         rpy="0 0 0" />
       <mass
-        value="0.37464274" />
+        value="0.0673920" />
       <inertia
-        ixx="0.00115705"
-        ixy="-0.00000292"
-        ixz="0.00005095"
-        iyy="0.00123990"
-        iyz="-0.00000063"
-        izz="0.00026026" />
+        ixx="0.0000430"
+        ixy="0.0000000"
+        ixz="0.0000000"
+        iyy="0.0000369"
+        iyz="-0.0000123"
+        izz="0.0000228" />
     </inertial>
     <visual>
       <origin
@@ -1777,29 +1795,29 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_wrist_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_wrist_pitch_link.STL" />
       </geometry>
       <material
         name="">
         <color
-          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
       </material>
     </visual>
-    <collision>
+    <!-- collision>
       <origin
         xyz="0 0 0"
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_wrist_pitch_link.STL" />
+          filename="package://humanoid_ultra_description/meshes/right_wrist_pitch_link.STL" />
       </geometry>
-    </collision>   
+    </collision -->
   </link>
   <joint
     name="right_wrist_pitch_joint"
     type="revolute">
     <origin
-      xyz="0 0 -0.065"
+      xyz="0 0 -0.0649999999999999"
       rpy="0 0 0" />
     <parent
       link="right_wrist_roll_link" />
@@ -1810,7 +1828,144 @@
     <limit
       lower="-1.05"
       upper="1.05"
-      effort="30"
+      effort="30.0"
+      velocity="6.28" />
+  
+  </joint>
+  <link
+    name="neck_yaw_link">
+    <inertial>
+      <origin
+        xyz="0.0 0.00019087 0.03645766"
+        rpy="0 0 0" />
+      <mass
+        value="0.44388106" />
+      <inertia
+        ixx="0.00026610"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="0.00022656"
+        iyz="-0.00000098"
+        izz="0.00018505" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://humanoid_ultra_description/meshes/neck_yaw_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <!-- <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://humanoid_ultra_description/meshes/neck_yaw_link.STL" />
+      </geometry>
+    </collision> -->
+    <collision>
+      <origin xyz="0.0 0.0 0.045" rpy="0 1.5708 1.5708"/>
+      <geometry>
+        <cylinder length="0.0566" radius="0.026"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="neck_yaw_joint"
+    type="fixed">
+    <origin
+      xyz="0 0 0.4259"
+      rpy="0 0 0" />
+    <parent
+      link="trunk_link" />
+    <child
+      link="neck_yaw_link" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-2.618"
+      upper="2.618"
+      effort="12.0"
+      velocity="12.0" />
+  </joint>
+  <link
+    name="neck_pitch_link">
+    <inertial>
+      <origin
+        xyz="-0.000554794597844313 -0.000121807463873021 0.107473443112785"
+        rpy="0 0 0" />
+      <mass
+        value="0.568971862007055" />
+      <inertia
+        ixx="0.00223211"
+        ixy="-0.00000009"
+        ixz="-0.00001065"
+        iyy="0.00117959"
+        iyz="0.00000004"
+        izz="0.00143099" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://humanoid_ultra_description/meshes/neck_pitch_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <!-- <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://humanoid_ultra_description/meshes/neck_pitch_link.STL" />
+      </geometry>
+    </collision> -->
+    <collision>
+      <origin xyz="0.0 0.0 0.106135" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06525 0.14363 0.10427"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="neck_pitch_joint"
+    type="fixed">
+    <origin
+      xyz="0 0 0.045"
+      rpy="0 0 0" />
+    <parent
+      link="neck_yaw_link" />
+    <child
+      link="neck_pitch_link" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-1.5707"
+      upper="1.5707"
+      effort="14.0"
       velocity="6.28" />
   </joint>
+
+
+
+
+
+
+
+
 </robot>

@@ -1,9 +1,15 @@
 <launch>
   <arg
     name="model" />
+  <arg
+    name="gui"
+    default="False" />
   <param
     name="robot_description"
-    textfile="$(find humanoidultra01)/urdf/humanoidultra01.urdf" />
+    textfile="$(find humanoid_ultra_description)/urdf/humanoid_ultra_description.urdf" />
+  <param
+    name="use_gui"
+    value="$(arg gui)" />
   <node
     name="joint_state_publisher_gui"
     pkg="joint_state_publisher_gui"
@@ -16,5 +22,5 @@
     name="rviz"
     pkg="rviz"
     type="rviz"
-    args="-d $(find humanoidultra01)/urdf.rviz" />
+    args="-d $(find humanoid_ultra_description)/config/urdf.rviz" />
 </launch>

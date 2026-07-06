@@ -36,15 +36,29 @@ from isaaclab.actuators import DelayedPDActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
 HUMANOID_ULTRA_DESCRIPTION_DIR = Path(__file__).resolve().parent / "humanoid_ultra_description"
+HUMANOID_ULTRA_URDF_DIR = HUMANOID_ULTRA_DESCRIPTION_DIR / "urdf"
+HUMANOID_ULTRA_MESH_DIR = HUMANOID_ULTRA_DESCRIPTION_DIR / "meshes"
+
+HUMANOID_ULTRA_12DOF_URDF = "humanoid_ultra_12dof_description.urdf"
+HUMANOID_ULTRA_27DOF_URDF = "humanoid_ultra_27dof_description.urdf"
 
 
 def _prepared_urdf(filename: str) -> str:
     """Create an Isaac Sim-friendly URDF with absolute mesh paths."""
-    source_path = HUMANOID_ULTRA_DESCRIPTION_DIR / "urdf" / filename
-    mesh_prefix = f"{(HUMANOID_ULTRA_DESCRIPTION_DIR / 'meshes_orign').as_posix()}/"
-    contents = source_path.read_text(encoding="utf-8").replace(
-        "package://humanoid_ultra_description/meshes/", mesh_prefix
-    )
+    source_path = HUMANOID_ULTRA_URDF_DIR / filename
+    if not source_path.is_file():
+        raise FileNotFoundError(f"Humanoid Ultra URDF does not exist: {source_path}")
+    if not HUMANOID_ULTRA_MESH_DIR.is_dir():
+        raise FileNotFoundError(f"Humanoid Ultra mesh directory does not exist: {HUMANOID_ULTRA_MESH_DIR}")
+
+    mesh_prefix = f"{HUMANOID_ULTRA_MESH_DIR.as_posix()}/"
+    contents = source_path.read_text(encoding="utf-8")
+    for package_prefix in (
+        "package://humanoidultra01/meshes/",
+        "package://humanoid_ultra_description/meshes/",
+        "package://humanoidultra_urdf/meshes/",
+    ):
+        contents = contents.replace(package_prefix, mesh_prefix)
 
     output_dir = Path(tempfile.gettempdir()) / "IsaacLab" / "unitree_rl_lab" / "humanoid_ultra"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -55,7 +69,7 @@ def _prepared_urdf(filename: str) -> str:
 
 HUMANOIDULTRA12DOF_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
-        asset_path=_prepared_urdf("humanoid_ultra_12dof_description_.urdf"),
+        asset_path=_prepared_urdf(HUMANOID_ULTRA_12DOF_URDF),
         fix_base=False,
         merge_fixed_joints=False,
         activate_contact_sensors=True,
@@ -151,7 +165,7 @@ HUMANOIDULTRA12DOF_CFG = ArticulationCfg(
 #腿部6个，腰部1个，手臂7个   
 HUMANOIDULTRA27DOF_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
-        asset_path=_prepared_urdf("humanoid_ultra_27dof_description.urdf"),
+        asset_path=_prepared_urdf(HUMANOID_ULTRA_27DOF_URDF),
         fix_base=False,
         merge_fixed_joints=False,
         activate_contact_sensors=True,
@@ -332,7 +346,7 @@ HUMANOIDULTRA27DOF_CFG = ArticulationCfg(
 #腿部6个，腰部1个，手臂7个   
 HUMANOIDULTRA27DOF_AMP_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
-        asset_path=_prepared_urdf("humanoid_ultra_27dof_amp_description.urdf"),
+        asset_path=_prepared_urdf(HUMANOID_ULTRA_27DOF_URDF),
         fix_base=False,
         merge_fixed_joints=False,
         activate_contact_sensors=True,

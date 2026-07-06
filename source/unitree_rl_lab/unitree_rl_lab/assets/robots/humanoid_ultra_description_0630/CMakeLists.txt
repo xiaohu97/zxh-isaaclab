@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 
-project(humanoidultra01)
+project(humanoid_ultra_description)
 
 find_package(catkin REQUIRED)
 

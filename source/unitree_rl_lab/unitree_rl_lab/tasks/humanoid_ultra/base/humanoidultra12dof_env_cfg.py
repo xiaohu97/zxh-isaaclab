@@ -155,7 +155,7 @@ class Humanoidultra12dofRewardCfg(RewardCfg):
                 "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll.*"),
                 "sensor_cfg1": SceneEntityCfg("left_feet_scanner"),
                 "sensor_cfg2": SceneEntityCfg("right_feet_scanner"),
-                "ankle_height":0.046568,"threshold":0.02})
+                "ankle_height":0.05055,"threshold":0.02})
 
 
 @configclass
@@ -169,7 +169,7 @@ class Humanoidultra12dofFlatEnvCfg(BaseEnvCfg):
         self.observation_space = 45 #9+12*3
         self.state_space = 84   #45 + 3 + 2 + 6+2+2+12+12
         self.scene_context.robot = HUMANOIDULTRA12DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene_context.height_scanner.prim_body_name = "dummy_link"
+        self.scene_context.height_scanner.prim_body_name = "base_link"
         self.scene_context.terrain_type = "generator"
         self.scene_context.terrain_generator = GRAVEL_TERRAINS_CFG
         self.scene_context.height_scanner.enable_height_scan = False
