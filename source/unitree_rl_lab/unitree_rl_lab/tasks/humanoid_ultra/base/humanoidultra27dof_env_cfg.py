@@ -56,7 +56,21 @@ class Humanoidultra27dofRewardCfg(RewardCfg):
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-2e-2)
     action_smoothness_l2 = RewTerm(func=mdp.action_smoothness_l2, weight=-2e-2)
     # 实机臂/躯干有 24-29 Hz 结构模态；惩罚 dq 二阶差分抑制策略在高频段的抖动激励
-    joint_oscillation_l2 = RewTerm(func=mdp.joint_oscillation_l2, weight=-5e-3)
+    joint_oscillation_l2 = RewTerm(
+        func=mdp.joint_oscillation_l2,
+        weight=0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[
+                    ".*waist.*",
+                    ".*_shoulder_.*",
+                    ".*_elbow.*",
+                    ".*_wrist.*",
+                ],
+            )
+        },
+    )
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
         weight=-1.0,
