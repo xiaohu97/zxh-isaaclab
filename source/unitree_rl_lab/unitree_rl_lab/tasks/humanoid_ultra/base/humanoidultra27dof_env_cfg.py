@@ -102,7 +102,7 @@ class Humanoidultra27dofRewardCfg(RewardCfg):
     )
     feet_impact_velocity = RewTerm(
         func=mdp.feet_impact_velocity,
-        weight=-1.5,
+        weight=-2.5,
         params={
             "sensor_cfg": SceneEntityCfg("contact_sensor", body_names=".*ankle_roll.*"),
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll.*"),
