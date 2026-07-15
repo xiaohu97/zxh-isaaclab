@@ -92,12 +92,11 @@ class Humanoidultra27dofRewardCfg(RewardCfg):
         },
     )
     feet_force = RewTerm(
-        func=mdp.body_force,
-        weight=-3e-3,
+        func=mdp.contact_forces,
+        weight=-2e-4,
         params={
             "sensor_cfg": SceneEntityCfg("contact_sensor", body_names=".*ankle_roll.*"),
-            "threshold": 700,
-            "max_reward": 400,
+            "threshold": 560,
         },
     )
     feet_impact_velocity = RewTerm(
