@@ -2,7 +2,8 @@
 
 在 ``HumanoidUltra27dofStandEnv`` (DirectRLEnv) 基础上注入一条左臂参考轨迹：
 - 用 ``np.fft.rfft`` 从 CSV 还原 Fourier 级数，运行时解析求 q_ref/dq_ref（C∞ 连续、周期）。
-- 五次 smoothstep 把目标从默认位姿平滑渐入（默认位姿与轨迹起点差异很大，需较长 blend）。
+- 先用五次 smoothstep 展开到安全肩部姿态，再平滑接入轨迹，避免 yaw 大角度旋转时扫过身体。
+- 训练 episode 末尾按相反路线渐出，让策略学会实机关闭激励时安全收手。
 - 每个 env 在 reset 时按 ``rel_enabled_envs`` 随机开/关跟踪；关闭时目标=默认位姿(收手)。
 - 把 15 维 ``[q_ref_rel(7), dq_ref(7)*ref_vel_scale, enabled(1)]`` 追加到 actor/critic 观测末尾，
   奖励项(见 cfg)按此跟踪。
@@ -28,15 +29,31 @@ class HumanoidUltra27dofStandLeftArmEnv(HumanoidUltra27dofStandEnv):
             return
         cfg = self.cfg.arm_command
         self.arm_period = float(cfg.period)
+        self.arm_safe_time = float(cfg.safe_pose_time_s)
         self.arm_blend_time = float(cfg.blend_time_s)
         self.arm_vscale = float(cfg.ref_vel_scale)
         self.arm_rel_enabled = float(cfg.rel_enabled_envs)
         self.arm_randomize_phase = bool(cfg.randomize_start_phase)
+        self.arm_auto_fade_out = bool(cfg.auto_fade_out)
+        if self.arm_safe_time < 0.0 or self.arm_blend_time < 0.0:
+            raise ValueError("Left-arm transition times must be non-negative.")
+        transition_time = 2.0 * (self.arm_safe_time + self.arm_blend_time)
+        if self.arm_auto_fade_out and transition_time > self.max_episode_length_s:
+            raise ValueError("Left-arm safe/blend transitions do not fit in one episode.")
 
         joint_ids = self.robot.find_joints(list(cfg.joint_names), preserve_order=True)[0]
         self.arm_joint_ids = torch.tensor(joint_ids, dtype=torch.long, device=self.device)
         self.arm_num_joints = len(joint_ids)
         self.arm_default_q = self.robot.data.default_joint_pos[:, self.arm_joint_ids].clone()
+        if len(cfg.safe_joint_pos) != self.arm_num_joints:
+            raise ValueError(
+                f"safe_joint_pos has {len(cfg.safe_joint_pos)} values; expected {self.arm_num_joints}."
+            )
+        self.arm_safe_q = (
+            torch.tensor(cfg.safe_joint_pos, dtype=torch.float32, device=self.device)
+            .unsqueeze(0)
+            .expand(self.num_envs, -1)
+        )
 
         self._build_fourier(cfg.traj_file, list(cfg.joint_names))
 
@@ -76,6 +93,15 @@ class HumanoidUltra27dofStandLeftArmEnv(HumanoidUltra27dofStandEnv):
         dq = (-(sin * w)) @ self.arm_fa + (cos * w) @ self.arm_fb
         return q, dq
 
+    @staticmethod
+    def _smoothstep(elapsed: torch.Tensor, duration: float) -> tuple[torch.Tensor, torch.Tensor]:
+        if duration <= 0.0:
+            return torch.ones_like(elapsed), torch.zeros_like(elapsed)
+        u = torch.clamp(elapsed / duration, 0.0, 1.0)
+        alpha = 6.0 * u**5 - 15.0 * u**4 + 10.0 * u**3
+        alpha_dot = (30.0 * u**4 - 60.0 * u**3 + 30.0 * u**2) / duration
+        return alpha, alpha_dot
+
     def _reset_arm(self, env_ids: Sequence[int]):
         self._ensure_arm()
         if len(env_ids) == 0:
@@ -93,22 +119,72 @@ class HumanoidUltra27dofStandLeftArmEnv(HumanoidUltra27dofStandEnv):
         """从 episode_length_buf 解析出当前 q_ref_rel / dq_ref（纯函数，可重复调用）。"""
         self._ensure_arm()
         elapsed = self.episode_length_buf.float() * self.step_dt
-        phase = torch.remainder(elapsed + self.arm_phase_offset, self.arm_period)
+        # 轨迹时钟在安全姿态到达后才启动，因此 phase_offset 表示真正接轨时的
+        # 起始相位；部署端使用相同语义。
+        trajectory_elapsed = torch.clamp(elapsed - self.arm_safe_time, min=0.0)
+        phase = torch.remainder(trajectory_elapsed + self.arm_phase_offset, self.arm_period)
         q_traj, dq_traj = self._fourier_eval(phase)
-        delta = q_traj - self.arm_default_q
+        q_ref = self.arm_default_q.clone()
+        dq_ref = torch.zeros_like(q_ref)
 
-        if self.arm_blend_time > 0.0:
-            u = torch.clamp(elapsed / self.arm_blend_time, 0.0, 1.0)
-            alpha = 6.0 * u**5 - 15.0 * u**4 + 10.0 * u**3
-            dalpha = (30.0 * u**4 - 60.0 * u**3 + 30.0 * u**2) / self.arm_blend_time
+        # Stage 1: default -> safe pose.  Only shoulder pitch/roll differ in the
+        # default configuration, so the large yaw rotations happen outside the body.
+        to_safe = elapsed < self.arm_safe_time
+        alpha, alpha_dot = self._smoothstep(elapsed, self.arm_safe_time)
+        safe_delta = self.arm_safe_q - self.arm_default_q
+        q_safe_in = self.arm_default_q + alpha.unsqueeze(1) * safe_delta
+        dq_safe_in = alpha_dot.unsqueeze(1) * safe_delta
+        q_ref = torch.where(to_safe.unsqueeze(1), q_safe_in, q_ref)
+        dq_ref = torch.where(to_safe.unsqueeze(1), dq_safe_in, dq_ref)
+
+        # Stage 2: safe pose -> moving Fourier trajectory.
+        blend_elapsed = elapsed - self.arm_safe_time
+        blend_end = self.arm_safe_time + self.arm_blend_time
+        to_track = torch.logical_and(elapsed >= self.arm_safe_time, elapsed < blend_end)
+        beta, beta_dot = self._smoothstep(blend_elapsed, self.arm_blend_time)
+        track_delta = q_traj - self.arm_safe_q
+        q_track_in = self.arm_safe_q + beta.unsqueeze(1) * track_delta
+        dq_track_in = beta_dot.unsqueeze(1) * track_delta + beta.unsqueeze(1) * dq_traj
+        q_ref = torch.where(to_track.unsqueeze(1), q_track_in, q_ref)
+        dq_ref = torch.where(to_track.unsqueeze(1), dq_track_in, dq_ref)
+
+        if self.arm_auto_fade_out:
+            fade_start = self.max_episode_length_s - self.arm_safe_time - self.arm_blend_time
         else:
-            alpha = torch.ones_like(elapsed)
-            dalpha = torch.zeros_like(elapsed)
+            fade_start = float("inf")
 
-        gate = self.arm_enabled * alpha
-        gate_dot = self.arm_enabled * dalpha
-        self.arm_q_ref_rel = gate.unsqueeze(1) * delta
-        self.arm_dq_ref = gate_dot.unsqueeze(1) * delta + gate.unsqueeze(1) * dq_traj
+        tracking = torch.logical_and(elapsed >= blend_end, elapsed < fade_start)
+        q_ref = torch.where(tracking.unsqueeze(1), q_traj, q_ref)
+        dq_ref = torch.where(tracking.unsqueeze(1), dq_traj, dq_ref)
+
+        if self.arm_auto_fade_out:
+            # Stage 3: moving trajectory -> safe pose.
+            fade_elapsed = elapsed - fade_start
+            fade_end = fade_start + self.arm_blend_time
+            from_track = torch.logical_and(elapsed >= fade_start, elapsed < fade_end)
+            gamma, gamma_dot = self._smoothstep(fade_elapsed, self.arm_blend_time)
+            q_track_out = q_traj + gamma.unsqueeze(1) * (self.arm_safe_q - q_traj)
+            dq_track_out = (
+                (1.0 - gamma).unsqueeze(1) * dq_traj
+                + gamma_dot.unsqueeze(1) * (self.arm_safe_q - q_traj)
+            )
+            q_ref = torch.where(from_track.unsqueeze(1), q_track_out, q_ref)
+            dq_ref = torch.where(from_track.unsqueeze(1), dq_track_out, dq_ref)
+
+            # Stage 4: safe pose -> default pose.
+            return_elapsed = elapsed - fade_end
+            to_default = elapsed >= fade_end
+            eta, eta_dot = self._smoothstep(return_elapsed, self.arm_safe_time)
+            q_default_out = self.arm_safe_q + eta.unsqueeze(1) * (
+                self.arm_default_q - self.arm_safe_q
+            )
+            dq_default_out = eta_dot.unsqueeze(1) * (self.arm_default_q - self.arm_safe_q)
+            q_ref = torch.where(to_default.unsqueeze(1), q_default_out, q_ref)
+            dq_ref = torch.where(to_default.unsqueeze(1), dq_default_out, dq_ref)
+
+        enabled = self.arm_enabled.unsqueeze(1)
+        self.arm_q_ref_rel = enabled * (q_ref - self.arm_default_q)
+        self.arm_dq_ref = enabled * dq_ref
 
     # ------------------------------------------------------------------ hooks
     def compute_current_observations(self):

@@ -1,7 +1,7 @@
 """Humanoid Ultra 27-DoF 站立 + 左臂轨迹激励跟踪 配置。
 
 在 ``HumanoidUltra27dofStandEnvCfg`` 基础上叠加：
-1. ``arm_command`` 配置块（轨迹文件 / 周期 / 渐入 / 开关比例 / 速度缩放）。
+1. ``arm_command`` 配置块（轨迹文件 / 安全展开姿态 / 周期 / 渐入渐出 / 开关比例 / 速度缩放）。
 2. 左臂位置/速度跟踪奖励；并把原 ``arm_deviation`` 收窄为只管右臂（左臂交给跟踪）。
 3. 观测每帧 +15 维（在 env 里追加），observation/state space 同步更新。
 
@@ -150,14 +150,21 @@ def hip_lateral_deviation_l2(env, asset_cfg) -> torch.Tensor:
 # ==============================================================================
 @configclass
 class ArmCommandCfg:
-    """左臂轨迹激励配置（被 env 子类读取）。"""
+    """左臂轨迹激励配置（被 env 子类读取）。
+
+    ``safe_joint_pos`` 与 ``joint_names`` 顺序相同。参考先用
+    ``safe_pose_time_s`` 到达安全姿态，再用 ``blend_time_s`` 接入轨迹。
+    """
 
     joint_names: list = MISSING
     traj_file: str = MISSING
+    safe_joint_pos: list = MISSING
     period: float = 6.0
-    blend_time_s: float = 2.0  # 默认位姿与轨迹起点差异很大(肩偏航~3.4rad)，渐入设长一些
+    safe_pose_time_s: float = 2.0
+    blend_time_s: float = 2.0
     rel_enabled_envs: float = 0.8
     randomize_start_phase: bool = True
+    auto_fade_out: bool = False
     ref_vel_scale: float = 0.25
 
 
@@ -208,6 +215,17 @@ class HumanoidUltra27dofStandLeftArmEnvCfg(HumanoidUltra27dofStandEnvCfg):
 
         self.arm_command.joint_names = LEFT_ARM_JOINTS
         self.arm_command.traj_file = _TRAJ_FILE
+        # 先增大 shoulder pitch/roll 把手臂展开到身体外侧；两个 yaw 和其余
+        # 关节保持默认，等到安全姿态后再接入运动轨迹。
+        self.arm_command.safe_joint_pos = [
+            -0.25,
+            0.55,
+            -1.5707963,
+            -0.6,
+            0.0,
+            0.0,
+            1.5707963,
+        ]
 
         # 左臂交给跟踪奖励 -> 原 arm_deviation 只罚右臂，避免与跟踪冲突
         self.reward.arm_deviation.params["asset_cfg"] = SceneEntityCfg(
@@ -227,6 +245,9 @@ class HumanoidUltra27dofStandLeftArmEnvCfg(HumanoidUltra27dofStandEnvCfg):
 class HumanoidUltra27dofStandLeftArmTrainEnvCfg(HumanoidUltra27dofStandLeftArmEnvCfg):
     def __post_init__(self):
         super().__post_init__()
+        # 在每个完整 episode 末尾按“轨迹 -> 安全姿态 -> 默认姿态”自动渐出，
+        # 让策略同时学习部署端按 A 关闭激励时的返回过程。
+        self.arm_command.auto_fade_out = True
         self.scene_context.num_envs = 4096
         self.scene = SceneCfg(
             config=self.scene_context,
