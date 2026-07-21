@@ -122,7 +122,11 @@ class CommandsCfg:
 
     motion = mdp.MotionCommandCfg(
         asset_name="robot",
-        motion_file=f"{os.path.dirname(__file__)}/ustc1_pick.npz",
+        # This version adds a walk-ready standing hold and smooth transitions
+        # around the original Pick clip.  The old NPZ is intentionally kept for
+        # checkpoint provenance; policies trained on it must not be resumed
+        # against this changed reference.
+        motion_file=f"{os.path.dirname(__file__)}/ustc1_pick_stand_transition.npz",
         anchor_body_name=ANCHOR_BODY_NAME,
         resampling_time_range=(1.0e9, 1.0e9),
         debug_vis=True,
