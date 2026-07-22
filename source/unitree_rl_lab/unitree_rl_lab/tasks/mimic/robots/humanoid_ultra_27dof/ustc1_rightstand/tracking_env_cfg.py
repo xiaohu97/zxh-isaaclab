@@ -32,6 +32,42 @@ from unitree_rl_lab.assets.robots.humanoid_ultra import HUMANOIDULTRA27DOF_CFG a
 # Flat action scale (matches the direct-workflow humanoid_ultra env action_scale=0.25)
 ROBOT_ACTION_SCALE = 0.25
 
+# Position-command safety boundary used by the real Humanoid Ultra controller.
+# These are command limits, not the articulation's physical joint limits.
+DEPLOYMENT_JOINT_POSITION_LIMITS = {
+    "left_hip_roll_joint": (-0.25, 1.5708),
+    "left_hip_yaw_joint": (-1.5708, 1.5708),
+    "left_hip_pitch_joint": (-1.5708, 1.5708),
+    "left_knee_joint": (0.0, 2.356),
+    "left_ankle_pitch_joint": (-0.7, 0.95),
+    "left_ankle_roll_joint": (-0.5236, 0.5236),
+    "right_hip_roll_joint": (-1.5708, 0.25),
+    "right_hip_yaw_joint": (-1.5708, 1.5708),
+    "right_hip_pitch_joint": (-1.5708, 1.5708),
+    "right_knee_joint": (0.0, 2.356),
+    "right_ankle_pitch_joint": (-0.7, 0.95),
+    "right_ankle_roll_joint": (-0.5236, 0.5236),
+    "waist_yaw_joint": (-2.618, 2.618),
+    "left_shoulder_pitch_joint": (-2.4, 1.2),
+    "left_shoulder_roll_joint": (-0.3, 2.7),
+    "left_shoulder_yaw_joint": (-2.5, 2.5),
+    "left_elbow_joint": (-2.17, 0.0),
+    "left_wrist_yaw_joint": (-2.5, 2.5),
+    "left_wrist_roll_joint": (-1.11, 1.11),
+    "left_wrist_pitch_joint": (-1.05, 1.05),
+    "right_shoulder_pitch_joint": (-1.2, 2.4),
+    "right_shoulder_roll_joint": (-2.7, 0.3),
+    "right_shoulder_yaw_joint": (-2.5, 2.5),
+    "right_elbow_joint": (0.0, 2.17),
+    "right_wrist_yaw_joint": (-2.5, 2.5),
+    "right_wrist_roll_joint": (-1.11, 1.11),
+    "right_wrist_pitch_joint": (-1.05, 1.05),
+}
+
+# The deployment controller updates at 50 Hz, so this permits at most 0.12 rad
+# of position-target change per policy step.
+DEPLOYMENT_TARGET_VELOCITY = 6.0
+
 # Anchor body: central torso link used to align robot vs. reference (G1 uses "torso_link").
 ANCHOR_BODY_NAME = "trunk_link"
 
@@ -150,6 +186,20 @@ class ActionsCfg:
 
 
 @configclass
+class DeploymentSafeActionsCfg:
+    """Position commands constrained exactly like the deployment controller."""
+
+    JointPositionAction = mdp.DeploymentLimitedJointPositionActionCfg(
+        asset_name="robot",
+        joint_names=[".*"],
+        scale=ROBOT_ACTION_SCALE,
+        use_default_offset=True,
+        clip=DEPLOYMENT_JOINT_POSITION_LIMITS,
+        max_target_velocity=DEPLOYMENT_TARGET_VELOCITY,
+    )
+
+
+@configclass
 class ObservationsCfg:
     """Observation specifications for the MDP."""
 
@@ -185,6 +235,28 @@ class ObservationsCfg:
         actions = ObsTerm(func=mdp.last_action)
 
     # observation groups
+    policy: PolicyCfg = PolicyCfg()
+    critic: PrivilegedCfg = PrivilegedCfg()
+
+
+@configclass
+class DeploymentSafeObservationsCfg(ObservationsCfg):
+    """Expose the normalized command that is actually sent to the PD actuator."""
+
+    @configclass
+    class PolicyCfg(ObservationsCfg.PolicyCfg):
+        last_action = ObsTerm(
+            func=mdp.last_applied_action,
+            params={"action_name": "JointPositionAction"},
+        )
+
+    @configclass
+    class PrivilegedCfg(ObservationsCfg.PrivilegedCfg):
+        actions = ObsTerm(
+            func=mdp.last_applied_action,
+            params={"action_name": "JointPositionAction"},
+        )
+
     policy: PolicyCfg = PolicyCfg()
     critic: PrivilegedCfg = PrivilegedCfg()
 
@@ -352,6 +424,21 @@ class RobotEnvCfg(ManagerBasedRLEnvCfg):
 
 
 class RobotPlayEnvCfg(RobotEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+
+
+@configclass
+class RobotDeploySafeEnvCfg(RobotEnvCfg):
+    """RightStand training with the real-controller position and target-rate boundary."""
+
+    actions: DeploymentSafeActionsCfg = DeploymentSafeActionsCfg()
+    observations: DeploymentSafeObservationsCfg = DeploymentSafeObservationsCfg()
+
+
+class RobotDeploySafePlayEnvCfg(RobotDeploySafeEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 1
