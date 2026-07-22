@@ -1361,7 +1361,8 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/left_wrist_pitch_link.STL" />
+          filename="package://humanoidultra01/meshes/left_wrist_pitch_link.STL"
+          scale="1.1 1.1 1.1"/>
       </geometry>
     </collision>    
   </link>
@@ -1791,7 +1792,8 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="package://humanoidultra01/meshes/right_wrist_pitch_link.STL" />
+          filename="package://humanoidultra01/meshes/right_wrist_pitch_link.STL"
+          scale="1.1 1.1 1.1"/>
       </geometry>
     </collision>   
   </link>

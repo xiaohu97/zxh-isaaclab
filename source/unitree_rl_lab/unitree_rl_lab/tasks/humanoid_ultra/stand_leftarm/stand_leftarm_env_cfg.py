@@ -47,6 +47,7 @@ LEFT_ARM_JOINTS = [
 ]
 # 左臂被跟踪后，右臂仍按名字保持默认位姿
 RIGHT_ARM_JOINTS = ["right_shoulder_.*", "right_elbow_joint", "right_wrist_.*"]
+WRIST_COLLISION_BODIES = ["left_wrist_pitch_link", "right_wrist_pitch_link"]
 _TRAJ_FILE = os.path.join(os.path.dirname(__file__), "left_wrist_pitch_traj.csv")
 
 # 抗劈叉：约束髋外展(roll)/外旋(yaw)，让降高度时腿留在身体下方而非岔开（对齐 G1）。
@@ -81,6 +82,32 @@ def track_left_arm_vel(env, std: float) -> torch.Tensor:
     cur = env.robot.data.joint_vel[:, env.arm_joint_ids]
     err = torch.mean(torch.square(cur - env.arm_dq_ref), dim=1)
     return torch.exp(-err / std**2)
+
+
+def wrist_contact_force_penalty(
+    env,
+    sensor_cfg: SceneEntityCfg,
+    threshold: float = 5.0,
+    force_scale: float = 50.0,
+) -> torch.Tensor:
+    """Penalize wrist-pitch contacts while ignoring small contact-force noise.
+
+    The existing all-body contact sensor reports net contact force but does not
+    identify the other collider.  In this standing task, wrist contacts are
+    therefore treated as undesired whether they come from the robot body,
+    terrain, or another object.
+    """
+    contact_sensor = env.scene.sensors[sensor_cfg.name]
+    peak_force = torch.linalg.norm(
+        contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :],
+        dim=-1,
+    ).amax(dim=1)
+    normalized_excess = torch.clamp(
+        (peak_force - threshold) / force_scale,
+        min=0.0,
+        max=1.0,
+    )
+    return torch.sum(normalized_excess, dim=1)
 
 
 def knee_straight_margin(env, asset_cfg: SceneEntityCfg, margin: float = 0.15) -> torch.Tensor:
@@ -172,6 +199,15 @@ class ArmCommandCfg:
 class StandLeftArmRewardCfg(HumanoidUltra27dofStandRewardCfg):
     left_arm_pos_tracking = RewTerm(func=track_left_arm_pos, weight=4.0, params={"std": 0.15})
     left_arm_vel_tracking = RewTerm(func=track_left_arm_vel, weight=0.7, params={"std": 1.4})
+    wrist_collision = RewTerm(
+        func=wrist_contact_force_penalty,
+        weight=-2.0,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_sensor", body_names=WRIST_COLLISION_BODIES),
+            "threshold": 5.0,
+            "force_scale": 50.0,
+        },
+    )
     # 站高时避免膝盖伸直碰限位（限位前留余量；正常姿态下为 0，不扰动稳定行为）
     knee_limit_margin = RewTerm(
         func=knee_straight_margin,
