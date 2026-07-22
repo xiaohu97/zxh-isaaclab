@@ -177,6 +177,15 @@ class CommandsCfg:
 
 
 @configclass
+class StandTransitionCommandsCfg(CommandsCfg):
+    """RightStand reference with deployment-ready standing entry and exit."""
+
+    motion = CommandsCfg().motion.replace(
+        motion_file=f"{os.path.dirname(__file__)}/ustc1_rightstand_stand_transition.npz"
+    )
+
+
+@configclass
 class ActionsCfg:
     """Action specifications for the MDP."""
 
@@ -423,13 +432,6 @@ class RobotEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.gpu_max_rigid_patch_count = 10 * 2**15
 
 
-class RobotPlayEnvCfg(RobotEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.num_envs = 1
-        self.episode_length_s = 1e9
-
-
 @configclass
 class RobotDeploySafeEnvCfg(RobotEnvCfg):
     """RightStand training with the real-controller position and target-rate boundary."""
@@ -438,7 +440,14 @@ class RobotDeploySafeEnvCfg(RobotEnvCfg):
     observations: DeploymentSafeObservationsCfg = DeploymentSafeObservationsCfg()
 
 
-class RobotDeploySafePlayEnvCfg(RobotDeploySafeEnvCfg):
+@configclass
+class RobotHoutaituiEnvCfg(RobotDeploySafeEnvCfg):
+    """Deployment-safe houtaitui with standing entry and recovery segments."""
+
+    commands: StandTransitionCommandsCfg = StandTransitionCommandsCfg()
+
+
+class RobotHoutaituiPlayEnvCfg(RobotHoutaituiEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 1

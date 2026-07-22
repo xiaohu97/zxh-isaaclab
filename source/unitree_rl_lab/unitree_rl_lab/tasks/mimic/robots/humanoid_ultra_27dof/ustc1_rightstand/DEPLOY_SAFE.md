@@ -1,54 +1,40 @@
-# RightStand deployment-matched training
+# Humanoid Ultra houtaitui deployment-matched training
 
-Use `USTC-Humanoid-Ultra-27dof-Mimic-RightStand-DeploySafe` for policies that
-will be tested in the Humanoid Ultra MuJoCo or real-robot controller.
+The only registered task for this motion family is:
 
-The task preserves the original RightStand motion and rewards, while changing
-the action boundary to match deployment:
+```text
+USTC-Humanoid-Ultra-27dof-Mimic-houtaitui
+```
 
-- position targets are clipped to the per-joint command limits in
-  `sim2real_humanoidultra27dof_stand.py`;
-- target changes are limited to `6 rad/s`, or `0.12 rad` per 50 Hz policy step;
-- the policy and critic observe the normalized target that was actually sent
-  after clipping and rate limiting as `last_action`.
+It combines both deployment requirements:
 
-The original `USTC-Humanoid-Ultra-27dof-Mimic-RightStand` task remains
-unchanged so its saved runs remain reproducible.
+- `ustc1_rightstand_stand_transition.npz`: standing hold, smooth entry,
+  original action, smooth recovery, and final standing hold;
+- per-joint real-controller position limits;
+- a `6 rad/s` position-target slew limit (`0.12 rad` per 50 Hz policy step);
+- policy and critic `last_action` observations taken after clipping and slew
+  limiting.
 
-## Recommended: train from scratch
+The legacy RightStand task registrations were removed. Their source NPZ and
+saved logs remain available only for provenance and motion regeneration.
+
+## Train from scratch
+
+The trajectory and action boundary differ from the old runs. Do not resume an
+old RightStand or DeploySafe checkpoint.
 
 ```bash
 conda activate ustc_isaaclab
 cd /home/zxh/unitree_rl_lab
 
 python scripts/rsl_rl/train.py \
-  --task USTC-Humanoid-Ultra-27dof-Mimic-RightStand-DeploySafe \
+  --task USTC-Humanoid-Ultra-27dof-Mimic-houtaitui \
   --headless \
   --device cuda:0 \
   --num_envs 4096 \
   --max_iterations 50000 \
-  --run_name deploysafe_from_scratch
+  --run_name houtaitui_stand_transition_v1
 ```
 
-## Optional ablation: fine-tune model_19500
-
-This is an ablation rather than the preferred policy because the old actor was
-trained with unclipped, unlimited-rate targets and raw `last_action`.  The
-checkpoint iteration is 19500, so 30500 additional iterations reaches 50000.
-
-```bash
-python scripts/rsl_rl/train.py \
-  --task USTC-Humanoid-Ultra-27dof-Mimic-RightStand-DeploySafe \
-  --experiment_name ustc_humanoid_ultra_27dof_mimic_rightstand \
-  --resume \
-  --load_run 2026-07-21_00-11-18_resume_from_11000 \
-  --checkpoint model_19500.pt \
-  --headless \
-  --device cuda:0 \
-  --num_envs 4096 \
-  --max_iterations 30500 \
-  --run_name deploysafe_finetune_from_19500
-```
-
-Do not deploy the old checkpoint merely because it still loads: under the new
-action boundary it terminates repeatedly and must be retrained or fine-tuned.
+See `STAND_TRANSITION.md` for the motion timeline, regeneration procedure, and
+asset validation boundary.
