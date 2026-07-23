@@ -254,8 +254,8 @@ class HumanoidUltra27dofStandLeftArmEnvCfg(HumanoidUltra27dofStandEnvCfg):
         # 先增大 shoulder pitch/roll 把手臂展开到身体外侧；两个 yaw 和其余
         # 关节保持默认，等到安全姿态后再接入运动轨迹。
         self.arm_command.safe_joint_pos = [
-            -0.25,
-            0.55,
+            0.25,
+            0.15,
             -1.5707963,
             -0.6,
             0.0,
