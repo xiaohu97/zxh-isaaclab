@@ -15,6 +15,11 @@ It combines both deployment requirements:
 - policy and critic `last_action` observations taken after clipping and slew
   limiting.
 
+The reward keeps the all-joint torque penalty at `-1e-5` and adds separately
+logged penalties for both hip-yaw joints (`-5e-5`) and both knee joints
+(`-2e-5`). Their total effective torque weights, including the all-joint term,
+are therefore `-6e-5` for hip yaw and `-3e-5` for knees.
+
 The legacy RightStand task registrations were removed. Their source NPZ and
 saved logs remain available only for provenance and motion regeneration.
 

@@ -322,6 +322,26 @@ class RewardsCfg:
     # -- base
     joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)
     joint_torque = RewTerm(func=mdp.joint_torques_l2, weight=-1e-5)
+    hip_yaw_torque_l2 = RewTerm(
+        func=mdp.joint_torques_l2,
+        weight=-5.0e-5,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[".*_hip_yaw_joint"],
+            )
+        },
+    )
+    knee_torque_l2 = RewTerm(
+        func=mdp.joint_torques_l2,
+        weight=-2.0e-5,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[".*_knee_joint"],
+            )
+        },
+    )
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-1e-1)
     joint_limit = RewTerm(
         func=mdp.joint_pos_limits,
