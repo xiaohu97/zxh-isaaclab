@@ -360,6 +360,11 @@ class RewardsCfg:
         weight=1.0,
         params={"command_name": "motion", "std": 3.14},
     )
+    motion_left_ankle_pos = RewTerm(
+        func=mdp.motion_relative_body_position_error_exp,
+        weight=4.0,
+        params={"command_name": "motion", "std": 0.08, "body_names": ["left_ankle_roll_link"]},
+    )
 
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
