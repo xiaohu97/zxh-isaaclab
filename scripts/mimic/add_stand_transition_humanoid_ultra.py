@@ -120,11 +120,47 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stand-hold-seconds", type=float, default=2.0)
     parser.add_argument("--transition-seconds", type=float, default=4.0)
     parser.add_argument("--stand-root-height", type=float, default=1.005)
+    parser.add_argument(
+        "--motion-duration-scale",
+        type=float,
+        default=1.0,
+        help="Resample the source motion to this fraction before adding stand transitions.",
+    )
+    parser.add_argument(
+        "--resample-by",
+        choices=("time", "arc"),
+        default="time",
+        help="Use time-uniform resampling or joint-space arc-length resampling.",
+    )
+    parser.add_argument(
+        "--compress-frame-range",
+        nargs=2,
+        type=int,
+        metavar=("START", "END"),
+        help=(
+            "Compress only this inclusive, zero-based source-frame range. "
+            "Frames before START and after END keep their original timing."
+        ),
+    )
+    parser.add_argument(
+        "--range-duration-scale",
+        type=float,
+        default=1.0,
+        help="Duration scale applied to --compress-frame-range (for example, 0.25).",
+    )
     args = parser.parse_args()
     if args.stand_hold_seconds <= 0.0 or args.transition_seconds <= 0.0:
         parser.error("hold and transition durations must be positive")
     if args.stand_root_height <= 0.0:
         parser.error("stand root height must be positive")
+    if args.motion_duration_scale <= 0.0:
+        parser.error("--motion-duration-scale must be positive")
+    if args.range_duration_scale <= 0.0:
+        parser.error("--range-duration-scale must be positive")
+    if args.compress_frame_range is None and not np.isclose(args.range_duration_scale, 1.0):
+        parser.error("--range-duration-scale requires --compress-frame-range")
+    if args.compress_frame_range is not None and not np.isclose(args.motion_duration_scale, 1.0):
+        parser.error("use either whole-motion scaling or range compression, not both")
     return args
 
 
@@ -179,6 +215,99 @@ def interpolate(start: np.ndarray, end: np.ndarray, blend: np.ndarray) -> np.nda
     return (1.0 - blend[:, None]) * start[None, :] + blend[:, None] * end[None, :]
 
 
+def resample_linear(values: np.ndarray, parameter: np.ndarray, target_count: int) -> np.ndarray:
+    values = np.asarray(values, dtype=np.float64)
+    parameter = np.asarray(parameter, dtype=np.float64)
+    keep = np.concatenate(([True], np.diff(parameter) > 1.0e-12))
+    if not keep[-1]:
+        keep[-1] = True
+    parameter = parameter[keep]
+    values = values[keep]
+    target_parameter = np.linspace(parameter[0], parameter[-1], target_count, dtype=np.float64)
+    flat = values.reshape(values.shape[0], -1)
+    out = np.empty((target_count, flat.shape[1]), dtype=np.float64)
+    for i in range(flat.shape[1]):
+        out[:, i] = np.interp(target_parameter, parameter, flat[:, i])
+    return out.reshape((target_count,) + values.shape[1:])
+
+
+def resample_quaternions(quaternions: np.ndarray, parameter: np.ndarray, target_count: int) -> np.ndarray:
+    quaternions = normalize_quaternion(quaternions)
+    parameter = np.asarray(parameter, dtype=np.float64)
+    keep = np.concatenate(([True], np.diff(parameter) > 1.0e-12))
+    if not keep[-1]:
+        keep[-1] = True
+    parameter = parameter[keep]
+    quaternions = quaternions[keep]
+    target_parameter = np.linspace(parameter[0], parameter[-1], target_count, dtype=np.float64)
+    out = np.empty((target_count, 4), dtype=np.float64)
+    for i, value in enumerate(target_parameter):
+        upper = int(np.searchsorted(parameter, value, side="right"))
+        if upper <= 0:
+            out[i] = quaternions[0]
+        elif upper >= len(parameter):
+            out[i] = quaternions[-1]
+        else:
+            start_t = parameter[upper - 1]
+            end_t = parameter[upper]
+            blend = np.asarray([(value - start_t) / (end_t - start_t)], dtype=np.float64)
+            out[i] = quaternion_slerp(quaternions[upper - 1], quaternions[upper], blend)[0]
+    return normalize_quaternion(out)
+
+
+def resample_motion(
+    joint_pos: np.ndarray,
+    root_pos: np.ndarray,
+    root_quat: np.ndarray,
+    duration_scale: float,
+    resample_by: str,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if np.isclose(duration_scale, 1.0):
+        return joint_pos, root_pos, root_quat
+    target_count = max(2, int(round(joint_pos.shape[0] * duration_scale)))
+    if resample_by == "arc":
+        step = np.linalg.norm(np.diff(joint_pos, axis=0), axis=1)
+        parameter = np.concatenate(([0.0], np.cumsum(step)))
+        if parameter[-1] <= 1.0e-12:
+            parameter = np.arange(joint_pos.shape[0], dtype=np.float64)
+    else:
+        parameter = np.arange(joint_pos.shape[0], dtype=np.float64)
+    return (
+        resample_linear(joint_pos, parameter, target_count),
+        resample_linear(root_pos, parameter, target_count),
+        resample_quaternions(root_quat, parameter, target_count),
+    )
+
+
+def resample_motion_range(
+    joint_pos: np.ndarray,
+    root_pos: np.ndarray,
+    root_quat: np.ndarray,
+    frame_range: tuple[int, int],
+    duration_scale: float,
+    resample_by: str,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+    start, end = frame_range
+    if start < 0 or end <= start or end >= joint_pos.shape[0]:
+        raise ValueError(
+            f"Expected 0 <= START < END < {joint_pos.shape[0]}, got [{start}, {end}]"
+        )
+    range_frames = end - start + 1
+    range_joint, range_root_pos, range_root_quat = resample_motion(
+        joint_pos[start : end + 1],
+        root_pos[start : end + 1],
+        root_quat[start : end + 1],
+        duration_scale,
+        resample_by,
+    )
+    return (
+        np.concatenate((joint_pos[:start], range_joint, joint_pos[end + 1 :]), axis=0),
+        np.concatenate((root_pos[:start], range_root_pos, root_pos[end + 1 :]), axis=0),
+        np.concatenate((root_quat[:start], range_root_quat, root_quat[end + 1 :]), axis=0),
+        range_frames,
+    )
+
+
 def main() -> None:
     args = parse_args()
     input_path = args.input_npz.resolve()
@@ -202,6 +331,28 @@ def main() -> None:
         raise ValueError(f"Expected joint_pos shape [frames, 27], got {joint_pos.shape}")
     if root_pos.shape != (joint_pos.shape[0], 3) or root_quat.shape != (joint_pos.shape[0], 4):
         raise ValueError("Root arrays do not match joint_pos frame count")
+
+    source_frames = joint_pos.shape[0]
+    compressed_range = None
+    if args.compress_frame_range is not None:
+        compressed_range = tuple(args.compress_frame_range)
+        joint_pos, root_pos, root_quat, range_source_frames = resample_motion_range(
+            joint_pos,
+            root_pos,
+            root_quat,
+            compressed_range,
+            args.range_duration_scale,
+            args.resample_by,
+        )
+        range_output_frames = joint_pos.shape[0] - (source_frames - range_source_frames)
+    else:
+        joint_pos, root_pos, root_quat = resample_motion(
+            joint_pos,
+            root_pos,
+            root_quat,
+            args.motion_duration_scale,
+            args.resample_by,
+        )
 
     hold_frames = round(args.stand_hold_seconds * fps)
     transition_frames = round(args.transition_seconds * fps)
@@ -277,6 +428,33 @@ def main() -> None:
     original_end = original_start + joint_pos.shape[0] - 1
     print(f"Wrote converter input: {output_path}")
     print(f"Expected exported frames: {desired_frames} at {fps:g} Hz ({desired_frames / fps:.2f}s)")
+    if compressed_range is not None:
+        print(
+            "Compressed source frames [{}..{}]: {} -> {} frames "
+            "({:.2f}s -> {:.2f}s) by {}".format(
+                compressed_range[0],
+                compressed_range[1],
+                range_source_frames,
+                range_output_frames,
+                range_source_frames / fps,
+                range_output_frames / fps,
+                args.resample_by,
+            )
+        )
+        print(
+            "Preserved source timing outside the compressed range; source motion total: "
+            "{:.2f}s -> {:.2f}s".format(source_frames / fps, joint_pos.shape[0] / fps)
+        )
+    elif joint_pos.shape[0] != source_frames:
+        print(
+            "Resampled source motion: {} -> {} frames ({:.2f}s -> {:.2f}s) by {}".format(
+                source_frames,
+                joint_pos.shape[0],
+                source_frames / fps,
+                joint_pos.shape[0] / fps,
+                args.resample_by,
+            )
+        )
     print(
         "Segments: stand=[0, {}], prepare=[{}, {}], original=[{}, {}], "
         "recover=[{}, {}], stand_end=[{}, {}]".format(
