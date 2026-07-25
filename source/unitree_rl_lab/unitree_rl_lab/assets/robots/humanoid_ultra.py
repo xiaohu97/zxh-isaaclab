@@ -41,6 +41,7 @@ HUMANOID_ULTRA_MESH_DIR = HUMANOID_ULTRA_DESCRIPTION_DIR / "meshes"
 
 HUMANOID_ULTRA_12DOF_URDF = "humanoid_ultra_12dof_description.urdf"
 HUMANOID_ULTRA_27DOF_URDF = "humanoid_ultra_27dof_description.urdf"
+HUMANOID_ULTRA_27DOF_IDENTIFIED_URDF = "humanoid_ultra_27dof_description_identified.urdf"
 
 
 def _prepared_urdf(filename: str) -> str:
@@ -339,6 +340,17 @@ HUMANOIDULTRA27DOF_CFG = ArticulationCfg(
         ),
     },
 )
+
+# Identified rigid-body parameters for 27-DoF mimic tasks. Keep the nominal
+# asset unchanged so existing non-mimic tasks and checkpoints remain reproducible.
+HUMANOIDULTRA27DOF_IDENTIFIED_CFG = HUMANOIDULTRA27DOF_CFG.copy()
+HUMANOIDULTRA27DOF_IDENTIFIED_CFG.spawn.asset_path = _prepared_urdf(HUMANOID_ULTRA_27DOF_IDENTIFIED_URDF)
+HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["legs"].armature = {
+    ".*_hip_yaw_joint": 0.01,
+    ".*_hip_roll_joint": 0.01,
+    ".*_hip_pitch_joint": 0.10,
+    ".*_knee_joint": 0.12,
+}
 
 
 

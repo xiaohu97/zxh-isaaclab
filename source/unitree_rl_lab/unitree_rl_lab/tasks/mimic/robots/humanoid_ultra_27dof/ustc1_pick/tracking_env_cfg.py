@@ -23,7 +23,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import unitree_rl_lab.tasks.mimic.mdp as mdp
 
-from unitree_rl_lab.assets.robots.humanoid_ultra import HUMANOIDULTRA27DOF_CFG as ROBOT_CFG
+from unitree_rl_lab.assets.robots.humanoid_ultra import HUMANOIDULTRA27DOF_IDENTIFIED_CFG as ROBOT_CFG
 
 ##
 # Scene definition
