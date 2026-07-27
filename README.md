@@ -98,6 +98,24 @@ adding another robot are documented in
     ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Stand
     ```
 
+    使用辨识后 URDF 和 Mimic 关节 armature 的独立 Walk/Stand 任务：
+
+    ```bash
+    # Flat 即平地 Walk
+    ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Identified-Flat
+    # Stand 包含左臂周期激励轨迹跟踪
+    ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Identified-Stand
+    ```
+
+    这两个任务使用
+    `humanoid_ultra_27dof_description_identified.urdf`，腿部 armature 与 Mimic
+    保持一致：hip yaw/roll 为 0.01、hip pitch 为 0.10、knee 为 0.12；
+    脚踝、腰部和手臂沿用 0.01。Identified-Stand 继承
+    `Stand-LeftArmTrack` 的左臂轨迹、15 维参考观测、跟踪奖励、安全渐入/渐出和
+    手腕碰撞惩罚。日志分别写入
+    `humanoidultra27dof_identified_flat` 和
+    `humanoidultra27dof_identified_stand_leftarm`，不会混入原任务目录。
+
     从已有站立策略继续进行抗扰动训练：
 
     ```bash
