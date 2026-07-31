@@ -6,6 +6,7 @@ from isaaclab.utils import configclass
 
 from unitree_rl_lab.tasks.mimic.robots.humanoid_ultra_27dof.ustc1_pick.tracking_env_cfg import (
     CommandsCfg as BaseCommandsCfg,
+    RewardsCfg as BaseRewardsCfg,
     RobotEnvCfg as BaseRobotEnvCfg,
 )
 
@@ -18,8 +19,14 @@ class CommandsCfg:
 
 
 @configclass
+class RewardsCfg(BaseRewardsCfg):
+    motion_arm_joint_pos = None
+
+
+@configclass
 class RobotEnvCfg(BaseRobotEnvCfg):
     commands: CommandsCfg = CommandsCfg()
+    rewards: RewardsCfg = RewardsCfg()
 
 
 class RobotPlayEnvCfg(RobotEnvCfg):
