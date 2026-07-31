@@ -12,7 +12,7 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import ContactSensorCfg
+from isaaclab.sensors import ContactSensorCfg, ImuCfg
 from isaaclab.terrains import TerrainImporterCfg
 
 ##
@@ -31,6 +31,44 @@ from unitree_rl_lab.assets.robots.humanoid_ultra import HUMANOIDULTRA27DOF_IDENT
 
 # Flat action scale (matches the direct-workflow humanoid_ultra env action_scale=0.25)
 ROBOT_ACTION_SCALE = 0.25
+
+# Position-command safety boundary used by the real Humanoid Ultra controller.
+DEPLOYMENT_JOINT_POSITION_LIMITS = {
+    "left_hip_roll_joint": (-0.25, 1.5708),
+    "left_hip_yaw_joint": (-1.5708, 1.5708),
+    "left_hip_pitch_joint": (-1.5708, 1.5708),
+    "left_knee_joint": (0.0, 2.356),
+    "left_ankle_pitch_joint": (-0.7, 0.95),
+    "left_ankle_roll_joint": (-0.5236, 0.5236),
+    "right_hip_roll_joint": (-1.5708, 0.25),
+    "right_hip_yaw_joint": (-1.5708, 1.5708),
+    "right_hip_pitch_joint": (-1.5708, 1.5708),
+    "right_knee_joint": (0.0, 2.356),
+    "right_ankle_pitch_joint": (-0.7, 0.95),
+    "right_ankle_roll_joint": (-0.5236, 0.5236),
+    "waist_yaw_joint": (-2.618, 2.618),
+    "left_shoulder_pitch_joint": (-2.4, 1.2),
+    "left_shoulder_roll_joint": (-0.3, 2.7),
+    "left_shoulder_yaw_joint": (-2.5, 2.5),
+    "left_elbow_joint": (-2.17, 0.0),
+    "left_wrist_yaw_joint": (-2.5, 2.5),
+    "left_wrist_roll_joint": (-1.11, 1.11),
+    "left_wrist_pitch_joint": (-1.05, 1.05),
+    "right_shoulder_pitch_joint": (-1.2, 2.4),
+    "right_shoulder_roll_joint": (-2.7, 0.3),
+    "right_shoulder_yaw_joint": (-2.5, 2.5),
+    "right_elbow_joint": (0.0, 2.17),
+    "right_wrist_yaw_joint": (-2.5, 2.5),
+    "right_wrist_roll_joint": (-1.11, 1.11),
+    "right_wrist_pitch_joint": (-1.05, 1.05),
+}
+
+# Deployment runs at 50 Hz: at most 0.12 rad target change per policy step.
+DEPLOYMENT_TARGET_VELOCITY = 6.0
+
+# A 0.2 s proprioceptive window replaces unavailable real-robot base linear
+# velocity.  Motion command/orientation and last applied action stay current.
+PROPRIO_HISTORY_LENGTH = 10
 
 # Anchor body: central torso link used to align robot vs. reference (G1 uses "torso_link").
 ANCHOR_BODY_NAME = "trunk_link"
@@ -63,6 +101,23 @@ EE_BODY_NAMES = [
     "right_ankle_roll_link",
     "left_wrist_pitch_link",
     "right_wrist_pitch_link",
+]
+
+ARM_JOINT_NAMES = [
+    "left_shoulder_pitch_joint",
+    "left_shoulder_roll_joint",
+    "left_shoulder_yaw_joint",
+    "left_elbow_joint",
+    "left_wrist_yaw_joint",
+    "left_wrist_roll_joint",
+    "left_wrist_pitch_joint",
+    "right_shoulder_pitch_joint",
+    "right_shoulder_roll_joint",
+    "right_shoulder_yaw_joint",
+    "right_elbow_joint",
+    "right_wrist_yaw_joint",
+    "right_wrist_roll_joint",
+    "right_wrist_pitch_joint",
 ]
 
 VELOCITY_RANGE = {
@@ -109,6 +164,10 @@ class RobotSceneCfg(InteractiveSceneCfg):
     contact_forces = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True, force_threshold=10.0, debug_vis=True
     )
+    imu = ImuCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/base_link",
+        offset=ImuCfg.OffsetCfg(pos=(-0.115315, 0.0, 0.015775)),
+    )
 
 
 ##
@@ -141,15 +200,21 @@ class CommandsCfg:
         velocity_range=VELOCITY_RANGE,
         joint_position_range=(-0.1, 0.1),
         body_names=TRACKED_BODY_NAMES,
+        motion_end_behavior="hold",
     )
 
 
 @configclass
 class ActionsCfg:
-    """Action specifications for the MDP."""
+    """Position commands constrained exactly like the deployment controller."""
 
-    JointPositionAction = mdp.JointPositionActionCfg(
-        asset_name="robot", joint_names=[".*"], scale=ROBOT_ACTION_SCALE, use_default_offset=True
+    JointPositionAction = mdp.DeploymentLimitedJointPositionActionCfg(
+        asset_name="robot",
+        joint_names=[".*"],
+        scale=ROBOT_ACTION_SCALE,
+        use_default_offset=True,
+        clip=DEPLOYMENT_JOINT_POSITION_LIMITS,
+        max_target_velocity=DEPLOYMENT_TARGET_VELOCITY,
     )
 
 
@@ -166,10 +231,30 @@ class ObservationsCfg:
         motion_anchor_ori_b = ObsTerm(
             func=mdp.motion_anchor_ori_b, params={"command_name": "motion"}, noise=Unoise(n_min=-0.05, n_max=0.05)
         )
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.2, n_max=0.2))
-        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5))
-        last_action = ObsTerm(func=mdp.last_action)
+        imu_lin_acc = ObsTerm(
+            func=mdp.imu_lin_acc,
+            noise=Unoise(n_min=-0.2, n_max=0.2),
+            history_length=PROPRIO_HISTORY_LENGTH,
+        )
+        imu_ang_vel = ObsTerm(
+            func=mdp.imu_ang_vel,
+            noise=Unoise(n_min=-0.2, n_max=0.2),
+            history_length=PROPRIO_HISTORY_LENGTH,
+        )
+        joint_pos_rel = ObsTerm(
+            func=mdp.joint_pos_rel,
+            noise=Unoise(n_min=-0.01, n_max=0.01),
+            history_length=PROPRIO_HISTORY_LENGTH,
+        )
+        joint_vel_rel = ObsTerm(
+            func=mdp.joint_vel_rel,
+            noise=Unoise(n_min=-0.5, n_max=0.5),
+            history_length=PROPRIO_HISTORY_LENGTH,
+        )
+        last_action = ObsTerm(
+            func=mdp.last_applied_action,
+            params={"action_name": "JointPositionAction"},
+        )
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -186,7 +271,10 @@ class ObservationsCfg:
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
         joint_pos = ObsTerm(func=mdp.joint_pos_rel)
         joint_vel = ObsTerm(func=mdp.joint_vel_rel)
-        actions = ObsTerm(func=mdp.last_action)
+        actions = ObsTerm(
+            func=mdp.last_applied_action,
+            params={"action_name": "JointPositionAction"},
+        )
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
@@ -258,6 +346,11 @@ class RewardsCfg:
         weight=0.5,
         params={"command_name": "motion", "std": 0.3},
     )
+    motion_anchor_xy = RewTerm(
+        func=mdp.motion_anchor_xy_position_error_exp,
+        weight=1.0,
+        params={"command_name": "motion", "std": 0.20},
+    )
     motion_global_anchor_ori = RewTerm(
         func=mdp.motion_global_anchor_orientation_error_exp,
         weight=0.5,
@@ -282,6 +375,15 @@ class RewardsCfg:
         func=mdp.motion_global_body_angular_velocity_error_exp,
         weight=1.0,
         params={"command_name": "motion", "std": 3.14},
+    )
+    motion_arm_joint_pos = RewTerm(
+        func=mdp.motion_joint_position_error_exp,
+        weight=0.75,
+        params={
+            "command_name": "motion",
+            "std": 0.25,
+            "asset_cfg": SceneEntityCfg("robot", joint_names=ARM_JOINT_NAMES),
+        },
     )
 
     undesired_contacts = RewTerm(
@@ -308,6 +410,10 @@ class TerminationsCfg:
         func=mdp.bad_anchor_pos_z_only,
         params={"command_name": "motion", "threshold": 0.55},
     )
+    anchor_pos_xy = DoneTerm(
+        func=mdp.bad_anchor_pos_xy,
+        params={"command_name": "motion", "threshold": 0.50},
+    )
     anchor_ori = DoneTerm(
         func=mdp.bad_anchor_ori,
         params={"asset_cfg": SceneEntityCfg("robot"), "command_name": "motion", "threshold": 0.8},
@@ -319,6 +425,11 @@ class TerminationsCfg:
             "threshold": 0.55,
             "body_names": EE_BODY_NAMES,
         },
+    )
+    motion_end = DoneTerm(
+        func=mdp.motion_clip_finished,
+        params={"command_name": "motion"},
+        time_out=True,
     )
 
 
@@ -348,6 +459,7 @@ class RobotEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 4
         self.episode_length_s = 30.0
+        self.is_finite_horizon = True
         # simulation settings
         self.sim.dt = 0.005
         self.sim.render_interval = self.decimation
@@ -360,3 +472,5 @@ class RobotPlayEnvCfg(RobotEnvCfg):
         super().__post_init__()
         self.scene.num_envs = 1
         self.episode_length_s = 1e9
+        # Keep displaying the final frame without resetting or teleporting.
+        self.terminations.motion_end = None

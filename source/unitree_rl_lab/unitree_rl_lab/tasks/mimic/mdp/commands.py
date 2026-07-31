@@ -63,6 +63,11 @@ class MotionCommand(CommandTerm):
 
     def __init__(self, cfg: MotionCommandCfg, env: ManagerBasedRLEnv):
         super().__init__(cfg, env)
+        if cfg.motion_end_behavior not in {"resample", "hold"}:
+            raise ValueError(
+                "motion_end_behavior must be either 'resample' or 'hold', "
+                f"got {cfg.motion_end_behavior!r}."
+            )
 
         self.robot: Articulation = env.scene[cfg.asset_name]
         self.robot_anchor_body_index = self.robot.body_names.index(self.cfg.anchor_body_name)
@@ -279,7 +284,13 @@ class MotionCommand(CommandTerm):
     def _update_command(self):
         self.time_steps += 1
         env_ids = torch.where(self.time_steps >= self.motion.time_step_total)[0]
-        self._resample_command(env_ids)
+        if self.cfg.motion_end_behavior == "resample":
+            self._resample_command(env_ids)
+        else:
+            # Finite one-shot motions terminate at the last frame.  Clamping is
+            # also a safety net for play or other callers that keep stepping:
+            # never rewrite the robot state merely because the clip ended.
+            self.time_steps.clamp_(max=self.motion.time_step_total - 1)
 
         anchor_pos_w_repeat = self.anchor_pos_w[:, None, :].repeat(1, len(self.cfg.body_names), 1)
         anchor_quat_w_repeat = self.anchor_quat_w[:, None, :].repeat(1, len(self.cfg.body_names), 1)
@@ -359,6 +370,13 @@ class MotionCommandCfg(CommandTermCfg):
     motion_file: str = MISSING
     anchor_body_name: str = MISSING
     body_names: list[str] = MISSING
+    motion_end_behavior: str = "resample"
+    """Behavior after the final motion frame: ``"resample"`` or ``"hold"``.
+
+    ``"resample"`` preserves the original Mimic behavior, including resetting
+    the simulated robot to a newly sampled reference state.  ``"hold"`` keeps
+    the final reference frame and never writes robot state at clip completion.
+    """
 
     pose_range: dict[str, tuple[float, float]] = {}
     velocity_range: dict[str, tuple[float, float]] = {}

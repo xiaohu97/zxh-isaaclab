@@ -23,6 +23,13 @@ def motion_global_anchor_position_error_exp(env: ManagerBasedRLEnv, command_name
     return torch.exp(-error / std**2)
 
 
+def motion_anchor_xy_position_error_exp(env: ManagerBasedRLEnv, command_name: str, std: float) -> torch.Tensor:
+    """Reward horizontal recovery to the reference anchor position."""
+    command: MotionCommand = env.command_manager.get_term(command_name)
+    error_xy = command.anchor_pos_w[:, :2] - command.robot_anchor_pos_w[:, :2]
+    return torch.exp(-torch.sum(torch.square(error_xy), dim=-1) / std**2)
+
+
 def motion_global_anchor_orientation_error_exp(env: ManagerBasedRLEnv, command_name: str, std: float) -> torch.Tensor:
     command: MotionCommand = env.command_manager.get_term(command_name)
     error = quat_error_magnitude(command.anchor_quat_w, command.robot_anchor_quat_w) ** 2
@@ -72,6 +79,19 @@ def motion_global_body_angular_velocity_error_exp(
         torch.square(command.body_ang_vel_w[:, body_indexes] - command.robot_body_ang_vel_w[:, body_indexes]), dim=-1
     )
     return torch.exp(-error.mean(-1) / std**2)
+
+
+def motion_joint_position_error_exp(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    std: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Reward selected joints for matching the reference motion positions."""
+    command: MotionCommand = env.command_manager.get_term(command_name)
+    joint_ids = asset_cfg.joint_ids
+    error = torch.square(command.joint_pos[:, joint_ids] - command.robot_joint_pos[:, joint_ids])
+    return torch.exp(-error.mean(dim=-1) / std**2)
 
 
 def feet_contact_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:
