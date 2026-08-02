@@ -68,6 +68,21 @@ class MotionCommand(CommandTerm):
                 "motion_end_behavior must be either 'resample' or 'hold', "
                 f"got {cfg.motion_end_behavior!r}."
             )
+        if not 0.0 <= cfg.frame_zero_probability <= 1.0:
+            raise ValueError(
+                "frame_zero_probability must be in [0, 1], "
+                f"got {cfg.frame_zero_probability}."
+            )
+        if not 0.0 <= cfg.targeted_frame_probability <= 1.0:
+            raise ValueError(
+                "targeted_frame_probability must be in [0, 1], "
+                f"got {cfg.targeted_frame_probability}."
+            )
+        if cfg.frame_zero_probability + cfg.targeted_frame_probability > 1.0:
+            raise ValueError(
+                "frame_zero_probability + targeted_frame_probability must be <= 1, "
+                f"got {cfg.frame_zero_probability + cfg.targeted_frame_probability}."
+            )
 
         self.robot: Articulation = env.scene[cfg.asset_name]
         self.robot_anchor_body_index = self.robot.body_names.index(self.cfg.anchor_body_name)
@@ -77,6 +92,15 @@ class MotionCommand(CommandTerm):
         )
 
         self.motion = MotionLoader(self.cfg.motion_file, self.body_indexes, device=self.device)
+        if cfg.targeted_frame_probability > 0.0:
+            if cfg.targeted_frame_range is None:
+                raise ValueError("targeted_frame_range is required when targeted_frame_probability > 0.")
+            target_start, target_end = cfg.targeted_frame_range
+            if not 0 <= target_start <= target_end < self.motion.time_step_total:
+                raise ValueError(
+                    "targeted_frame_range must lie inside the motion clip, "
+                    f"got {cfg.targeted_frame_range} for {self.motion.time_step_total} frames."
+                )
         self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
         self.body_pos_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 3, device=self.device)
         self.body_quat_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 4, device=self.device)
@@ -237,10 +261,48 @@ class MotionCommand(CommandTerm):
             * (self.motion.time_step_total - 1)
         ).long()
 
+        # Reserve mutually exclusive reset fractions for exact frame 0 and an
+        # explicitly difficult frame range.  All remaining resets retain the
+        # original failure-adaptive sampling distribution.
+        frame_zero_probability = self.cfg.frame_zero_probability
+        targeted_frame_probability = self.cfg.targeted_frame_probability
+        if frame_zero_probability > 0.0 or targeted_frame_probability > 0.0:
+            env_ids_tensor = torch.as_tensor(env_ids, dtype=torch.long, device=self.device)
+            reset_selector = torch.rand(len(env_ids), device=self.device)
+            frame_zero_mask = reset_selector < frame_zero_probability
+            targeted_frame_mask = (reset_selector >= frame_zero_probability) & (
+                reset_selector < frame_zero_probability + targeted_frame_probability
+            )
+            self.time_steps[env_ids_tensor[frame_zero_mask]] = 0
+            if torch.any(targeted_frame_mask):
+                target_start, target_end = self.cfg.targeted_frame_range
+                self.time_steps[env_ids_tensor[targeted_frame_mask]] = torch.randint(
+                    target_start,
+                    target_end + 1,
+                    (int(targeted_frame_mask.sum().item()),),
+                    device=self.device,
+                )
+
         # Metrics
-        H = -(sampling_probabilities * (sampling_probabilities + 1e-12).log()).sum()
+        adaptive_probability = 1.0 - frame_zero_probability - targeted_frame_probability
+        effective_bin_probabilities = adaptive_probability * sampling_probabilities
+        effective_bin_probabilities = effective_bin_probabilities.clone()
+        if frame_zero_probability > 0.0:
+            effective_bin_probabilities[0] += frame_zero_probability
+        if targeted_frame_probability > 0.0:
+            target_start, target_end = self.cfg.targeted_frame_range
+            target_frames = torch.arange(target_start, target_end + 1, device=self.device)
+            target_bins = torch.clamp(
+                (target_frames * self.bin_count) // max(self.motion.time_step_total, 1),
+                0,
+                self.bin_count - 1,
+            )
+            target_bin_probabilities = torch.bincount(target_bins, minlength=self.bin_count).float()
+            target_bin_probabilities /= target_bin_probabilities.sum()
+            effective_bin_probabilities += targeted_frame_probability * target_bin_probabilities
+        H = -(effective_bin_probabilities * (effective_bin_probabilities + 1e-12).log()).sum()
         H_norm = H / math.log(self.bin_count)
-        pmax, imax = sampling_probabilities.max(dim=0)
+        pmax, imax = effective_bin_probabilities.max(dim=0)
         self.metrics["sampling_entropy"][:] = H_norm
         self.metrics["sampling_top1_prob"][:] = pmax
         self.metrics["sampling_top1_bin"][:] = imax.float() / self.bin_count
@@ -387,6 +449,16 @@ class MotionCommandCfg(CommandTermCfg):
     adaptive_lambda: float = 0.8
     adaptive_uniform_ratio: float = 0.1
     adaptive_alpha: float = 0.001
+    frame_zero_probability: float = 0.0
+    """Fraction of episode resets forced to exact motion frame 0.
+
+    This supplements adaptive random-phase sampling with complete-clip
+    rollouts.  Keep it at zero for the original Mimic behavior.
+    """
+    targeted_frame_range: tuple[int, int] | None = None
+    """Inclusive motion-frame range used by targeted fine-tuning resets."""
+    targeted_frame_probability: float = 0.0
+    """Fraction of resets sampled uniformly from ``targeted_frame_range``."""
 
     anchor_visualizer_cfg: VisualizationMarkersCfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/Command/pose")
     anchor_visualizer_cfg.markers["frame"].scale = (0.2, 0.2, 0.2)

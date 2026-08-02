@@ -35,6 +35,8 @@ import isaaclab.sim as sim_utils
 from isaaclab.actuators import DelayedPDActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
+from unitree_rl_lab.assets.robots import ustc_actuators
+
 HUMANOID_ULTRA_DESCRIPTION_DIR = Path(__file__).resolve().parent / "humanoid_ultra_description"
 HUMANOID_ULTRA_URDF_DIR = HUMANOID_ULTRA_DESCRIPTION_DIR / "urdf"
 HUMANOID_ULTRA_MESH_DIR = HUMANOID_ULTRA_DESCRIPTION_DIR / "meshes"
@@ -352,8 +354,91 @@ HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["legs"].armature = {
     ".*_knee_joint": 0.12,
 }
 
-
-
+# Mimic-only motor model. Keep the identified asset available to non-mimic
+# tasks while applying the USTC torque-speed curves to all 27 controlled DoFs.
+HUMANOIDULTRA27DOF_MIMIC_CFG = HUMANOIDULTRA27DOF_IDENTIFIED_CFG.copy()
+HUMANOIDULTRA27DOF_MIMIC_CFG.actuators = {
+    "hip_yaw_E8112": ustc_actuators.USTCActuatorCfg_E8112(
+        joint_names_expr=[".*_hip_yaw_joint"],
+        stiffness=80.0,
+        damping=0.8,
+        armature=0.01,
+        min_delay=0,
+        max_delay=2,
+    ),
+    "hip_roll_E10020_P24": ustc_actuators.USTCActuatorCfg_E10020_P24(
+        joint_names_expr=[".*_hip_roll_joint"],
+        stiffness=150.0,
+        damping=2.5,
+        armature=0.01,
+        min_delay=0,
+        max_delay=2,
+    ),
+    "hip_pitch_knee_E13715": ustc_actuators.USTCActuatorCfg_E13715(
+        joint_names_expr=[".*_hip_pitch_joint", ".*_knee_joint"],
+        stiffness=180.0,
+        damping=2.4,
+        armature={
+            ".*_hip_pitch_joint": 0.10,
+            ".*_knee_joint": 0.12,
+        },
+        min_delay=0,
+        max_delay=2,
+    ),
+    # Each simulated ankle DoF is virtual. This first version applies the
+    # derated E4315 curve in joint space; the physical ankle uses two coupled
+    # E4315 motors and ultimately needs motor-space Jacobian clipping.
+    "ankles_E4315_P36_approx": ustc_actuators.USTCActuatorCfg_E4315_P36_Ankle(
+        joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
+        stiffness={
+            ".*_ankle_pitch_joint": 40.0,
+            ".*_ankle_roll_joint": 20.0,
+        },
+        damping={
+            ".*_ankle_pitch_joint": 0.8,
+            ".*_ankle_roll_joint": 0.4,
+        },
+        armature=0.01,
+        min_delay=0,
+        max_delay=2,
+    ),
+    "waist_yaw_E10020_P12": ustc_actuators.USTCActuatorCfg_E10020_P12(
+        joint_names_expr=[".*waist_yaw_joint"],
+        stiffness=150.0,
+        damping=2.5,
+        armature=0.01,
+        min_delay=0,
+        max_delay=2,
+    ),
+    "shoulders_E4315_P36": ustc_actuators.USTCActuatorCfg_E4315_P36(
+        joint_names_expr=[
+            ".*_shoulder_pitch_joint",
+            ".*_shoulder_roll_joint",
+            ".*_shoulder_yaw_joint",
+        ],
+        stiffness=80.0,
+        damping=1.5,
+        armature=0.01,
+        min_delay=0,
+        max_delay=2,
+    ),
+    "elbows_E4315_P36": ustc_actuators.USTCActuatorCfg_E4315_P36(
+        joint_names_expr=[".*_elbow_joint"],
+        stiffness=60.0,
+        damping=1.2,
+        armature=0.01,
+        min_delay=0,
+        max_delay=2,
+    ),
+    "wrists_E4310_P36": ustc_actuators.USTCActuatorCfg_E4310_P36(
+        joint_names_expr=[".*_wrist_yaw_joint", ".*_wrist_roll_joint", ".*_wrist_pitch_joint"],
+        stiffness=25.0,
+        damping=0.8,
+        armature=0.01,
+        min_delay=0,
+        max_delay=2,
+    ),
+}
 
 #腿部6个，腰部1个，手臂7个   
 HUMANOIDULTRA27DOF_AMP_CFG = ArticulationCfg(

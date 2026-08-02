@@ -4,7 +4,8 @@
 The input and output keep the SOMA layout and input frame rate.  The generated
 motion starts at the current 27-DoF Mimic robot's default pose, reaches the
 first captured frame through a quintic blend, preserves the original clip, and
-returns to the default pose through a second quintic blend.
+returns to the default pose through a second quintic blend.  An optional
+terminal hold can keep that final default pose in the exported reference.
 """
 
 from __future__ import annotations
@@ -95,12 +96,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input-fps", type=float, required=True)
     parser.add_argument("--output-fps", type=float, default=50.0)
     parser.add_argument("--transition-seconds", type=float, default=1.0)
+    parser.add_argument(
+        "--terminal-hold-seconds",
+        type=float,
+        default=0.0,
+        help="Append this many seconds of the final default standing pose.",
+    )
     parser.add_argument("--stand-root-height-cm", type=float, default=100.5)
     args = parser.parse_args()
     if args.input_fps <= 0.0 or args.output_fps <= 0.0:
         parser.error("frame rates must be positive")
     if not 0.0 < args.transition_seconds <= 1.0:
         parser.error("--transition-seconds must be in (0, 1]")
+    if args.terminal_hold_seconds < 0.0:
+        parser.error("--terminal-hold-seconds must be non-negative")
     if args.stand_root_height_cm <= 0.0:
         parser.error("--stand-root-height-cm must be positive")
     return args
@@ -216,17 +225,22 @@ def main() -> None:
     output_root_pos = np.concatenate((prepare_pos, root_pos_cm[1:], recover_pos[1:]), axis=0)
     output_root_quat = np.concatenate((prepare_quat, root_quat[1:], recover_quat[1:]), axis=0)
 
+    terminal_hold_frames = int(round(args.terminal_hold_seconds * args.input_fps))
+    if args.terminal_hold_seconds > 0.0 and terminal_hold_frames < 1:
+        raise ValueError("Terminal hold must contain at least one input frame interval")
+
     # csv_to_npz_humanoid_ultra samples [0, duration).  Extend the terminal
     # default pose by one output interval so the exported NPZ ends exactly on it.
     padding_frames = max(1, int(np.ceil(args.input_fps / args.output_fps)))
+    appended_frames = terminal_hold_frames + padding_frames
     output_joint = np.concatenate(
-        (output_joint, np.repeat(output_joint[-1:], padding_frames, axis=0)), axis=0
+        (output_joint, np.repeat(output_joint[-1:], appended_frames, axis=0)), axis=0
     )
     output_root_pos = np.concatenate(
-        (output_root_pos, np.repeat(output_root_pos[-1:], padding_frames, axis=0)), axis=0
+        (output_root_pos, np.repeat(output_root_pos[-1:], appended_frames, axis=0)), axis=0
     )
     output_root_quat = np.concatenate(
-        (output_root_quat, np.repeat(output_root_quat[-1:], padding_frames, axis=0)), axis=0
+        (output_root_quat, np.repeat(output_root_quat[-1:], appended_frames, axis=0)), axis=0
     )
 
     output = np.concatenate(
@@ -253,7 +267,8 @@ def main() -> None:
     print(f"Wrote {output_path}")
     print(
         f"Frames: {source.shape[0]} source + {transition_frames} prepare + "
-        f"{transition_frames} recover + {padding_frames} terminal padding = {output.shape[0]}"
+        f"{transition_frames} recover + {terminal_hold_frames} terminal hold + "
+        f"{padding_frames} converter padding = {output.shape[0]}"
     )
     print(
         "Endpoint max joint deviation before blending: "

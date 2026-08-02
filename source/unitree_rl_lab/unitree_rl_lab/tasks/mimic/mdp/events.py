@@ -6,10 +6,90 @@ from typing import TYPE_CHECKING, Literal
 import isaaclab.utils.math as math_utils
 from isaaclab.assets import Articulation
 from isaaclab.envs.mdp.events import _randomize_prop_by_op
-from isaaclab.managers import SceneEntityCfg
+from isaaclab.managers import ManagerTermBase, SceneEntityCfg
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
+
+
+class phase_targeted_velocity_push(ManagerTermBase):
+    """Apply at most one heading-frame root-velocity kick in a motion window.
+
+    A target frame and an enable flag are sampled independently for every
+    episode.  The interval event may poll this term every policy step; the kick
+    is applied only once when the reference reaches the sampled frame.
+    """
+
+    def __init__(self, cfg, env: ManagerBasedEnv):
+        super().__init__(cfg, env)
+        frame_start, frame_end = cfg.params["frame_range"]
+        probability = cfg.params["probability"]
+        if not 0 <= frame_start <= frame_end:
+            raise ValueError(f"Invalid phase-targeted push frame range: {(frame_start, frame_end)}")
+        if not 0.0 <= probability <= 1.0:
+            raise ValueError(f"Phase-targeted push probability must be in [0, 1], got {probability}.")
+
+        self._target_frames = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+        self._pending = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+
+    def reset(self, env_ids: torch.Tensor | None = None):
+        if env_ids is None:
+            env_ids = torch.arange(self.num_envs, dtype=torch.long, device=self.device)
+        elif not isinstance(env_ids, torch.Tensor):
+            env_ids = torch.as_tensor(env_ids, dtype=torch.long, device=self.device)
+
+        frame_start, frame_end = self.cfg.params["frame_range"]
+        probability = self.cfg.params["probability"]
+        self._target_frames[env_ids] = torch.randint(
+            frame_start,
+            frame_end + 1,
+            (len(env_ids),),
+            device=self.device,
+        )
+        self._pending[env_ids] = torch.rand(len(env_ids), device=self.device) < probability
+
+    def __call__(
+        self,
+        env: ManagerBasedEnv,
+        env_ids: torch.Tensor | None,
+        command_name: str,
+        frame_range: tuple[int, int],
+        probability: float,
+        velocity_range: dict[str, tuple[float, float]],
+        asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    ):
+        if env_ids is None:
+            env_ids = torch.arange(self.num_envs, dtype=torch.long, device=self.device)
+        if len(env_ids) == 0:
+            return
+
+        command = env.command_manager.get_term(command_name)
+        _, frame_end = frame_range
+        motion_frames = command.time_steps[env_ids]
+        eligible = (
+            self._pending[env_ids]
+            & (motion_frames >= self._target_frames[env_ids])
+            & (motion_frames <= frame_end)
+        )
+        if not torch.any(eligible):
+            return
+
+        push_env_ids = env_ids[eligible]
+        asset: Articulation = env.scene[asset_cfg.name]
+        velocity = asset.data.root_vel_w[push_env_ids].clone()
+        range_list = [velocity_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z", "roll", "pitch", "yaw"]]
+        ranges = torch.tensor(range_list, device=asset.device)
+        local_delta = math_utils.sample_uniform(
+            ranges[:, 0], ranges[:, 1], velocity.shape, device=asset.device
+        )
+        # Interpret the configured direction in the robot heading frame.  This
+        # keeps, for example, a rightward kick rightward while the reference is
+        # turning instead of accidentally binding it to world -Y.
+        anchor_quat_w = command.robot_anchor_quat_w[push_env_ids]
+        velocity[:, :3] += math_utils.quat_apply_yaw(anchor_quat_w, local_delta[:, :3])
+        velocity[:, 3:] += math_utils.quat_apply_yaw(anchor_quat_w, local_delta[:, 3:])
+        asset.write_root_velocity_to_sim(velocity, env_ids=push_env_ids)
+        self._pending[push_env_ids] = False
 
 
 def randomize_joint_default_pos(
