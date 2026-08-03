@@ -37,9 +37,10 @@ For future regeneration from the original SOMA CSV,
 
 ## Fine-tuning boundary
 
-The actor/critic architecture and the first 306 reference samples are
-unchanged, so loading the current Spin checkpoint is intentional.  Start a new
-log run so the old training history and reference provenance remain separate.
+The first 306 reference samples are unchanged. The actor input has since changed
+from the former 687-dimensional history observation to the shared
+144-dimensional single-frame observation, so the old Spin checkpoint cannot be
+loaded directly. Start a new training and log run.
 The appended segment must be evaluated independently: completion of frame 305
 does not demonstrate that the robot can remain standing through frame 430.
 

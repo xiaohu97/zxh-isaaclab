@@ -12,7 +12,7 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import ContactSensorCfg, ImuCfg
+from isaaclab.sensors import ContactSensorCfg
 from isaaclab.terrains import TerrainImporterCfg
 
 ##
@@ -65,10 +65,6 @@ DEPLOYMENT_JOINT_POSITION_LIMITS = {
 
 # Deployment runs at 50 Hz: at most 0.12 rad target change per policy step.
 DEPLOYMENT_TARGET_VELOCITY = 6.0
-
-# A 0.2 s proprioceptive window replaces unavailable real-robot base linear
-# velocity.  Motion command/orientation and last applied action stay current.
-PROPRIO_HISTORY_LENGTH = 10
 
 # Anchor body: central torso link used to align robot vs. reference (G1 uses "torso_link").
 ANCHOR_BODY_NAME = "trunk_link"
@@ -164,10 +160,6 @@ class RobotSceneCfg(InteractiveSceneCfg):
     contact_forces = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True, force_threshold=10.0, debug_vis=True
     )
-    imu = ImuCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/base_link",
-        offset=ImuCfg.OffsetCfg(pos=(-0.115315, 0.0, 0.015775)),
-    )
 
 
 ##
@@ -220,37 +212,22 @@ class ActionsCfg:
 
 @configclass
 class ObservationsCfg:
-    """Observation specifications for the MDP."""
+    """Single-frame 144-dimensional policy observations, matching houtaitui."""
 
     @configclass
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
 
         # observation terms (order preserved)
+        # 54 motion + 6 anchor orientation + 3 angular velocity + 27 position
+        # + 27 velocity + 27 applied action = 144.
         motion_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "motion"})
         motion_anchor_ori_b = ObsTerm(
             func=mdp.motion_anchor_ori_b, params={"command_name": "motion"}, noise=Unoise(n_min=-0.05, n_max=0.05)
         )
-        imu_lin_acc = ObsTerm(
-            func=mdp.imu_lin_acc,
-            noise=Unoise(n_min=-0.2, n_max=0.2),
-            history_length=PROPRIO_HISTORY_LENGTH,
-        )
-        imu_ang_vel = ObsTerm(
-            func=mdp.imu_ang_vel,
-            noise=Unoise(n_min=-0.2, n_max=0.2),
-            history_length=PROPRIO_HISTORY_LENGTH,
-        )
-        joint_pos_rel = ObsTerm(
-            func=mdp.joint_pos_rel,
-            noise=Unoise(n_min=-0.01, n_max=0.01),
-            history_length=PROPRIO_HISTORY_LENGTH,
-        )
-        joint_vel_rel = ObsTerm(
-            func=mdp.joint_vel_rel,
-            noise=Unoise(n_min=-0.5, n_max=0.5),
-            history_length=PROPRIO_HISTORY_LENGTH,
-        )
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.2, n_max=0.2))
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5))
         last_action = ObsTerm(
             func=mdp.last_applied_action,
             params={"action_name": "JointPositionAction"},

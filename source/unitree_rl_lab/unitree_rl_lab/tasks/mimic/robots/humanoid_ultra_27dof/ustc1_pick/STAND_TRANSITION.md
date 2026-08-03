@@ -45,8 +45,10 @@ Ultra asset; do not directly interpolate the NPZ body arrays.
 
 ## Training boundary
 
-The trajectory has materially changed. Start a new training run and do not
-resume a checkpoint trained on `ustc1_pick.npz`.
+The trajectory has materially changed, and the actor now uses a 144-dimensional
+single-frame observation. Start a new training run; neither checkpoints trained
+on `ustc1_pick.npz` nor the former 687-dimensional history checkpoints are
+compatible.
 
 ```bash
 conda activate ustc_isaaclab

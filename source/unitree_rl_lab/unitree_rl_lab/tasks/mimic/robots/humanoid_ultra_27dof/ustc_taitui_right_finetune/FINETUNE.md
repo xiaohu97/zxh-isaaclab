@@ -1,7 +1,10 @@
 # Taitui-Right targeted fine-tuning
 
-This task resumes the original Taitui-Right `model_29500.pt` without changing
-the first 538 reference frames.
+The first 538 reference frames remain unchanged. The task now uses the shared
+144-dimensional single-frame actor observation, so the original 687-dimensional
+Taitui-Right `model_29500.pt` cannot be resumed directly. Start a new training
+run, or resume only from a checkpoint already trained with the 144-dimensional
+observation.
 
 - Frames 0-537: bit-identical original reference.
 - Frames 538-662: 2.5 seconds of the final standing pose at 50 Hz.
