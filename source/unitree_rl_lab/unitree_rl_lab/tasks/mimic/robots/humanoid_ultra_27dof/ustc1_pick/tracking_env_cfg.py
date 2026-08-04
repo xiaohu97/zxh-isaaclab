@@ -11,6 +11,7 @@ from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
+from isaaclab.markers import VisualizationMarkersCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg
 from isaaclab.terrains import TerrainImporterCfg
@@ -125,6 +126,34 @@ VELOCITY_RANGE = {
     "yaw": (-0.78, 0.78),
 }
 
+# The stock frame marker is a remote ``frame_prim.usd`` asset.  GUI mode uses
+# synchronous USD loading, so an unavailable Isaac asset server blocks the Kit
+# main thread for two minutes.  These oriented rods keep pose visualization
+# local and preserve the useful x-axis orientation cue.
+LOCAL_ANCHOR_MARKER_CFG = VisualizationMarkersCfg(
+    prim_path="/Visuals/Command/anchor",
+    markers={
+        "x_axis": sim_utils.CylinderCfg(
+            radius=0.008,
+            height=0.24,
+            axis="X",
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.2, 0.1), roughness=1.0),
+        )
+    },
+)
+
+LOCAL_BODY_MARKER_CFG = VisualizationMarkersCfg(
+    prim_path="/Visuals/Command/body",
+    markers={
+        "x_axis": sim_utils.CylinderCfg(
+            radius=0.004,
+            height=0.12,
+            axis="X",
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.8, 0.1), roughness=1.0),
+        )
+    },
+)
+
 
 @configclass
 class RobotSceneCfg(InteractiveSceneCfg):
@@ -193,6 +222,8 @@ class CommandsCfg:
         joint_position_range=(-0.1, 0.1),
         body_names=TRACKED_BODY_NAMES,
         motion_end_behavior="hold",
+        anchor_visualizer_cfg=LOCAL_ANCHOR_MARKER_CFG,
+        body_visualizer_cfg=LOCAL_BODY_MARKER_CFG,
     )
 
 
