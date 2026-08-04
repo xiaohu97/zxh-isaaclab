@@ -21,6 +21,19 @@ class HumanoidUltra27dofIdentifiedFlatAgentCfg(Humanoidultra27dofFlatAgentCfg):
 
 
 @configclass
+class HumanoidUltra27dofIdentifiedFlatLeftArm2kgAgentCfg(Humanoidultra27dofFlatAgentCfg):
+    """Keep left-arm payload Flat runs separate from other identified runs."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        # A left-arm payload breaks the bilateral dynamics assumed by the
+        # Flat task's mirror augmentation and mirror loss.
+        self.algorithm.symmetry_cfg = None
+        self.experiment_name = "humanoidultra27dof_identified_flat_leftarm2kg"
+        self.wandb_project = "humanoidultra27dof_identified_flat_leftarm2kg"
+
+
+@configclass
 class HumanoidUltra27dofIdentifiedStandAgentCfg(
     HumanoidUltra27dofStandLeftArmAgentCfg
 ):

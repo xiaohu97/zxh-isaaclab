@@ -44,6 +44,9 @@ HUMANOID_ULTRA_MESH_DIR = HUMANOID_ULTRA_DESCRIPTION_DIR / "meshes"
 HUMANOID_ULTRA_12DOF_URDF = "humanoid_ultra_12dof_description.urdf"
 HUMANOID_ULTRA_27DOF_URDF = "humanoid_ultra_27dof_description.urdf"
 HUMANOID_ULTRA_27DOF_IDENTIFIED_URDF = "humanoid_ultra_27dof_description_identified.urdf"
+HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM2KG_URDF = (
+    "humanoid_ultra_27dof_description_identified_leftarm2kg.urdf"
+)
 
 
 def _prepared_urdf(filename: str) -> str:
@@ -349,10 +352,17 @@ HUMANOIDULTRA27DOF_IDENTIFIED_CFG = HUMANOIDULTRA27DOF_CFG.copy()
 HUMANOIDULTRA27DOF_IDENTIFIED_CFG.spawn.asset_path = _prepared_urdf(HUMANOID_ULTRA_27DOF_IDENTIFIED_URDF)
 HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["legs"].armature = {
     ".*_hip_yaw_joint": 0.01,
-    ".*_hip_roll_joint": 0.01,
+    ".*_hip_roll_joint": 0.15,
     ".*_hip_pitch_joint": 0.10,
     ".*_knee_joint": 0.12,
 }
+
+# Identified 27-DoF asset with the arm inertias obtained while carrying the
+# 2 kg payload on the left arm.
+HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM2KG_CFG = HUMANOIDULTRA27DOF_IDENTIFIED_CFG.copy()
+HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM2KG_CFG.spawn.asset_path = _prepared_urdf(
+    HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM2KG_URDF
+)
 
 # Mimic-only motor model. Keep the identified asset available to non-mimic
 # tasks while applying the USTC torque-speed curves to all 27 controlled DoFs.

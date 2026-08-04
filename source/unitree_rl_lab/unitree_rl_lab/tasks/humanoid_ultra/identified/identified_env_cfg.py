@@ -4,6 +4,7 @@ from isaaclab.utils import configclass
 
 from unitree_rl_lab.assets.robots.humanoid_ultra import (
     HUMANOIDULTRA27DOF_IDENTIFIED_CFG,
+    HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM2KG_CFG,
 )
 from unitree_rl_lab.tasks.humanoid_ultra.base.humanoidultra27dof_env_cfg import (
     Humanoidultra27dofFlatEnvCfg,
@@ -15,11 +16,9 @@ from unitree_rl_lab.tasks.humanoid_ultra.stand_leftarm.stand_leftarm_env_cfg imp
 )
 
 
-def _apply_identified_robot(env_cfg) -> None:
+def _apply_identified_robot(env_cfg, robot_cfg=HUMANOIDULTRA27DOF_IDENTIFIED_CFG) -> None:
     """Replace the nominal asset and rebuild the scene around that asset."""
-    env_cfg.scene_context.robot = HUMANOIDULTRA27DOF_IDENTIFIED_CFG.replace(
-        prim_path="{ENV_REGEX_NS}/Robot"
-    )
+    env_cfg.scene_context.robot = robot_cfg.replace(prim_path="{ENV_REGEX_NS}/Robot")
     env_cfg.scene = SceneCfg(
         config=env_cfg.scene_context,
         physics_dt=env_cfg.sim.dt,
@@ -34,6 +33,15 @@ class HumanoidUltra27dofIdentifiedFlatEnvCfg(Humanoidultra27dofFlatEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         _apply_identified_robot(self)
+
+
+@configclass
+class HumanoidUltra27dofIdentifiedFlatLeftArm2kgEnvCfg(Humanoidultra27dofFlatEnvCfg):
+    """Flat walking with the identified left-arm 2 kg payload rigid-body model."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_identified_robot(self, HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM2KG_CFG)
 
 
 @configclass
