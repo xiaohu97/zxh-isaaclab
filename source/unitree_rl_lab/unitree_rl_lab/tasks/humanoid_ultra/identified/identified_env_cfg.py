@@ -41,6 +41,7 @@ class HumanoidUltra27dofIdentifiedFlatLeftArm2kgEnvCfg(Humanoidultra27dofFlatEnv
 
     def __post_init__(self):
         super().__post_init__()
+        self.commands.debug_vis = True
         _apply_identified_robot(self, HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM2KG_CFG)
 
 
