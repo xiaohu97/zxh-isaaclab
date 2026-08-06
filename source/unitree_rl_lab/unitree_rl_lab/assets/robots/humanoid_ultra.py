@@ -380,7 +380,7 @@ HUMANOIDULTRA27DOF_MIMIC_CFG.actuators = {
         joint_names_expr=[".*_hip_roll_joint"],
         stiffness=150.0,
         damping=2.5,
-        armature=0.01,
+        armature=HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["legs"].armature[".*_hip_roll_joint"],
         min_delay=0,
         max_delay=2,
     ),
