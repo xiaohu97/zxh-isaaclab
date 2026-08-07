@@ -26,6 +26,12 @@ class CommandsCfg:
 @configclass
 class RewardsCfg(BaseRewardsCfg):
     motion_arm_joint_pos = None
+    # Spin failures are dominated by horizontal trunk drift.  Broaden and
+    # strengthen the trunk-only recovery reward without changing Pick.
+    motion_anchor_xy = BaseRewardsCfg().motion_anchor_xy.replace(
+        weight=1.5,
+        params={"command_name": "motion", "std": 0.25},
+    )
 
 
 @configclass
@@ -42,6 +48,7 @@ class RobotEnvCfg(BaseRobotEnvCfg):
 class RobotPlayEnvCfg(RobotEnvCfg):
     def __post_init__(self):
         super().__post_init__()
+        self.commands.motion.debug_vis = True
         self.scene.num_envs = 1
         self.episode_length_s = 1e9
         self.terminations.motion_end = None

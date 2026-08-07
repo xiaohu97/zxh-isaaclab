@@ -6,12 +6,13 @@ import os
 import torch
 from collections.abc import Sequence
 from dataclasses import MISSING
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+import isaaclab.sim as sim_utils
 from isaaclab.assets import Articulation
 from isaaclab.managers import CommandTerm, CommandTermCfg
 from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
-from isaaclab.markers.config import FRAME_MARKER_CFG
 from isaaclab.utils import configclass
 from isaaclab.utils.math import (
     quat_apply,
@@ -25,6 +26,26 @@ from isaaclab.utils.math import (
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
+
+
+FRAME_MARKER_USD_PATH = Path(__file__).resolve().parents[3] / "assets" / "markers" / "frame_prim.usd"
+
+# This reproduces Isaac Lab's FRAME_MARKER_CFG with the original frame USD
+# stored locally.  Keeping both marker prototypes preserves the upstream
+# configuration while avoiding a synchronous asset-server lookup in GUI mode.
+LOCAL_FRAME_MARKER_CFG = VisualizationMarkersCfg(
+    markers={
+        "frame": sim_utils.UsdFileCfg(
+            usd_path=str(FRAME_MARKER_USD_PATH),
+            scale=(0.5, 0.5, 0.5),
+        ),
+        "connecting_line": sim_utils.CylinderCfg(
+            radius=0.002,
+            height=1.0,
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 0.0), roughness=1.0),
+        ),
+    }
+)
 
 
 class MotionLoader:
@@ -460,8 +481,8 @@ class MotionCommandCfg(CommandTermCfg):
     targeted_frame_probability: float = 0.0
     """Fraction of resets sampled uniformly from ``targeted_frame_range``."""
 
-    anchor_visualizer_cfg: VisualizationMarkersCfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/Command/pose")
+    anchor_visualizer_cfg: VisualizationMarkersCfg = LOCAL_FRAME_MARKER_CFG.replace(prim_path="/Visuals/Command/pose")
     anchor_visualizer_cfg.markers["frame"].scale = (0.2, 0.2, 0.2)
 
-    body_visualizer_cfg: VisualizationMarkersCfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/Command/pose")
+    body_visualizer_cfg: VisualizationMarkersCfg = LOCAL_FRAME_MARKER_CFG.replace(prim_path="/Visuals/Command/pose")
     body_visualizer_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
