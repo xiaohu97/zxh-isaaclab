@@ -248,7 +248,7 @@ def _run_root_displacement_measurements(env, policy, policy_nn, dt, limits, sett
     if not ee_body_indexes:
         raise RuntimeError("Measurement requires at least one configured ee_body_pos body.")
 
-    term_names = ("anchor_pos", "anchor_pos_xy", "anchor_ori")
+    term_names = tuple(name for name in ("anchor_pos", "anchor_pos_xy", "anchor_ori") if name in limits)
     first_term_frames = {
         name: torch.full((num_envs,), -1, dtype=torch.long, device=base_env.device) for name in term_names
     }
@@ -485,9 +485,12 @@ def main():
             }
 
         measurement_limits = {}
+        # anchor_pos_xy is optional: some tasks terminate on the vertical anchor error only.
         for term_name in ("anchor_pos", "anchor_pos_xy", "anchor_ori", "ee_body_pos"):
             term_cfg = getattr(env_cfg.terminations, term_name, None)
             if term_cfg is None or "threshold" not in term_cfg.params:
+                if term_name == "anchor_pos_xy":
+                    continue
                 raise RuntimeError(f"Measurement requires a configured {term_name!r} threshold termination.")
             measurement_limits[term_name] = {
                 "threshold": float(term_cfg.params["threshold"]),
@@ -498,6 +501,11 @@ def main():
             setattr(env_cfg.terminations, term_name, None)
         if hasattr(env_cfg.terminations, "motion_end"):
             env_cfg.terminations.motion_end = None
+
+        # The final policy step advances the command past the last frame. Under
+        # "resample" that rewrites the robot to a fresh randomized frame 0, so the
+        # end-of-rollout root pose would reflect resampling noise, not the policy.
+        env_cfg.commands.motion.motion_end_behavior = "hold"
 
         # The measurement harness supplies its own deterministic push table.
         # Disable training-only randomizers, including the phase-targeted push,

@@ -24,6 +24,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 import unitree_rl_lab.tasks.mimic.mdp as mdp
 
 from unitree_rl_lab.assets.robots.humanoid_ultra import HUMANOIDULTRA27DOF_MIMIC_CFG as ROBOT_CFG
+from unitree_rl_lab.tasks.mimic.terrain import LocalGridPlaneTerrainImporter
 
 ##
 # Scene definition
@@ -117,6 +118,7 @@ class RobotSceneCfg(InteractiveSceneCfg):
 
     # ground terrain
     terrain = TerrainImporterCfg(
+        class_type=LocalGridPlaneTerrainImporter,
         prim_path="/World/ground",
         terrain_type="plane",
         collision_group=-1,
@@ -357,8 +359,18 @@ class RewardsCfg:
     )
     motion_global_anchor_ori = RewTerm(
         func=mdp.motion_global_anchor_orientation_error_exp,
-        weight=0.5,
-        params={"command_name": "motion", "std": 0.4},
+        weight=1.0,
+        params={"command_name": "motion", "std": 0.3},
+    )
+    motion_base_pos = RewTerm(
+        func=mdp.motion_relative_body_position_error_exp,
+        weight=1.0,
+        params={"command_name": "motion", "std": 0.08, "body_names": ["base_link"]},
+    )
+    motion_base_ori = RewTerm(
+        func=mdp.motion_relative_body_orientation_error_exp,
+        weight=1.0,
+        params={"command_name": "motion", "std": 0.20, "body_names": ["base_link"]},
     )
     motion_body_pos = RewTerm(
         func=mdp.motion_relative_body_position_error_exp,
