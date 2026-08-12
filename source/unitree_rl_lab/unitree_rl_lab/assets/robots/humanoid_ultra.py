@@ -360,11 +360,17 @@ HUMANOIDULTRA27DOF_CFG = ArticulationCfg(
 HUMANOIDULTRA27DOF_IDENTIFIED_CFG = HUMANOIDULTRA27DOF_CFG.copy()
 HUMANOIDULTRA27DOF_IDENTIFIED_CFG.spawn.asset_path = _prepared_urdf(HUMANOID_ULTRA_27DOF_IDENTIFIED_URDF)
 HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["legs"].armature = {
-    ".*_hip_yaw_joint": 0.01,
-    ".*_hip_roll_joint": 0.15,
+    ".*_hip_yaw_joint": 0.02,
+    ".*_hip_roll_joint": 0.20,
     ".*_hip_pitch_joint": 0.10,
     ".*_knee_joint": 0.12,
 }
+# Ankle/shoulder/elbow live in their own actuator groups, so their armature has
+# to be set per group: an armature dict key that matches no joint in the group
+# raises in ActuatorBase._parse_joint_parameter.
+HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["feet"].armature = 0.03
+HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["shoulders"].armature = 0.02
+HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["elbow"].armature = 0.02
 
 # Identified 27-DoF asset with the arm inertias obtained while carrying the
 # 2 kg payload on the left arm.
@@ -395,7 +401,7 @@ HUMANOIDULTRA27DOF_MIMIC_CFG.actuators = {
         joint_names_expr=[".*_hip_yaw_joint"],
         stiffness=80.0,
         damping=0.8,
-        armature=0.01,
+        armature=HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["legs"].armature[".*_hip_yaw_joint"],
         min_delay=0,
         max_delay=2,
     ),
@@ -412,8 +418,10 @@ HUMANOIDULTRA27DOF_MIMIC_CFG.actuators = {
         stiffness=180.0,
         damping=2.4,
         armature={
-            ".*_hip_pitch_joint": 0.10,
-            ".*_knee_joint": 0.12,
+            ".*_hip_pitch_joint": HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["legs"].armature[
+                ".*_hip_pitch_joint"
+            ],
+            ".*_knee_joint": HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["legs"].armature[".*_knee_joint"],
         },
         min_delay=0,
         max_delay=2,
@@ -431,7 +439,7 @@ HUMANOIDULTRA27DOF_MIMIC_CFG.actuators = {
             ".*_ankle_pitch_joint": 0.8,
             ".*_ankle_roll_joint": 0.4,
         },
-        armature=0.01,
+        armature=HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["feet"].armature,
         min_delay=0,
         max_delay=2,
     ),
@@ -451,7 +459,7 @@ HUMANOIDULTRA27DOF_MIMIC_CFG.actuators = {
         ],
         stiffness=80.0,
         damping=1.5,
-        armature=0.01,
+        armature=HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["shoulders"].armature,
         min_delay=0,
         max_delay=2,
     ),
@@ -459,7 +467,7 @@ HUMANOIDULTRA27DOF_MIMIC_CFG.actuators = {
         joint_names_expr=[".*_elbow_joint"],
         stiffness=60.0,
         damping=1.2,
-        armature=0.01,
+        armature=HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["elbow"].armature,
         min_delay=0,
         max_delay=2,
     ),

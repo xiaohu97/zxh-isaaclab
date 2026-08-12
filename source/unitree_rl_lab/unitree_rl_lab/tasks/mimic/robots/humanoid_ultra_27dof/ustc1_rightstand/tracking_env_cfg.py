@@ -22,6 +22,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import unitree_rl_lab.tasks.mimic.mdp as mdp
+from unitree_rl_lab.tasks.mimic.domain_randomization import PlantRandomizationEventCfg
 
 from unitree_rl_lab.assets.robots.humanoid_ultra import (
     HUMANOIDULTRA27DOF_MIMIC_CFG as ROBOT_CFG,
@@ -276,7 +277,7 @@ class DeploymentSafeObservationsCfg(ObservationsCfg):
 
 
 @configclass
-class EventCfg:
+class EventCfg(PlantRandomizationEventCfg):
     """Configuration for events."""
 
     # startup
