@@ -110,23 +110,39 @@ adding another robot are documented in
     ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Identified-Flat
     # Flat-LeftArm2kg 使用左臂负载 2 kg 时重新辨识的手臂惯性参数
     ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Identified-Flat-LeftArm2kg
+    ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Identified-Flat-LeftArm4kg
+    ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Identified-Flat-LeftArm5kg
     # Stand 包含左臂周期激励轨迹跟踪
     ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Identified-Stand
     ```
 
     `Identified-Flat` 和 `Identified-Stand` 使用
     `humanoid_ultra_27dof_description_identified.urdf`；`Flat-LeftArm2kg` 使用
-    `humanoid_ultra_27dof_description_identified_leftarm2kg.urdf`。三个 identified task
+    `humanoid_ultra_27dof_description_identified_leftarm2kg.urdf`，`Flat-LeftArm4kg`和
+    `Flat-LeftArm5kg` 分别使用对应的 `leftarm4kg`/`leftarm5kg` URDF。这些 identified task
     共享的 hip roll armature 为 0.15；Humanoid Ultra Mimic 的 hip roll actuator
     也直接读取这个共享值。
     hip yaw 为 0.01、hip pitch 为 0.10、knee 为 0.12，脚踝、腰部和手臂沿用 0.01。
-    `Flat-LeftArm2kg` 因负载破坏左右动力学对称性，
+    所有 `Flat-LeftArm*kg` 任务因负载破坏左右动力学对称性，
     单独关闭镜像数据增强和 mirror loss。Identified-Stand 继承
     `Stand-LeftArmTrack` 的左臂轨迹、15 维参考观测、跟踪奖励、安全渐入/渐出和
     手腕碰撞惩罚。日志分别写入
     `humanoidultra27dof_identified_flat`、
-    `humanoidultra27dof_identified_flat_leftarm2kg` 和
+    `humanoidultra27dof_identified_flat_leftarm2kg`、
+    `humanoidultra27dof_identified_flat_leftarm4kg`、
+    `humanoidultra27dof_identified_flat_leftarm5kg` 和
     `humanoidultra27dof_identified_stand_leftarm`，不会混入原任务目录。
+
+    2.5 kg 左臂负载的 Mimic 任务使用
+    `humanoid_ultra_27dof_description_identified_leftarm2-5kg.urdf`：
+
+    ```bash
+    ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Mimic-Pick-2-5kg
+    ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Mimic-Taitui-Right-2-5kg
+    ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-2-5kg
+    ```
+
+    原有 `USTC-Humanoid-Ultra-27dof-Mimic-Pick` 仍使用无负载 identified URDF。
 
     从已有站立策略继续进行抗扰动训练：
 

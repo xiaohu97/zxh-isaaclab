@@ -5,6 +5,8 @@ from isaaclab.utils import configclass
 from unitree_rl_lab.assets.robots.humanoid_ultra import (
     HUMANOIDULTRA27DOF_IDENTIFIED_CFG,
     HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM2KG_CFG,
+    HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM4KG_CFG,
+    HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM5KG_CFG,
 )
 from unitree_rl_lab.tasks.humanoid_ultra.base.humanoidultra27dof_env_cfg import (
     Humanoidultra27dofFlatEnvCfg,
@@ -43,6 +45,26 @@ class HumanoidUltra27dofIdentifiedFlatLeftArm2kgEnvCfg(Humanoidultra27dofFlatEnv
         super().__post_init__()
         self.commands.debug_vis = True
         _apply_identified_robot(self, HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM2KG_CFG)
+
+
+@configclass
+class HumanoidUltra27dofIdentifiedFlatLeftArm4kgEnvCfg(Humanoidultra27dofFlatEnvCfg):
+    """Flat walking with the identified left-arm 4 kg payload model."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.commands.debug_vis = True
+        _apply_identified_robot(self, HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM4KG_CFG)
+
+
+@configclass
+class HumanoidUltra27dofIdentifiedFlatLeftArm5kgEnvCfg(Humanoidultra27dofFlatEnvCfg):
+    """Flat walking with the identified left-arm 5 kg payload model."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.commands.debug_vis = True
+        _apply_identified_robot(self, HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM5KG_CFG)
 
 
 @configclass

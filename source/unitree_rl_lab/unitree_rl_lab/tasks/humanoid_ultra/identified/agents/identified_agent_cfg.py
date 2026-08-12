@@ -34,6 +34,28 @@ class HumanoidUltra27dofIdentifiedFlatLeftArm2kgAgentCfg(Humanoidultra27dofFlatA
 
 
 @configclass
+class HumanoidUltra27dofIdentifiedFlatLeftArm4kgAgentCfg(Humanoidultra27dofFlatAgentCfg):
+    """Keep left-arm 4 kg payload runs separate and disable mirror symmetry."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.algorithm.symmetry_cfg = None
+        self.experiment_name = "humanoidultra27dof_identified_flat_leftarm4kg"
+        self.wandb_project = "humanoidultra27dof_identified_flat_leftarm4kg"
+
+
+@configclass
+class HumanoidUltra27dofIdentifiedFlatLeftArm5kgAgentCfg(Humanoidultra27dofFlatAgentCfg):
+    """Keep left-arm 5 kg payload runs separate and disable mirror symmetry."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.algorithm.symmetry_cfg = None
+        self.experiment_name = "humanoidultra27dof_identified_flat_leftarm5kg"
+        self.wandb_project = "humanoidultra27dof_identified_flat_leftarm5kg"
+
+
+@configclass
 class HumanoidUltra27dofIdentifiedStandAgentCfg(
     HumanoidUltra27dofStandLeftArmAgentCfg
 ):

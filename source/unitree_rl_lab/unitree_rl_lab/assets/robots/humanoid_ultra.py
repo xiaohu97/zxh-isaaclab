@@ -47,6 +47,15 @@ HUMANOID_ULTRA_27DOF_IDENTIFIED_URDF = "humanoid_ultra_27dof_description_identif
 HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM2KG_URDF = (
     "humanoid_ultra_27dof_description_identified_leftarm2kg.urdf"
 )
+HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM2P5KG_URDF = (
+    "humanoid_ultra_27dof_description_identified_leftarm2-5kg.urdf"
+)
+HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM4KG_URDF = (
+    "humanoid_ultra_27dof_description_identified_leftarm4kg.urdf"
+)
+HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM5KG_URDF = (
+    "humanoid_ultra_27dof_description_identified_leftarm5kg.urdf"
+)
 
 
 def _prepared_urdf(filename: str) -> str:
@@ -364,6 +373,20 @@ HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM2KG_CFG.spawn.asset_path = _prepared_urdf(
     HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM2KG_URDF
 )
 
+# Identified 27-DoF assets for the additional left-arm payload data sets.
+HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM2P5KG_CFG = HUMANOIDULTRA27DOF_IDENTIFIED_CFG.copy()
+HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM2P5KG_CFG.spawn.asset_path = _prepared_urdf(
+    HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM2P5KG_URDF
+)
+HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM4KG_CFG = HUMANOIDULTRA27DOF_IDENTIFIED_CFG.copy()
+HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM4KG_CFG.spawn.asset_path = _prepared_urdf(
+    HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM4KG_URDF
+)
+HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM5KG_CFG = HUMANOIDULTRA27DOF_IDENTIFIED_CFG.copy()
+HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM5KG_CFG.spawn.asset_path = _prepared_urdf(
+    HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM5KG_URDF
+)
+
 # Mimic-only motor model. Keep the identified asset available to non-mimic
 # tasks while applying the USTC torque-speed curves to all 27 controlled DoFs.
 HUMANOIDULTRA27DOF_MIMIC_CFG = HUMANOIDULTRA27DOF_IDENTIFIED_CFG.copy()
@@ -449,6 +472,13 @@ HUMANOIDULTRA27DOF_MIMIC_CFG.actuators = {
         max_delay=2,
     ),
 }
+
+# Keep the Mimic torque-speed actuator model while swapping in the rigid-body
+# parameters identified with the 2.5 kg left-arm payload.
+HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG = HUMANOIDULTRA27DOF_MIMIC_CFG.copy()
+HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG.spawn.asset_path = _prepared_urdf(
+    HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM2P5KG_URDF
+)
 
 #腿部6个，腰部1个，手臂7个   
 HUMANOIDULTRA27DOF_AMP_CFG = ArticulationCfg(

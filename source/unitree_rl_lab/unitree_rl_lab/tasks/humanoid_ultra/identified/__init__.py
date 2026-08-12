@@ -42,6 +42,46 @@ gym.register(
 )
 
 gym.register(
+    id="USTC-Humanoid-Ultra-27dof-Identified-Flat-LeftArm4kg",
+    entry_point="unitree_rl_lab.tasks.humanoid_ultra.base.base_env:BaseEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            f"{__name__}.identified_env_cfg:"
+            "HumanoidUltra27dofIdentifiedFlatLeftArm4kgEnvCfg"
+        ),
+        "play_env_cfg_entry_point": (
+            f"{__name__}.identified_env_cfg:"
+            "HumanoidUltra27dofIdentifiedFlatLeftArm4kgEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{__name__}.agents.identified_agent_cfg:"
+            "HumanoidUltra27dofIdentifiedFlatLeftArm4kgAgentCfg"
+        ),
+    },
+)
+
+gym.register(
+    id="USTC-Humanoid-Ultra-27dof-Identified-Flat-LeftArm5kg",
+    entry_point="unitree_rl_lab.tasks.humanoid_ultra.base.base_env:BaseEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            f"{__name__}.identified_env_cfg:"
+            "HumanoidUltra27dofIdentifiedFlatLeftArm5kgEnvCfg"
+        ),
+        "play_env_cfg_entry_point": (
+            f"{__name__}.identified_env_cfg:"
+            "HumanoidUltra27dofIdentifiedFlatLeftArm5kgEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{__name__}.agents.identified_agent_cfg:"
+            "HumanoidUltra27dofIdentifiedFlatLeftArm5kgAgentCfg"
+        ),
+    },
+)
+
+gym.register(
     id="USTC-Humanoid-Ultra-27dof-Identified-Stand",
     entry_point=(
         "unitree_rl_lab.tasks.humanoid_ultra.stand_leftarm.stand_leftarm_env:"

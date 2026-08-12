@@ -23,7 +23,10 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import unitree_rl_lab.tasks.mimic.mdp as mdp
 
-from unitree_rl_lab.assets.robots.humanoid_ultra import HUMANOIDULTRA27DOF_MIMIC_CFG as ROBOT_CFG
+from unitree_rl_lab.assets.robots.humanoid_ultra import (
+    HUMANOIDULTRA27DOF_MIMIC_CFG as ROBOT_CFG,
+    HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG,
+)
 from unitree_rl_lab.tasks.mimic.terrain import LocalGridPlaneTerrainImporter
 
 ##
@@ -489,3 +492,24 @@ class RobotHoutaituiPlayEnvCfg(RobotHoutaituiEnvCfg):
         super().__post_init__()
         self.scene.num_envs = 1
         self.episode_length_s = 1e9
+
+
+@configclass
+class RobotHoutaituiLeftArm2P5kgEnvCfg(RobotHoutaituiEnvCfg):
+    """Houtaitui tracking with the identified 2.5 kg left-arm payload model."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG.replace(
+            prim_path="{ENV_REGEX_NS}/Robot"
+        )
+
+
+class RobotHoutaituiLeftArm2P5kgPlayEnvCfg(RobotHoutaituiPlayEnvCfg):
+    """Play configuration for the 2.5 kg left-arm payload model."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG.replace(
+            prim_path="{ENV_REGEX_NS}/Robot"
+        )

@@ -4,6 +4,7 @@ import os
 
 from isaaclab.utils import configclass
 
+from unitree_rl_lab.assets.robots.humanoid_ultra import HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
 from unitree_rl_lab.tasks.mimic.robots.humanoid_ultra_27dof.ustc1_pick.tracking_env_cfg import (
     CommandsCfg as BaseCommandsCfg,
     RewardsCfg as BaseRewardsCfg,
@@ -35,3 +36,24 @@ class RobotPlayEnvCfg(RobotEnvCfg):
         self.scene.num_envs = 1
         self.episode_length_s = 1e9
         self.terminations.motion_end = None
+
+
+@configclass
+class RobotLeftArm2P5kgEnvCfg(RobotEnvCfg):
+    """Right-leg tracking with the identified 2.5 kg left-arm payload model."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG.replace(
+            prim_path="{ENV_REGEX_NS}/Robot"
+        )
+
+
+class RobotLeftArm2P5kgPlayEnvCfg(RobotPlayEnvCfg):
+    """Play configuration for the 2.5 kg left-arm payload model."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG.replace(
+            prim_path="{ENV_REGEX_NS}/Robot"
+        )

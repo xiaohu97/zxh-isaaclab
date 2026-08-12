@@ -23,7 +23,10 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import unitree_rl_lab.tasks.mimic.mdp as mdp
 
-from unitree_rl_lab.assets.robots.humanoid_ultra import HUMANOIDULTRA27DOF_MIMIC_CFG as ROBOT_CFG
+from unitree_rl_lab.assets.robots.humanoid_ultra import (
+    HUMANOIDULTRA27DOF_MIMIC_CFG as ROBOT_CFG,
+    HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG,
+)
 from unitree_rl_lab.tasks.mimic.terrain import LocalGridPlaneTerrainImporter
 
 ##
@@ -452,3 +455,24 @@ class RobotPlayEnvCfg(RobotEnvCfg):
         self.episode_length_s = 1e9
         # Keep displaying the final frame without resetting or teleporting.
         self.terminations.motion_end = None
+
+
+@configclass
+class RobotLeftArm2P5kgEnvCfg(RobotEnvCfg):
+    """Pick tracking with the identified 2.5 kg left-arm payload model."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG.replace(
+            prim_path="{ENV_REGEX_NS}/Robot"
+        )
+
+
+class RobotLeftArm2P5kgPlayEnvCfg(RobotPlayEnvCfg):
+    """Play configuration for the 2.5 kg left-arm payload model."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG.replace(
+            prim_path="{ENV_REGEX_NS}/Robot"
+        )
