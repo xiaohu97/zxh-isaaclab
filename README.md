@@ -97,7 +97,12 @@ adding another robot are documented in
     conda activate ustc_isaaclab
     ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Stand
     ```
-
+    同时跑两个task  
+    ```bash
+    source ~/.mps/env.sh
+    pgrep -f nvidia-cuda-mps-control >/dev/null || nvidia-cuda-mps-control -d   # 没跑才启
+    # 然后在这个 shell 里起训练；第二个终端重复同样两步
+    ```
     使用辨识后 URDF 和 Mimic 关节 armature 的独立 Walk/Stand 任务：
 
     ```bash
