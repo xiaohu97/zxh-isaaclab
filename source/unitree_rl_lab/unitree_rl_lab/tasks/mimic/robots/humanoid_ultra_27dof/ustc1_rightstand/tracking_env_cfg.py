@@ -73,6 +73,11 @@ DEPLOYMENT_JOINT_POSITION_LIMITS = {
 # of position-target change per policy step.
 DEPLOYMENT_TARGET_VELOCITY = 6.0
 
+# Action EMA used by the houtaituiEMA task only. At the 50 Hz policy rate this is
+# -0.5 dB / -14 deg at 2 Hz and -6.8 dB / -27 deg at 12 Hz, the frequency of the
+# limit cycle seen in the 0813 deployment log.
+ACTION_EMA_ALPHA = 0.5
+
 # Anchor body: central torso link used to align robot vs. reference (G1 uses "torso_link").
 ANCHOR_BODY_NAME = "trunk_link"
 
@@ -228,6 +233,33 @@ class DeploymentSafeActionsCfg:
         use_default_offset=True,
         clip=DEPLOYMENT_JOINT_POSITION_LIMITS,
         max_target_velocity=DEPLOYMENT_TARGET_VELOCITY,
+    )
+
+
+@configclass
+class EmaDeploymentSafeActionsCfg(DeploymentSafeActionsCfg):
+    """Deployment-safe commands with the action EMA enabled.
+
+    The 0813 houtaitui log (ustc-humanoid-identification/results/houtaitui_0813)
+    shows a 12.1 Hz whole-body limit cycle that the controller sustains by
+    injecting about 8 W: 11 of 12 leg joints have a positive band-limited
+    <tau * dq>.  The filter does not touch the 10-24 Hz mechanical modes that
+    footstrikes ring; it removes the loop gain that keeps re-exciting one of
+    them.  At alpha=0.5 the 12 Hz loop gain drops to 0.46 while the task band
+    below 3 Hz loses at most 1.1 dB.
+
+    The same filter must run in deployment.  Training with it and deploying
+    without it (or the reverse) puts the policy on a plant it never saw.
+    """
+
+    JointPositionAction = mdp.DeploymentLimitedJointPositionActionCfg(
+        asset_name="robot",
+        joint_names=[".*"],
+        scale=ROBOT_ACTION_SCALE,
+        use_default_offset=True,
+        clip=DEPLOYMENT_JOINT_POSITION_LIMITS,
+        max_target_velocity=DEPLOYMENT_TARGET_VELOCITY,
+        ema_alpha=ACTION_EMA_ALPHA,
     )
 
 
@@ -503,6 +535,20 @@ class RobotHoutaituiEnvCfg(RobotDeploySafeEnvCfg):
     """Deployment-safe houtaitui with standing entry and recovery segments."""
 
     commands: StandTransitionCommandsCfg = StandTransitionCommandsCfg()
+
+
+@configclass
+class RobotHoutaituiEmaEnvCfg(RobotHoutaituiEnvCfg):
+    """Houtaitui with the action EMA, aimed at the 12.1 Hz deployment limit cycle."""
+
+    actions: EmaDeploymentSafeActionsCfg = EmaDeploymentSafeActionsCfg()
+
+
+class RobotHoutaituiEmaPlayEnvCfg(RobotHoutaituiEmaEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
 
 
 class RobotHoutaituiPlayEnvCfg(RobotHoutaituiEnvCfg):
