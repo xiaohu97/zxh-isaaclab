@@ -22,7 +22,6 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import unitree_rl_lab.tasks.mimic.mdp as mdp
-from unitree_rl_lab.tasks.mimic.domain_randomization import PlantRandomizationEventCfg
 
 from .g1 import G1_ACTION_SCALE
 # from .g1 import G1_CYLINDER_CFG as ROBOT_CFG  # TODO: replace with unitree official robot cfg
@@ -171,7 +170,7 @@ class ObservationsCfg:
 
 
 @configclass
-class EventCfg(PlantRandomizationEventCfg):
+class EventCfg:
     """Configuration for events."""
 
     # startup

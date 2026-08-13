@@ -1,4 +1,4 @@
-"""Plant randomization shared by every mimic task.
+"""Plant randomization for the humanoid_ultra mimic tasks.
 
 The mimic ``EventCfg`` inherited from the upstream g1 tasks randomized only the
 ground material, the joint default positions, the anchor-body CoM and push
@@ -7,6 +7,9 @@ byte-identical in every environment, so a mimic policy could fit one exact set
 of actuator and rigid-body parameters. That shows up on hardware as leg
 vibration, most visibly in single-support motions where the ankle carries the
 whole robot and its rotor inertia dominates the joint-space inertia.
+
+The g1 mimic tasks are deliberately left on the upstream event set; only the
+humanoid_ultra tasks mix this in.
 
 Ranges follow the ``humanoid_ultra`` flat tasks, except that the armature range
 is widened to 0.6-1.4x: identification from standing data cannot pin the rotor

@@ -115,6 +115,23 @@ VELOCITY_RANGE = {
     "yaw": (-0.78, 0.78),
 }
 
+# Command-delay range in physics steps (sim.dt = 0.005 s), applied to every
+# actuator group of this task only. The shared mimic asset ships 0-2 steps
+# (0-10 ms), which is well short of the real loop: the houtaitui deployment log
+# (ustc-humanoid-identification/results/houtaitui_0813) shows a 12.1 Hz
+# whole-body limit cycle that needs roughly 150 deg of loop lag to sustain.
+# 0-4 steps widens the training distribution to 0-20 ms. Raise further once the
+# end-to-end delay has actually been measured on hardware.
+ACTUATOR_MAX_DELAY = 4
+
+
+def _with_command_delay(robot_cfg: ArticulationCfg, max_delay: int = ACTUATOR_MAX_DELAY) -> ArticulationCfg:
+    """Copy ``robot_cfg`` with every actuator group's command delay widened."""
+    cfg = robot_cfg.copy()
+    for actuator in cfg.actuators.values():
+        actuator.max_delay = max_delay
+    return cfg
+
 
 @configclass
 class RobotSceneCfg(InteractiveSceneCfg):
@@ -138,7 +155,7 @@ class RobotSceneCfg(InteractiveSceneCfg):
         ),
     )
     # robots
-    robot: ArticulationCfg = ROBOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot: ArticulationCfg = _with_command_delay(ROBOT_CFG).replace(prim_path="{ENV_REGEX_NS}/Robot")
     # lights
     light = AssetBaseCfg(
         prim_path="/World/light",
@@ -501,9 +518,9 @@ class RobotHoutaituiLeftArm2P5kgEnvCfg(RobotHoutaituiEnvCfg):
 
     def __post_init__(self):
         super().__post_init__()
-        self.scene.robot = HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG.replace(
-            prim_path="{ENV_REGEX_NS}/Robot"
-        )
+        self.scene.robot = _with_command_delay(
+            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
+        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
 class RobotHoutaituiLeftArm2P5kgPlayEnvCfg(RobotHoutaituiPlayEnvCfg):
@@ -511,6 +528,6 @@ class RobotHoutaituiLeftArm2P5kgPlayEnvCfg(RobotHoutaituiPlayEnvCfg):
 
     def __post_init__(self):
         super().__post_init__()
-        self.scene.robot = HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG.replace(
-            prim_path="{ENV_REGEX_NS}/Robot"
-        )
+        self.scene.robot = _with_command_delay(
+            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
+        ).replace(prim_path="{ENV_REGEX_NS}/Robot")

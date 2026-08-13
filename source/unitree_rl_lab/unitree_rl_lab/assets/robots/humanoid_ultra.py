@@ -400,7 +400,12 @@ HUMANOIDULTRA27DOF_MIMIC_CFG.actuators = {
     "hip_yaw_E8112": ustc_actuators.USTCActuatorCfg_E8112(
         joint_names_expr=[".*_hip_yaw_joint"],
         stiffness=80.0,
-        damping=0.8,
+        # kd/kp raised 10 ms -> 20 ms. The houtaitui deployment log
+        # (ustc-humanoid-identification/results/houtaitui_0813) shows a 12.1 Hz
+        # whole-body limit cycle led by hip yaw, which had the least derivative
+        # phase lead of any leg joint: atan(w*kd/kp) = 37 deg at 12 Hz against
+        # roughly 150 deg of loop delay. At 20 ms the lead is 56 deg.
+        damping=1.6,
         armature=HUMANOIDULTRA27DOF_IDENTIFIED_CFG.actuators["legs"].armature[".*_hip_yaw_joint"],
         min_delay=0,
         max_delay=2,
