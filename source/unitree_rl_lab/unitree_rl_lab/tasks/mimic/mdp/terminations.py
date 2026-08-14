@@ -73,3 +73,26 @@ def bad_motion_body_pos_z_only(
     body_indexes = _get_body_indexes(command, body_names)
     error = torch.abs(command.body_pos_relative_w[:, body_indexes, -1] - command.robot_body_pos_w[:, body_indexes, -1])
     return torch.any(error > threshold, dim=-1)
+
+
+def bad_swing_foot_height(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    body_names: list[str],
+    reference_height_threshold: float,
+    max_height_shortfall: float,
+) -> torch.Tensor:
+    """Terminate only when a commanded swing foot remains materially too low.
+
+    This closes the stand-only loophole without tightening the generic
+    end-effector termination for the hands or the support foot.  The error is
+    intentionally one-sided: over-lifting is handled by the tracking rewards,
+    while this curriculum termination focuses on failure to leave the ground.
+    """
+    command: MotionCommand = env.command_manager.get_term(command_name)
+    body_indexes = _get_body_indexes(command, body_names)
+    reference_z = command.body_pos_relative_w[:, body_indexes, 2]
+    actual_z = command.robot_body_pos_w[:, body_indexes, 2]
+    reference_in_swing = reference_z > reference_height_threshold
+    height_shortfall = reference_z - actual_z
+    return torch.any(reference_in_swing & (height_shortfall > max_height_shortfall), dim=-1)

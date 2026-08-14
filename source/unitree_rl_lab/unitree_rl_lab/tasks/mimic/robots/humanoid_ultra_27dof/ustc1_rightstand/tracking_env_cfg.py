@@ -73,10 +73,11 @@ DEPLOYMENT_JOINT_POSITION_LIMITS = {
 # of position-target change per policy step.
 DEPLOYMENT_TARGET_VELOCITY = 6.0
 
-# Action EMA used by the houtaituiEMA task only. At the 50 Hz policy rate this is
-# -0.5 dB / -14 deg at 2 Hz and -6.8 dB / -27 deg at 12 Hz, the frequency of the
-# limit cycle seen in the 0813 deployment log.
-ACTION_EMA_ALPHA = 0.5
+# Action EMA used by the houtaituiEMA task only.  The alpha=0.7 run still
+# plateaued well behind the unfiltered policy after the first 30-minute window;
+# alpha=0.85 retains a small amount of touchdown smoothing with less task-band
+# phase lag during single-support recovery.
+ACTION_EMA_ALPHA = 0.85
 
 # Anchor body: central torso link used to align robot vs. reference (G1 uses "torso_link").
 ANCHOR_BODY_NAME = "trunk_link"
@@ -214,6 +215,24 @@ class StandTransitionCommandsCfg(CommandsCfg):
 
 
 @configclass
+class Phase1LiftCommandsCfg(CommandsCfg):
+    """Lift curriculum on the 615-frame source clip.
+
+    The source clip naturally spends 53% of its duration above 0.30 m.  The
+    targeted reset range therefore covers the take-off transition instead of
+    spawning every targeted environment with the leg already high.  Exact
+    frame-zero resets retain full stand-to-lift rollouts; the rest remain under
+    failure-adaptive sampling.
+    """
+
+    motion = CommandsCfg().motion.replace(
+        frame_zero_probability=0.20,
+        targeted_frame_range=(130, 220),
+        targeted_frame_probability=0.40,
+    )
+
+
+@configclass
 class ActionsCfg:
     """Action specifications for the MDP."""
 
@@ -245,8 +264,8 @@ class EmaDeploymentSafeActionsCfg(DeploymentSafeActionsCfg):
     injecting about 8 W: 11 of 12 leg joints have a positive band-limited
     <tau * dq>.  The filter does not touch the 10-24 Hz mechanical modes that
     footstrikes ring; it removes the loop gain that keeps re-exciting one of
-    them.  At alpha=0.5 the 12 Hz loop gain drops to 0.46 while the task band
-    below 3 Hz loses at most 1.1 dB.
+    them.  At alpha=0.85 the 12 Hz loop gain is about 0.85 while the task band
+    below 3 Hz loses less than 0.2 dB.
 
     The same filter must run in deployment.  Training with it and deploying
     without it (or the reverse) puts the policy on a plant it never saw.
@@ -451,6 +470,64 @@ class RewardsCfg:
         params={"command_name": "motion", "std": 0.08, "body_names": ["left_ankle_roll_link"]},
     )
 
+    # Targeted single-support and touchdown terms.  These are intentionally
+    # separate from generic action-rate/joint-acceleration penalties so the
+    # training log exposes whether the lifted-leg transition is actually quiet.
+    single_support_stability = RewTerm(
+        func=mdp.single_support_stability,
+        weight=0.25,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+            ),
+            "asset_cfg": SceneEntityCfg("robot"),
+            "contact_threshold": 10.0,
+            "tilt_scale": 0.20,
+            "angular_velocity_scale": 1.5,
+        },
+    )
+
+    # Phase 1: Direct lift incentives to break the "stand-only" local optimum
+    swing_foot_clearance = RewTerm(
+        func=mdp.swing_foot_clearance,
+        weight=2.0,
+        params={
+            "command_name": "motion",
+            "body_names": ["left_ankle_roll_link", "right_ankle_roll_link"],
+            "reference_height_threshold": 0.30,
+            "max_height_error": 0.50,
+        },
+    )
+    swing_foot_contact_penalty = RewTerm(
+        func=mdp.swing_foot_contact_penalty,
+        weight=-2.0,
+        params={
+            "command_name": "motion",
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+            ),
+            "body_names": ["left_ankle_roll_link", "right_ankle_roll_link"],
+            "contact_threshold": 10.0,
+            "reference_height_threshold": 0.30,
+        },
+    )
+
+    feet_impact_velocity = RewTerm(
+        func=mdp.feet_impact_velocity,
+        weight=-0.2,  # Reduced from -1.0 during phase 1: let it learn to lift first
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+            ),
+            "asset_cfg": SceneEntityCfg(
+                "robot", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]
+            ),
+        },
+    )
+
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
         weight=-0.1,
@@ -464,6 +541,19 @@ class RewardsCfg:
             "threshold": 1.0,
         },
     )
+
+
+@configclass
+class EmaRewardsCfg(RewardsCfg):
+    """EMA variant with phase 1 lift incentives.
+
+    Phase 1 curriculum: strong direct lift rewards + weak landing penalty.
+    Once the policy lifts consistently (timeout rate > 85%, swing_foot_clearance > 0.3),
+    transition to phase 2 by reducing swing weights and increasing landing penalty.
+    """
+
+    # Inherit all base rewards including the new swing terms
+    pass
 
 
 @configclass
@@ -485,6 +575,15 @@ class TerminationsCfg:
             "command_name": "motion",
             "threshold": 0.55,
             "body_names": EE_BODY_NAMES,
+        },
+    )
+    swing_foot_height = DoneTerm(
+        func=mdp.bad_swing_foot_height,
+        params={
+            "command_name": "motion",
+            "body_names": ["left_ankle_roll_link"],
+            "reference_height_threshold": 0.30,
+            "max_height_shortfall": 0.25,
         },
     )
 
@@ -532,9 +631,9 @@ class RobotDeploySafeEnvCfg(RobotEnvCfg):
 
 @configclass
 class RobotHoutaituiEnvCfg(RobotDeploySafeEnvCfg):
-    """Deployment-safe houtaitui with standing entry and recovery segments."""
+    """Phase-1 houtaitui curriculum that first learns a real foot lift."""
 
-    commands: StandTransitionCommandsCfg = StandTransitionCommandsCfg()
+    commands: Phase1LiftCommandsCfg = Phase1LiftCommandsCfg()
 
 
 @configclass
@@ -542,6 +641,7 @@ class RobotHoutaituiEmaEnvCfg(RobotHoutaituiEnvCfg):
     """Houtaitui with the action EMA, aimed at the 12.1 Hz deployment limit cycle."""
 
     actions: EmaDeploymentSafeActionsCfg = EmaDeploymentSafeActionsCfg()
+    rewards: EmaRewardsCfg = EmaRewardsCfg()
 
 
 class RobotHoutaituiEmaPlayEnvCfg(RobotHoutaituiEmaEnvCfg):

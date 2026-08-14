@@ -92,8 +92,8 @@ class DeploymentLimitedJointPositionActionCfg(JointPositionActionCfg):
 
     ``y[k] = y[k-1] + alpha * (u[k] - y[k-1])``, applied before scaling, clipping and
     slew limiting.  ``None`` (default) disables the filter, so existing tasks are
-    unaffected.  At the 50 Hz policy rate ``alpha=0.5`` is about -0.5 dB at 2 Hz and
-    -6.8 dB at 12 Hz.  Because the filter sits upstream of the target pipeline, the
+    unaffected.  For reference, at the 50 Hz policy rate ``alpha=0.5`` is about
+    -0.5 dB at 2 Hz and -6.8 dB at 12 Hz.  Because the filter sits upstream of the target pipeline, the
     ``last_applied_action`` observation already reflects it.
     """
 
