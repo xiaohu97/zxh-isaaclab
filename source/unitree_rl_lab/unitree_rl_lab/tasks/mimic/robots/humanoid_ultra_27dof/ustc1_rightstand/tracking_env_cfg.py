@@ -112,6 +112,8 @@ EE_BODY_NAMES = [
     "right_wrist_pitch_link",
 ]
 
+# Root-velocity spread applied once per episode reset, on top of the reference
+# body velocity.  Unchanged from the shared mimic value.
 VELOCITY_RANGE = {
     "x": (-0.5, 0.5),
     "y": (-0.5, 0.5),
@@ -121,14 +123,48 @@ VELOCITY_RANGE = {
     "yaw": (-0.78, 0.78),
 }
 
+# Interval push disturbance.  Deliberately separate from VELOCITY_RANGE: the two
+# used to share one constant, which sized the recurring push off a reset-time
+# spread.
+#
+# This clip holds single support for 6.56 s (reference left foot above 0.30 m,
+# frames 178-505), so at the previous 1-3 s interval a lift saw about 3.3
+# pushes.  A 57 kg robot with its CoM at 0.95 m has an ankle-strategy capture
+# limit of 0.101 m x 3.21 rad/s = 0.32 m/s fore-aft and 0.037 m x 3.21 rad/s =
+# 0.12 m/s lateral, from the foot's contact-rail half-extents.  The lateral
+# figure drops to about 0.06 m/s once the ankle-roll position-target clip
+# (+-0.5236 rad at kp = 20 Nm/rad, so 10.5 Nm, so 1.87 cm of CoP) is taken into
+# account.  A +-0.5 m/s lateral push is therefore 4-8x beyond what the support
+# ankle can absorb, and the swing-foot reward and termination forbid the step
+# that would otherwise recover it.
+#
+# These ranges sit just inside the fore-aft limit and inside the kp-limited
+# lateral one, at an interval that leaves room to settle between pushes.  Widen
+# them again only after the lift itself is reliable.
+PUSH_VELOCITY_RANGE = {
+    "x": (-0.15, 0.15),
+    "y": (-0.05, 0.05),
+    "z": (-0.05, 0.05),
+    "roll": (-0.15, 0.15),
+    "pitch": (-0.20, 0.20),
+    "yaw": (-0.30, 0.30),
+}
+PUSH_INTERVAL_RANGE_S = (4.0, 8.0)
+
 # Command-delay range in physics steps (sim.dt = 0.005 s), applied to every
 # actuator group of this task only. The shared mimic asset ships 0-2 steps
 # (0-10 ms), which is well short of the real loop: the houtaitui deployment log
 # (ustc-humanoid-identification/results/houtaitui_0813) shows a 12.1 Hz
 # whole-body limit cycle that needs roughly 150 deg of loop lag to sustain.
-# 0-4 steps widens the training distribution to 0-20 ms. Raise further once the
-# end-to-end delay has actually been measured on hardware.
-ACTUATOR_MAX_DELAY = 4
+#
+# Held back at the shared 0-10 ms while the Phase-1 lift curriculum is still
+# failing.  The 0-20 ms widening was introduced in the same change as the lift
+# curriculum, the swing-foot termination and the plant randomization, so a
+# failed run cannot attribute blame between them.  The policy observes a single
+# frame and cannot identify the per-step delay, so widening the range only buys
+# a more conservative policy until an observation history exists.  Restore 4
+# once the lift is reliable, or once the delay has been measured on hardware.
+ACTUATOR_MAX_DELAY = 2
 
 
 def _with_command_delay(robot_cfg: ArticulationCfg, max_delay: int = ACTUATOR_MAX_DELAY) -> ArticulationCfg:
@@ -202,6 +238,13 @@ class CommandsCfg:
         velocity_range=VELOCITY_RANGE,
         joint_position_range=(-0.1, 0.1),
         body_names=TRACKED_BODY_NAMES,
+        # The clip is one-shot: it ends standing on both feet, not in a state
+        # that loops back to frame 0.  The default "resample" teleports the
+        # robot to a freshly sampled reference frame mid-episode without
+        # emitting a termination, so GAE bootstraps across the discontinuity.
+        # "hold" freezes the final reference frame instead and never rewrites
+        # robot state; the paired ``motion_end`` termination closes the episode.
+        motion_end_behavior="hold",
     )
 
 
@@ -380,12 +423,27 @@ class EventCfg(PlantRandomizationEventCfg):
         },
     )
 
+    # Narrowed from the shared 0.6-1.4x while the lift curriculum is still
+    # failing.  Rotor inertia dominates the joint-space inertia of the support
+    # ankle, so a 40% spread is a large plant change for exactly the joint this
+    # motion depends on most.  Restore the shared range from
+    # PlantRandomizationEventCfg once the lift is reliable.
+    scale_joint_parameters = EventTerm(
+        func=mdp.randomize_joint_parameters,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
+            "armature_distribution_params": (0.8, 1.2),
+            "operation": "scale",
+        },
+    )
+
     # interval
     push_robot = EventTerm(
         func=mdp.push_by_setting_velocity,
         mode="interval",
-        interval_range_s=(1.0, 3.0),
-        params={"velocity_range": VELOCITY_RANGE},
+        interval_range_s=PUSH_INTERVAL_RANGE_S,
+        params={"velocity_range": PUSH_VELOCITY_RANGE},
     )
 
 
@@ -428,6 +486,19 @@ class RewardsCfg:
         func=mdp.motion_global_anchor_position_error_exp,
         weight=0.5,
         params={"command_name": "motion", "std": 0.3},
+    )
+    # Every motion_relative_* term is computed against a reference re-anchored
+    # to the robot's own horizontal position and yaw each step, so all of them
+    # are exactly invariant to a rigid horizontal translation of the robot.
+    # motion_global_anchor_pos is the only term that sees the drift at all, and
+    # at std=0.3 with weight 0.5 it is worth under 0.02 once the error passes
+    # half a metre.  This term restores a usable horizontal gradient; the
+    # trunk's own reference travel is only 0.244 m over the whole clip, so
+    # std=0.15 is loose relative to the motion but tight relative to drift.
+    motion_anchor_xy = RewTerm(
+        func=mdp.motion_anchor_xy_position_error_exp,
+        weight=1.5,
+        params={"command_name": "motion", "std": 0.15},
     )
     motion_global_anchor_ori = RewTerm(
         func=mdp.motion_global_anchor_orientation_error_exp,
@@ -565,6 +636,13 @@ class TerminationsCfg:
         func=mdp.bad_anchor_pos_z_only,
         params={"command_name": "motion", "threshold": 0.55},
     )
+    # anchor_pos only checks z, so before this term nothing bounded horizontal
+    # drift.  The trunk reference travels 0.244 m horizontally over the clip, so
+    # 0.35 m cannot fire on legitimate tracking.
+    anchor_pos_xy = DoneTerm(
+        func=mdp.bad_anchor_pos_xy,
+        params={"command_name": "motion", "threshold": 0.35},
+    )
     anchor_ori = DoneTerm(
         func=mdp.bad_anchor_ori,
         params={"asset_cfg": SceneEntityCfg("robot"), "command_name": "motion", "threshold": 0.8},
@@ -577,14 +655,30 @@ class TerminationsCfg:
             "body_names": EE_BODY_NAMES,
         },
     )
+    # First rung of the lift curriculum.  At 0.25 this fires across frames
+    # 179-504 (6.52 s) for a foot left on the floor, so it ends essentially
+    # every episode before the policy has learned to lift at all.  At 0.45 the
+    # same foot only trips it over frames 194-232 (0.78 s) around the 0.542 m
+    # reference peak: the stand-only optimum is still closed off, but the rest
+    # of the single-support hold is no longer a termination.  Tighten toward
+    # 0.25 once Episode_Termination/swing_foot_height has fallen and
+    # Episode_Reward/swing_foot_clearance is rising.
     swing_foot_height = DoneTerm(
         func=mdp.bad_swing_foot_height,
         params={
             "command_name": "motion",
             "body_names": ["left_ankle_roll_link"],
             "reference_height_threshold": 0.30,
-            "max_height_shortfall": 0.25,
+            "max_height_shortfall": 0.45,
         },
+    )
+    # The clip is one-shot and motion_end_behavior is "hold", so the episode has
+    # to end when the reference does.  time_out=True keeps it bootstrapped
+    # rather than treated as a failure.
+    motion_end = DoneTerm(
+        func=mdp.motion_clip_finished,
+        params={"command_name": "motion"},
+        time_out=True,
     )
 
 
@@ -649,6 +743,8 @@ class RobotHoutaituiEmaPlayEnvCfg(RobotHoutaituiEmaEnvCfg):
         super().__post_init__()
         self.scene.num_envs = 1
         self.episode_length_s = 1e9
+        # Keep displaying the held final frame instead of resetting.
+        self.terminations.motion_end = None
 
 
 class RobotHoutaituiPlayEnvCfg(RobotHoutaituiEnvCfg):
@@ -656,6 +752,8 @@ class RobotHoutaituiPlayEnvCfg(RobotHoutaituiEnvCfg):
         super().__post_init__()
         self.scene.num_envs = 1
         self.episode_length_s = 1e9
+        # Keep displaying the held final frame instead of resetting.
+        self.terminations.motion_end = None
 
 
 @configclass
