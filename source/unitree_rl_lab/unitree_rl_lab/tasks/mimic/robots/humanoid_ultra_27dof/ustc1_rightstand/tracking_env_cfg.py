@@ -127,26 +127,31 @@ VELOCITY_RANGE = {
 # used to share one constant, which sized the recurring push off a reset-time
 # spread.
 #
-# This clip holds single support for 6.56 s (reference left foot above 0.30 m,
-# frames 178-505), so at the previous 1-3 s interval a lift saw about 3.3
-# pushes.  A 57 kg robot with its CoM at 0.95 m has an ankle-strategy capture
-# limit of 0.101 m x 3.21 rad/s = 0.32 m/s fore-aft and 0.037 m x 3.21 rad/s =
-# 0.12 m/s lateral, from the foot's contact-rail half-extents.  The lateral
-# figure drops to about 0.06 m/s once the ankle-roll position-target clip
-# (+-0.5236 rad at kp = 20 Nm/rad, so 10.5 Nm, so 1.87 cm of CoP) is taken into
-# account.  A +-0.5 m/s lateral push is therefore 4-8x beyond what the support
-# ankle can absorb, and the swing-foot reward and termination forbid the step
+# A 57 kg robot with its CoM at 0.95 m has an ankle-strategy capture limit of
+# 0.32 m/s fore-aft and 0.12 m/s lateral from the foot's contact-rail
+# half-extents (0.101 m and 0.037 m, times sqrt(g/h) = 3.21 rad/s).  The
+# lateral figure drops to about 0.06 m/s once the ankle-roll position-target
+# clip is taken into account: +-0.5236 rad at kp = 20 Nm/rad caps the joint at
+# 10.5 Nm, which is only 1.87 cm of CoP travel against the foot's 3.7 cm.  The
+# original +-0.5 m/s every 1-3 s was therefore 4-8x beyond what the support
+# ankle can absorb, while the swing-foot reward and termination forbid the step
 # that would otherwise recover it.
 #
-# These ranges sit just inside the fore-aft limit and inside the kp-limited
-# lateral one, at an interval that leaves room to settle between pushes.  Widen
-# them again only after the lift itself is reliable.
+# Both horizontal axes carry the lateral limit rather than one each.
+# push_by_setting_velocity works on root_vel_w, i.e. WORLD axes, but this
+# reference faces world -Y (anchor yaw runs -96.6 deg to -52.6 deg), so world X
+# is the robot's lateral direction here and the mapping rotates by 44 deg over
+# the clip.  Splitting the budget per world axis silently assigns the loose
+# fore-aft bound to whichever axis happens to be lateral.  mdp.
+# phase_targeted_velocity_push resolves its ranges in the heading frame and
+# would allow per-direction budgets, but it fires at most one kick per episode
+# and cannot replace a recurring interval push.
 PUSH_VELOCITY_RANGE = {
-    "x": (-0.15, 0.15),
+    "x": (-0.05, 0.05),
     "y": (-0.05, 0.05),
     "z": (-0.05, 0.05),
     "roll": (-0.15, 0.15),
-    "pitch": (-0.20, 0.20),
+    "pitch": (-0.15, 0.15),
     "yaw": (-0.30, 0.30),
 }
 PUSH_INTERVAL_RANGE_S = (4.0, 8.0)
@@ -223,7 +228,7 @@ class CommandsCfg:
 
     motion = mdp.MotionCommandCfg(
         asset_name="robot",
-        motion_file=f"{os.path.dirname(__file__)}/ustc1_rightstand.npz",
+        motion_file=f"{os.path.dirname(__file__)}/ustc1_rightstand_stand_transition.npz",
         anchor_body_name=ANCHOR_BODY_NAME,
         resampling_time_range=(1.0e9, 1.0e9),
         debug_vis=True,
@@ -259,18 +264,26 @@ class StandTransitionCommandsCfg(CommandsCfg):
 
 @configclass
 class Phase1LiftCommandsCfg(CommandsCfg):
-    """Lift curriculum on the 615-frame source clip.
+    """Lift curriculum on the 941-frame stand-transition clip.
 
-    The source clip naturally spends 53% of its duration above 0.30 m.  The
-    targeted reset range therefore covers the take-off transition instead of
-    spawning every targeted environment with the leg already high.  Exact
-    frame-zero resets retain full stand-to-lift rollouts; the rest remain under
+    The targeted reset range covers the take-off transition instead of spawning
+    every targeted environment with the leg already high.  Exact frame-zero
+    resets retain full stand-to-lift rollouts; the rest remain under
     failure-adaptive sampling.
+
+    The range is clip-specific and must be re-derived whenever ``motion_file``
+    changes.  On this clip the reference left foot leaves the floor at frame
+    453, crosses 0.30 m at frame 468 and peaks at 0.542 m at frame 478, so the
+    window spans take-off through the early hold and is 53% single support.
+    The previous (130, 220) was derived from the 615-frame ustc1_rightstand
+    clip; on this clip those frames are the standing hold, where the foot never
+    leaves 0.060-0.082 m, so 40% of resets would have bought no lift practice
+    at all.
     """
 
     motion = CommandsCfg().motion.replace(
         frame_zero_probability=0.20,
-        targeted_frame_range=(130, 220),
+        targeted_frame_range=(420, 494),
         targeted_frame_probability=0.40,
     )
 
@@ -655,21 +668,28 @@ class TerminationsCfg:
             "body_names": EE_BODY_NAMES,
         },
     )
-    # First rung of the lift curriculum.  At 0.25 this fires across frames
-    # 179-504 (6.52 s) for a foot left on the floor, so it ends essentially
-    # every episode before the policy has learned to lift at all.  At 0.45 the
-    # same foot only trips it over frames 194-232 (0.78 s) around the 0.542 m
-    # reference peak: the stand-only optimum is still closed off, but the rest
-    # of the single-support hold is no longer a termination.  Tighten toward
-    # 0.25 once Episode_Termination/swing_foot_height has fallen and
-    # Episode_Reward/swing_foot_clearance is rising.
+    # This is the only term that requires the lift to be *held*.  On this clip
+    # a foot left on the floor trips it across frames 469-524 at 0.25 (1.12 s,
+    # the whole reference lift) but only over frames 476-489 at 0.45 (0.28 s).
+    #
+    # 0.45 was tried as a curriculum first rung and has to stay reverted: it
+    # interacts badly with motion_end.  Reaching the final frame is a
+    # bootstrapped time_out, i.e. a successful terminal state, so "lift briefly
+    # around the peak, put the foot back down, coast to the end" becomes a
+    # cheap high-value path.  That is exactly the stand-only optimum the
+    # Phase-1 curriculum exists to close, and it did not exist before
+    # motion_end was added.
+    #
+    # 0.25 is comfortably satisfiable here: the reference only asks for a
+    # 1.16 s hold, and under PUSH_VELOCITY_RANGE every push inside it is within
+    # the support ankle's capture limit.
     swing_foot_height = DoneTerm(
         func=mdp.bad_swing_foot_height,
         params={
             "command_name": "motion",
             "body_names": ["left_ankle_roll_link"],
             "reference_height_threshold": 0.30,
-            "max_height_shortfall": 0.45,
+            "max_height_shortfall": 0.25,
         },
     )
     # The clip is one-shot and motion_end_behavior is "hold", so the episode has
