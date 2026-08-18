@@ -1,0 +1,2323 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-08-18T10:59:31+08:00",
+  "summary_window": 500,
+  "curve_window": 100,
+  "runs": [
+    {
+      "run": "2026-08-10_23-59-15_warmstart_from_0725_kneekd",
+      "experiment": "ustc_humanoid_ultra_27dof_mimic_houtaitui",
+      "source_path": "/home/zxh/unitree_rl_lab/logs/rsl_rl/ustc_humanoid_ultra_27dof_mimic_houtaitui/2026-08-10_23-59-15_warmstart_from_0725_kneekd",
+      "event_file": "events.out.tfevents.1786377569.zxh-system-product-name.1347147.0",
+      "event_size_bytes": 90337139,
+      "first_iteration": 58000,
+      "final_iteration": 87498,
+      "summary_window": 500,
+      "fingerprint": {
+        "motion_file": "ustc1_rightstand_stand_transition.npz",
+        "end_behavior": "resample",
+        "frame_zero_p": 0.0,
+        "targeted_p": 0.0,
+        "targeted_range": null,
+        "reset_vel_xy": [
+          [
+            -0.5,
+            0.5
+          ],
+          [
+            -0.5,
+            0.5
+          ]
+        ],
+        "push_interval": [
+          1.0,
+          3.0
+        ],
+        "push_vel_xy": [
+          [
+            -0.5,
+            0.5
+          ],
+          [
+            -0.5,
+            0.5
+          ]
+        ],
+        "armature": null,
+        "max_delay": [
+          2
+        ],
+        "gains": {
+          "hip_yaw_E8112": [
+            80.0,
+            0.8
+          ],
+          "hip_roll_E10020_P24": [
+            150.0,
+            2.5
+          ],
+          "hip_pitch_knee_E13715": [
+            180.0,
+            2.4
+          ],
+          "ankles_E4315_P36_approx": [
+            {
+              ".*_ankle_pitch_joint": 40.0,
+              ".*_ankle_roll_joint": 20.0
+            },
+            {
+              ".*_ankle_pitch_joint": 0.8,
+              ".*_ankle_roll_joint": 0.4
+            }
+          ],
+          "waist_yaw_E10020_P12": [
+            150.0,
+            2.5
+          ],
+          "shoulders_E4315_P36": [
+            80.0,
+            1.5
+          ],
+          "elbows_E4315_P36": [
+            60.0,
+            1.2
+          ],
+          "wrists_E4310_P36": [
+            25.0,
+            0.8
+          ]
+        },
+        "episode_length_s": 30.0,
+        "decimation": 4,
+        "sim_dt": 0.005,
+        "terminations": [
+          "time_out",
+          "anchor_pos",
+          "anchor_ori",
+          "ee_body_pos"
+        ],
+        "rewards": [
+          "joint_acc",
+          "joint_torque",
+          "hip_yaw_torque_l2",
+          "knee_torque_l2",
+          "action_rate_l2",
+          "joint_limit",
+          "motion_global_anchor_pos",
+          "motion_global_anchor_ori",
+          "motion_base_pos",
+          "motion_base_ori",
+          "motion_body_pos",
+          "motion_body_ori",
+          "motion_body_lin_vel",
+          "motion_body_ang_vel",
+          "motion_left_ankle_pos",
+          "undesired_contacts"
+        ],
+        "motion_path": "/home/zxh/unitree_rl_lab/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/ustc1_rightstand_stand_transition.npz"
+      },
+      "errors": {
+        "Metrics/motion/error_body_pos": 0.05980884927511215,
+        "Metrics/motion/error_body_rot": 0.1966821828484535,
+        "Metrics/motion/error_joint_pos": 0.9514779386520386,
+        "Metrics/motion/error_anchor_pos": 0.5675908662676811,
+        "Metrics/motion/error_anchor_rot": 0.09319357211887837,
+        "Metrics/motion/error_joint_vel": 10.725109893798829
+      },
+      "tail_means": {
+        "Episode_Reward/action_rate_l2": -1.1452840981483459,
+        "Episode_Reward/hip_yaw_torque_l2": -0.010854115799069405,
+        "Episode_Reward/joint_acc": -0.08495648312568664,
+        "Episode_Reward/joint_limit": -0.014408385755494238,
+        "Episode_Reward/joint_torque": -0.060046163238585,
+        "Episode_Reward/knee_torque_l2": -0.03414877551794052,
+        "Episode_Reward/motion_base_ori": 0.8885869073867798,
+        "Episode_Reward/motion_base_pos": 0.9100843285322189,
+        "Episode_Reward/motion_body_ang_vel": 0.5005272482037544,
+        "Episode_Reward/motion_body_lin_vel": 0.7632794847488403,
+        "Episode_Reward/motion_body_ori": 0.7755525199174881,
+        "Episode_Reward/motion_body_pos": 0.9289827612638474,
+        "Episode_Reward/motion_global_anchor_ori": 0.9061129812002182,
+        "Episode_Reward/motion_global_anchor_pos": 0.14156754079461098,
+        "Episode_Reward/motion_left_ankle_pos": 3.2225178561210632,
+        "Episode_Reward/undesired_contacts": -0.00226767802471295,
+        "Episode_Termination/anchor_ori": 0.0,
+        "Episode_Termination/anchor_pos": 0.0009541626010031905,
+        "Episode_Termination/ee_body_pos": 0.07038541880249977,
+        "Episode_Termination/time_out": 0.9286604402065277,
+        "Loss/entropy": 15.939504384994507,
+        "Loss/learning_rate": 0.0001347014862622018,
+        "Loss/surrogate": -0.009182459482573905,
+        "Loss/value_function": 0.14728534835577012,
+        "Metrics/motion/error_anchor_ang_vel": 0.9994818816184997,
+        "Metrics/motion/error_anchor_lin_vel": 0.37951467660069466,
+        "Metrics/motion/error_anchor_pos": 0.5675908662676811,
+        "Metrics/motion/error_anchor_rot": 0.09319357211887837,
+        "Metrics/motion/error_body_ang_vel": 2.2599756343364716,
+        "Metrics/motion/error_body_lin_vel": 0.517990117251873,
+        "Metrics/motion/error_body_pos": 0.05980884927511215,
+        "Metrics/motion/error_body_rot": 0.1966821828484535,
+        "Metrics/motion/error_joint_pos": 0.9514779386520386,
+        "Metrics/motion/error_joint_vel": 10.725109893798829,
+        "Metrics/motion/sampling_entropy": 0.7542233839035034,
+        "Metrics/motion/sampling_top1_bin": 0.5263158082962036,
+        "Metrics/motion/sampling_top1_prob": 0.41322641116380693,
+        "Perf/collection time": 1.3933529438972474,
+        "Perf/learning_time": 0.08782632684707642,
+        "Perf/total_fps": 66467.062,
+        "Policy/mean_noise_std": 0.4412595925331116,
+        "Train/mean_episode_length": 1447.1793400878905,
+        "Train/mean_reward": 230.35174758911134
+      },
+      "termination_shares": {
+        "anchor_ori": 0.0,
+        "anchor_pos": 0.0009541625803837079,
+        "ee_body_pos": 0.07038541728146874,
+        "time_out": 0.9286604201381475
+      },
+      "mean_episode_length": 1447.1793400878905,
+      "episode_length_ceiling": 1500.0,
+      "episode_length_ceiling_basis": "timeout",
+      "episode_length_fraction": 0.9647862267252604,
+      "mean_reward": 230.35174758911134,
+      "reward_per_step": 0.15917291050819005,
+      "checkpoints": [
+        {
+          "name": "model_58000.pt",
+          "iteration": 58000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_58500.pt",
+          "iteration": 58500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_59000.pt",
+          "iteration": 59000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_59500.pt",
+          "iteration": 59500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_60000.pt",
+          "iteration": 60000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_60500.pt",
+          "iteration": 60500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_61000.pt",
+          "iteration": 61000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_61500.pt",
+          "iteration": 61500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_62000.pt",
+          "iteration": 62000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_62500.pt",
+          "iteration": 62500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_63000.pt",
+          "iteration": 63000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_63500.pt",
+          "iteration": 63500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_64000.pt",
+          "iteration": 64000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_64500.pt",
+          "iteration": 64500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_65000.pt",
+          "iteration": 65000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_65500.pt",
+          "iteration": 65500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_66000.pt",
+          "iteration": 66000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_66500.pt",
+          "iteration": 66500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_67000.pt",
+          "iteration": 67000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_67500.pt",
+          "iteration": 67500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_68000.pt",
+          "iteration": 68000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_68500.pt",
+          "iteration": 68500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_69000.pt",
+          "iteration": 69000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_69500.pt",
+          "iteration": 69500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_70000.pt",
+          "iteration": 70000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_70500.pt",
+          "iteration": 70500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_71000.pt",
+          "iteration": 71000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_71500.pt",
+          "iteration": 71500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_72000.pt",
+          "iteration": 72000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_72500.pt",
+          "iteration": 72500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_73000.pt",
+          "iteration": 73000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_73500.pt",
+          "iteration": 73500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_74000.pt",
+          "iteration": 74000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_74500.pt",
+          "iteration": 74500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_75000.pt",
+          "iteration": 75000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_75500.pt",
+          "iteration": 75500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_76000.pt",
+          "iteration": 76000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_76500.pt",
+          "iteration": 76500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_77000.pt",
+          "iteration": 77000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_77500.pt",
+          "iteration": 77500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_78000.pt",
+          "iteration": 78000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_78500.pt",
+          "iteration": 78500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_79000.pt",
+          "iteration": 79000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_79500.pt",
+          "iteration": 79500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_80000.pt",
+          "iteration": 80000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_80500.pt",
+          "iteration": 80500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_81000.pt",
+          "iteration": 81000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_81500.pt",
+          "iteration": 81500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_82000.pt",
+          "iteration": 82000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_82500.pt",
+          "iteration": 82500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_83000.pt",
+          "iteration": 83000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_83500.pt",
+          "iteration": 83500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_84000.pt",
+          "iteration": 84000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_84500.pt",
+          "iteration": 84500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_85000.pt",
+          "iteration": 85000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_85500.pt",
+          "iteration": 85500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_86000.pt",
+          "iteration": 86000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_86500.pt",
+          "iteration": 86500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_87000.pt",
+          "iteration": 87000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_87499.pt",
+          "iteration": 87499,
+          "size_bytes": 6598463,
+          "sha256": "b45bdd6f65f1882c29f0e3e0ef1aaf84fd200bc2aa429fb6df39197b67d25efd"
+        }
+      ],
+      "copied_config_files": [
+        "agent.yaml",
+        "env.yaml",
+        "tracking_env_cfg.py",
+        "unitree_rl_lab.diff"
+      ]
+    },
+    {
+      "run": "2026-08-12_20-41-41",
+      "experiment": "ustc_humanoid_ultra_27dof_mimic_houtaitui",
+      "source_path": "/home/zxh/unitree_rl_lab/logs/rsl_rl/ustc_humanoid_ultra_27dof_mimic_houtaitui/2026-08-12_20-41-41",
+      "event_file": "events.out.tfevents.1786538516.zxh-system-product-name.32677.0",
+      "event_size_bytes": 91159544,
+      "first_iteration": 0,
+      "final_iteration": 29997,
+      "summary_window": 500,
+      "fingerprint": {
+        "motion_file": "ustc1_rightstand_stand_transition.npz",
+        "end_behavior": "resample",
+        "frame_zero_p": 0.0,
+        "targeted_p": 0.0,
+        "targeted_range": null,
+        "reset_vel_xy": [
+          [
+            -0.5,
+            0.5
+          ],
+          [
+            -0.5,
+            0.5
+          ]
+        ],
+        "push_interval": [
+          1.0,
+          3.0
+        ],
+        "push_vel_xy": [
+          [
+            -0.5,
+            0.5
+          ],
+          [
+            -0.5,
+            0.5
+          ]
+        ],
+        "armature": [
+          0.6,
+          1.4
+        ],
+        "max_delay": [
+          2
+        ],
+        "gains": {
+          "hip_yaw_E8112": [
+            80.0,
+            0.8
+          ],
+          "hip_roll_E10020_P24": [
+            150.0,
+            2.5
+          ],
+          "hip_pitch_knee_E13715": [
+            180.0,
+            2.4
+          ],
+          "ankles_E4315_P36_approx": [
+            {
+              ".*_ankle_pitch_joint": 40.0,
+              ".*_ankle_roll_joint": 20.0
+            },
+            {
+              ".*_ankle_pitch_joint": 0.8,
+              ".*_ankle_roll_joint": 0.4
+            }
+          ],
+          "waist_yaw_E10020_P12": [
+            150.0,
+            2.5
+          ],
+          "shoulders_E4315_P36": [
+            80.0,
+            1.5
+          ],
+          "elbows_E4315_P36": [
+            60.0,
+            1.2
+          ],
+          "wrists_E4310_P36": [
+            25.0,
+            0.8
+          ]
+        },
+        "episode_length_s": 30.0,
+        "decimation": 4,
+        "sim_dt": 0.005,
+        "terminations": [
+          "time_out",
+          "anchor_pos",
+          "anchor_ori",
+          "ee_body_pos"
+        ],
+        "rewards": [
+          "joint_acc",
+          "joint_torque",
+          "hip_yaw_torque_l2",
+          "knee_torque_l2",
+          "action_rate_l2",
+          "joint_limit",
+          "motion_global_anchor_pos",
+          "motion_global_anchor_ori",
+          "motion_base_pos",
+          "motion_base_ori",
+          "motion_body_pos",
+          "motion_body_ori",
+          "motion_body_lin_vel",
+          "motion_body_ang_vel",
+          "motion_left_ankle_pos",
+          "undesired_contacts"
+        ],
+        "motion_path": "/home/zxh/unitree_rl_lab/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/ustc1_rightstand_stand_transition.npz"
+      },
+      "errors": {
+        "Metrics/motion/error_body_pos": 0.06915322663635015,
+        "Metrics/motion/error_body_rot": 0.21576438707113266,
+        "Metrics/motion/error_joint_pos": 1.013359314084053,
+        "Metrics/motion/error_anchor_pos": 0.5865610299110413,
+        "Metrics/motion/error_anchor_rot": 0.10854769098758697,
+        "Metrics/motion/error_joint_vel": 10.653235260009765
+      },
+      "tail_means": {
+        "Episode_Reward/action_rate_l2": -1.1977293276786805,
+        "Episode_Reward/hip_yaw_torque_l2": -0.01127667992375791,
+        "Episode_Reward/joint_acc": -0.07079669267684222,
+        "Episode_Reward/joint_limit": -0.01681737083569169,
+        "Episode_Reward/joint_torque": -0.059720289260149,
+        "Episode_Reward/knee_torque_l2": -0.03391925610229373,
+        "Episode_Reward/motion_base_ori": 0.8716375443935395,
+        "Episode_Reward/motion_base_pos": 0.8973637652397156,
+        "Episode_Reward/motion_body_ang_vel": 0.5119311362504959,
+        "Episode_Reward/motion_body_lin_vel": 0.7506543707847595,
+        "Episode_Reward/motion_body_ori": 0.7577451213598251,
+        "Episode_Reward/motion_body_pos": 0.9125853881835938,
+        "Episode_Reward/motion_global_anchor_ori": 0.8922010833024978,
+        "Episode_Reward/motion_global_anchor_pos": 0.13838850437104702,
+        "Episode_Reward/motion_left_ankle_pos": 3.0350413269996643,
+        "Episode_Reward/undesired_contacts": -0.002207244785851799,
+        "Episode_Termination/anchor_ori": 0.0006269938170153182,
+        "Episode_Termination/anchor_pos": 0.002155273455544375,
+        "Episode_Termination/ee_body_pos": 0.08716325122117996,
+        "Episode_Termination/time_out": 0.9100545037984848,
+        "Loss/entropy": 16.736729766845702,
+        "Loss/learning_rate": 0.00013185492378397611,
+        "Loss/surrogate": -0.009178953123278917,
+        "Loss/value_function": 0.15499017268419266,
+        "Metrics/motion/error_anchor_ang_vel": 1.0818423684835434,
+        "Metrics/motion/error_anchor_lin_vel": 0.4175433304905891,
+        "Metrics/motion/error_anchor_pos": 0.5865610299110413,
+        "Metrics/motion/error_anchor_rot": 0.10854769098758697,
+        "Metrics/motion/error_body_ang_vel": 2.2947457797527315,
+        "Metrics/motion/error_body_lin_vel": 0.5522268215417862,
+        "Metrics/motion/error_body_pos": 0.06915322663635015,
+        "Metrics/motion/error_body_rot": 0.21576438707113266,
+        "Metrics/motion/error_joint_pos": 1.013359314084053,
+        "Metrics/motion/error_joint_vel": 10.653235260009765,
+        "Metrics/motion/sampling_entropy": 0.7267297270298004,
+        "Metrics/motion/sampling_top1_bin": 0.5263158082962036,
+        "Metrics/motion/sampling_top1_prob": 0.4270661091208458,
+        "Perf/collection time": 1.4059632234573365,
+        "Perf/learning_time": 0.08852109766006469,
+        "Perf/total_fps": 65781.97,
+        "Policy/mean_noise_std": 0.454491395175457,
+        "Train/mean_episode_length": 1430.7886774902345,
+        "Train/mean_reward": 221.27155197143554
+      },
+      "termination_shares": {
+        "anchor_ori": 0.0006269938030382316,
+        "anchor_pos": 0.0021552734074985363,
+        "ee_body_pos": 0.08716324927811724,
+        "time_out": 0.910054483511346
+      },
+      "mean_episode_length": 1430.7886774902345,
+      "episode_length_ceiling": 1500.0,
+      "episode_length_ceiling_basis": "timeout",
+      "episode_length_fraction": 0.953859118326823,
+      "mean_reward": 221.27155197143554,
+      "reward_per_step": 0.15465005800826642,
+      "checkpoints": [
+        {
+          "name": "model_0.pt",
+          "iteration": 0,
+          "size_bytes": 6597719
+        },
+        {
+          "name": "model_500.pt",
+          "iteration": 500,
+          "size_bytes": 6598315
+        },
+        {
+          "name": "model_1000.pt",
+          "iteration": 1000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_1500.pt",
+          "iteration": 1500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_2000.pt",
+          "iteration": 2000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_2500.pt",
+          "iteration": 2500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_3000.pt",
+          "iteration": 3000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_3500.pt",
+          "iteration": 3500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_4000.pt",
+          "iteration": 4000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_4500.pt",
+          "iteration": 4500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_5000.pt",
+          "iteration": 5000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_5500.pt",
+          "iteration": 5500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_6000.pt",
+          "iteration": 6000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_6500.pt",
+          "iteration": 6500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_7000.pt",
+          "iteration": 7000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_7500.pt",
+          "iteration": 7500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_8000.pt",
+          "iteration": 8000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_8500.pt",
+          "iteration": 8500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_9000.pt",
+          "iteration": 9000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_9500.pt",
+          "iteration": 9500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_10000.pt",
+          "iteration": 10000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_10500.pt",
+          "iteration": 10500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_11000.pt",
+          "iteration": 11000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_11500.pt",
+          "iteration": 11500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_12000.pt",
+          "iteration": 12000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_12500.pt",
+          "iteration": 12500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_13000.pt",
+          "iteration": 13000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_13500.pt",
+          "iteration": 13500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_14000.pt",
+          "iteration": 14000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_14500.pt",
+          "iteration": 14500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_15000.pt",
+          "iteration": 15000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_15500.pt",
+          "iteration": 15500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_16000.pt",
+          "iteration": 16000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_16500.pt",
+          "iteration": 16500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_17000.pt",
+          "iteration": 17000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_17500.pt",
+          "iteration": 17500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_18000.pt",
+          "iteration": 18000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_18500.pt",
+          "iteration": 18500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_19000.pt",
+          "iteration": 19000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_19500.pt",
+          "iteration": 19500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_20000.pt",
+          "iteration": 20000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_20500.pt",
+          "iteration": 20500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_21000.pt",
+          "iteration": 21000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_21500.pt",
+          "iteration": 21500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_22000.pt",
+          "iteration": 22000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_22500.pt",
+          "iteration": 22500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_23000.pt",
+          "iteration": 23000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_23500.pt",
+          "iteration": 23500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_24000.pt",
+          "iteration": 24000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_24500.pt",
+          "iteration": 24500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_25000.pt",
+          "iteration": 25000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_25500.pt",
+          "iteration": 25500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_26000.pt",
+          "iteration": 26000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_26500.pt",
+          "iteration": 26500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_27000.pt",
+          "iteration": 27000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_27500.pt",
+          "iteration": 27500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_28000.pt",
+          "iteration": 28000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_28500.pt",
+          "iteration": 28500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_29000.pt",
+          "iteration": 29000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_29500.pt",
+          "iteration": 29500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_29999.pt",
+          "iteration": 29999,
+          "size_bytes": 6598463,
+          "sha256": "5c49875c42ec7718c1e38fcf7c1a812f008d38184a45015c13df3301eec2aa9c"
+        }
+      ],
+      "copied_config_files": [
+        "agent.yaml",
+        "env.yaml",
+        "tracking_env_cfg.py",
+        "unitree_rl_lab.diff"
+      ]
+    },
+    {
+      "run": "2026-08-14_01-08-04",
+      "experiment": "ustc_humanoid_ultra_27dof_mimic_houtaitui",
+      "source_path": "/home/zxh/unitree_rl_lab/logs/rsl_rl/ustc_humanoid_ultra_27dof_mimic_houtaitui/2026-08-14_01-08-04",
+      "event_file": "events.out.tfevents.1786640900.zxh-system-product-name.103386.0",
+      "event_size_bytes": 47500830,
+      "first_iteration": 0,
+      "final_iteration": 14981,
+      "summary_window": 500,
+      "fingerprint": {
+        "motion_file": "ustc1_rightstand_stand_transition.npz",
+        "end_behavior": "resample",
+        "frame_zero_p": 0.0,
+        "targeted_p": 0.0,
+        "targeted_range": null,
+        "reset_vel_xy": [
+          [
+            -0.5,
+            0.5
+          ],
+          [
+            -0.5,
+            0.5
+          ]
+        ],
+        "push_interval": [
+          1.0,
+          3.0
+        ],
+        "push_vel_xy": [
+          [
+            -0.5,
+            0.5
+          ],
+          [
+            -0.5,
+            0.5
+          ]
+        ],
+        "armature": [
+          0.6,
+          1.4
+        ],
+        "max_delay": [
+          4
+        ],
+        "gains": {
+          "hip_yaw_E8112": [
+            80.0,
+            1.6
+          ],
+          "hip_roll_E10020_P24": [
+            150.0,
+            2.5
+          ],
+          "hip_pitch_knee_E13715": [
+            180.0,
+            2.4
+          ],
+          "ankles_E4315_P36_approx": [
+            {
+              ".*_ankle_pitch_joint": 40.0,
+              ".*_ankle_roll_joint": 20.0
+            },
+            {
+              ".*_ankle_pitch_joint": 0.8,
+              ".*_ankle_roll_joint": 0.4
+            }
+          ],
+          "waist_yaw_E10020_P12": [
+            150.0,
+            2.5
+          ],
+          "shoulders_E4315_P36": [
+            80.0,
+            1.5
+          ],
+          "elbows_E4315_P36": [
+            60.0,
+            1.2
+          ],
+          "wrists_E4310_P36": [
+            25.0,
+            0.8
+          ]
+        },
+        "episode_length_s": 30.0,
+        "decimation": 4,
+        "sim_dt": 0.005,
+        "terminations": [
+          "time_out",
+          "anchor_pos",
+          "anchor_ori",
+          "ee_body_pos"
+        ],
+        "rewards": [
+          "joint_acc",
+          "joint_torque",
+          "hip_yaw_torque_l2",
+          "knee_torque_l2",
+          "action_rate_l2",
+          "joint_limit",
+          "motion_global_anchor_pos",
+          "motion_global_anchor_ori",
+          "motion_base_pos",
+          "motion_base_ori",
+          "motion_body_pos",
+          "motion_body_ori",
+          "motion_body_lin_vel",
+          "motion_body_ang_vel",
+          "motion_left_ankle_pos",
+          "single_support_stability",
+          "feet_impact_velocity",
+          "undesired_contacts"
+        ],
+        "motion_path": "/home/zxh/unitree_rl_lab/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/ustc1_rightstand_stand_transition.npz"
+      },
+      "errors": {
+        "Metrics/motion/error_body_pos": 0.08124009140580893,
+        "Metrics/motion/error_body_rot": 0.24890505412220956,
+        "Metrics/motion/error_joint_pos": 1.1830233725309371,
+        "Metrics/motion/error_anchor_pos": 0.6255516704320908,
+        "Metrics/motion/error_anchor_rot": 0.12139289411902428,
+        "Metrics/motion/error_joint_vel": 11.67166625404358
+      },
+      "tail_means": {
+        "Episode_Reward/action_rate_l2": -1.3168869950771331,
+        "Episode_Reward/feet_impact_velocity": -0.018508094932883978,
+        "Episode_Reward/hip_yaw_torque_l2": -0.010171187970787287,
+        "Episode_Reward/joint_acc": -0.10086508040130139,
+        "Episode_Reward/joint_limit": -0.016712514474987984,
+        "Episode_Reward/joint_torque": -0.06149710236489773,
+        "Episode_Reward/knee_torque_l2": -0.03587496872618794,
+        "Episode_Reward/motion_base_ori": 0.8454143944978714,
+        "Episode_Reward/motion_base_pos": 0.8735609599351883,
+        "Episode_Reward/motion_body_ang_vel": 0.45593429893255233,
+        "Episode_Reward/motion_body_lin_vel": 0.7101593133211136,
+        "Episode_Reward/motion_body_ori": 0.7166928470134735,
+        "Episode_Reward/motion_body_pos": 0.8873340088129044,
+        "Episode_Reward/motion_global_anchor_ori": 0.8697962791919708,
+        "Episode_Reward/motion_global_anchor_pos": 0.12693053460121154,
+        "Episode_Reward/motion_left_ankle_pos": 2.857597683906555,
+        "Episode_Reward/single_support_stability": 0.06278151673823595,
+        "Episode_Reward/undesired_contacts": -0.002467869307147339,
+        "Episode_Termination/anchor_ori": 0.00012207031263096723,
+        "Episode_Termination/anchor_pos": 0.0011636149124242365,
+        "Episode_Termination/ee_body_pos": 0.11774691075086594,
+        "Episode_Termination/time_out": 0.8809674274921417,
+        "Loss/entropy": 18.321798263549805,
+        "Loss/learning_rate": 0.00013158703324734234,
+        "Loss/surrogate": -0.009173288351856173,
+        "Loss/value_function": 0.180094761505723,
+        "Metrics/motion/error_anchor_ang_vel": 1.1976858866214752,
+        "Metrics/motion/error_anchor_lin_vel": 0.48679792165756225,
+        "Metrics/motion/error_anchor_pos": 0.6255516704320908,
+        "Metrics/motion/error_anchor_rot": 0.12139289411902428,
+        "Metrics/motion/error_body_ang_vel": 2.5535285959243774,
+        "Metrics/motion/error_body_lin_vel": 0.640182685136795,
+        "Metrics/motion/error_body_pos": 0.08124009140580893,
+        "Metrics/motion/error_body_rot": 0.24890505412220956,
+        "Metrics/motion/error_joint_pos": 1.1830233725309371,
+        "Metrics/motion/error_joint_vel": 11.67166625404358,
+        "Metrics/motion/sampling_entropy": 0.7273123641014099,
+        "Metrics/motion/sampling_top1_bin": 0.5263158082962036,
+        "Metrics/motion/sampling_top1_prob": 0.40594411540031433,
+        "Perf/collection time": 1.8980846467018126,
+        "Perf/learning_time": 0.11274919033050537,
+        "Perf/total_fps": 49584.008,
+        "Policy/mean_noise_std": 0.4822764478325844,
+        "Train/mean_episode_length": 1407.9816215820313,
+        "Train/mean_reward": 205.45774087524413
+      },
+      "termination_shares": {
+        "anchor_ori": 0.00012207030976621354,
+        "anchor_pos": 0.0011636148851164492,
+        "ee_body_pos": 0.1177469079875741,
+        "time_out": 0.8809674068175433
+      },
+      "mean_episode_length": 1407.9816215820313,
+      "episode_length_ceiling": 1500.0,
+      "episode_length_ceiling_basis": "timeout",
+      "episode_length_fraction": 0.9386544143880209,
+      "mean_reward": 205.45774087524413,
+      "reward_per_step": 0.1459235956818729,
+      "checkpoints": [
+        {
+          "name": "model_0.pt",
+          "iteration": 0,
+          "size_bytes": 6597719
+        },
+        {
+          "name": "model_500.pt",
+          "iteration": 500,
+          "size_bytes": 6598315
+        },
+        {
+          "name": "model_1000.pt",
+          "iteration": 1000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_1500.pt",
+          "iteration": 1500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_2000.pt",
+          "iteration": 2000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_2500.pt",
+          "iteration": 2500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_3000.pt",
+          "iteration": 3000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_3500.pt",
+          "iteration": 3500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_4000.pt",
+          "iteration": 4000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_4500.pt",
+          "iteration": 4500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_5000.pt",
+          "iteration": 5000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_5500.pt",
+          "iteration": 5500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_6000.pt",
+          "iteration": 6000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_6500.pt",
+          "iteration": 6500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_7000.pt",
+          "iteration": 7000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_7500.pt",
+          "iteration": 7500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_8000.pt",
+          "iteration": 8000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_8500.pt",
+          "iteration": 8500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_9000.pt",
+          "iteration": 9000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_9500.pt",
+          "iteration": 9500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_10000.pt",
+          "iteration": 10000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_10500.pt",
+          "iteration": 10500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_11000.pt",
+          "iteration": 11000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_11500.pt",
+          "iteration": 11500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_12000.pt",
+          "iteration": 12000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_12500.pt",
+          "iteration": 12500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_13000.pt",
+          "iteration": 13000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_13500.pt",
+          "iteration": 13500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_14000.pt",
+          "iteration": 14000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_14500.pt",
+          "iteration": 14500,
+          "size_bytes": 6598463,
+          "sha256": "e5b53ea161859123dd74342a5572c40e255bac4c9898d63c7592ed6567d811eb"
+        }
+      ],
+      "copied_config_files": [
+        "agent.yaml",
+        "env.yaml",
+        "tracking_env_cfg.py",
+        "unitree_rl_lab.diff"
+      ]
+    },
+    {
+      "run": "2026-08-16_01-25-08",
+      "experiment": "ustc_humanoid_ultra_27dof_mimic_houtaitui",
+      "source_path": "/home/zxh/unitree_rl_lab/logs/rsl_rl/ustc_humanoid_ultra_27dof_mimic_houtaitui/2026-08-16_01-25-08",
+      "event_file": "events.out.tfevents.1786814722.zxh-system-product-name.496958.0",
+      "event_size_bytes": 109056214,
+      "first_iteration": 0,
+      "final_iteration": 29998,
+      "summary_window": 500,
+      "fingerprint": {
+        "motion_file": "ustc1_rightstand.npz",
+        "end_behavior": "hold",
+        "frame_zero_p": 0.2,
+        "targeted_p": 0.4,
+        "targeted_range": [
+          130,
+          220
+        ],
+        "reset_vel_xy": [
+          [
+            -0.5,
+            0.5
+          ],
+          [
+            -0.5,
+            0.5
+          ]
+        ],
+        "push_interval": [
+          4.0,
+          8.0
+        ],
+        "push_vel_xy": [
+          [
+            -0.15,
+            0.15
+          ],
+          [
+            -0.05,
+            0.05
+          ]
+        ],
+        "armature": [
+          0.8,
+          1.2
+        ],
+        "max_delay": [
+          2
+        ],
+        "gains": {
+          "hip_yaw_E8112": [
+            80.0,
+            1.6
+          ],
+          "hip_roll_E10020_P24": [
+            150.0,
+            2.5
+          ],
+          "hip_pitch_knee_E13715": [
+            180.0,
+            2.4
+          ],
+          "ankles_E4315_P36_approx": [
+            {
+              ".*_ankle_pitch_joint": 40.0,
+              ".*_ankle_roll_joint": 20.0
+            },
+            {
+              ".*_ankle_pitch_joint": 0.8,
+              ".*_ankle_roll_joint": 0.4
+            }
+          ],
+          "waist_yaw_E10020_P12": [
+            150.0,
+            2.5
+          ],
+          "shoulders_E4315_P36": [
+            80.0,
+            1.5
+          ],
+          "elbows_E4315_P36": [
+            60.0,
+            1.2
+          ],
+          "wrists_E4310_P36": [
+            25.0,
+            0.8
+          ]
+        },
+        "episode_length_s": 30.0,
+        "decimation": 4,
+        "sim_dt": 0.005,
+        "terminations": [
+          "time_out",
+          "anchor_pos",
+          "anchor_pos_xy",
+          "anchor_ori",
+          "ee_body_pos",
+          "swing_foot_height",
+          "motion_end"
+        ],
+        "rewards": [
+          "joint_acc",
+          "joint_torque",
+          "hip_yaw_torque_l2",
+          "knee_torque_l2",
+          "action_rate_l2",
+          "joint_limit",
+          "motion_global_anchor_pos",
+          "motion_anchor_xy",
+          "motion_global_anchor_ori",
+          "motion_base_pos",
+          "motion_base_ori",
+          "motion_body_pos",
+          "motion_body_ori",
+          "motion_body_lin_vel",
+          "motion_body_ang_vel",
+          "motion_left_ankle_pos",
+          "single_support_stability",
+          "swing_foot_clearance",
+          "swing_foot_contact_penalty",
+          "feet_impact_velocity",
+          "undesired_contacts"
+        ],
+        "motion_path": "/home/zxh/unitree_rl_lab/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/ustc1_rightstand.npz"
+      },
+      "errors": {
+        "Metrics/motion/error_body_pos": 0.12255856609344483,
+        "Metrics/motion/error_body_rot": 0.42548685508966444,
+        "Metrics/motion/error_joint_pos": 2.306267776489258,
+        "Metrics/motion/error_anchor_pos": 0.30211313968896863,
+        "Metrics/motion/error_anchor_rot": 0.22580383157730102,
+        "Metrics/motion/error_joint_vel": 11.106888467788696
+      },
+      "tail_means": {
+        "Episode_Reward/action_rate_l2": -0.26548600795865057,
+        "Episode_Reward/feet_impact_velocity": -0.0001269080633937847,
+        "Episode_Reward/hip_yaw_torque_l2": -0.004073598638642579,
+        "Episode_Reward/joint_acc": -0.007343287149444222,
+        "Episode_Reward/joint_limit": -0.00894189778342843,
+        "Episode_Reward/joint_torque": -0.012202543433755637,
+        "Episode_Reward/knee_torque_l2": -0.0038528477689251306,
+        "Episode_Reward/motion_anchor_xy": 0.08341121831536293,
+        "Episode_Reward/motion_base_ori": 0.09955280731618404,
+        "Episode_Reward/motion_base_pos": 0.11807451535761357,
+        "Episode_Reward/motion_body_ang_vel": 0.050923899173736575,
+        "Episode_Reward/motion_body_lin_vel": 0.09131983894109726,
+        "Episode_Reward/motion_body_ori": 0.01845375235751271,
+        "Episode_Reward/motion_body_pos": 0.0973098470121622,
+        "Episode_Reward/motion_global_anchor_ori": 0.0974438404738903,
+        "Episode_Reward/motion_global_anchor_pos": 0.04760393630713224,
+        "Episode_Reward/motion_left_ankle_pos": 0.40523965376615523,
+        "Episode_Reward/single_support_stability": 0.0008820478004636243,
+        "Episode_Reward/swing_foot_clearance": 0.15598321452736855,
+        "Episode_Reward/swing_foot_contact_penalty": -0.0005394864064292051,
+        "Episode_Reward/undesired_contacts": -3.9170440679299644e-05,
+        "Episode_Termination/anchor_ori": 9.969075545086526e-07,
+        "Episode_Termination/anchor_pos": 3.27555340481922e-06,
+        "Episode_Termination/anchor_pos_xy": 0.7133278198242188,
+        "Episode_Termination/ee_body_pos": 0.0134683027677238,
+        "Episode_Termination/motion_end": 0.26933265125751493,
+        "Episode_Termination/swing_foot_height": 0.0038669841553783044,
+        "Episode_Termination/time_out": 0.0,
+        "Loss/entropy": 21.157120635986328,
+        "Loss/learning_rate": 5.110281305678654e-05,
+        "Loss/surrogate": -0.006263168184043024,
+        "Loss/value_function": 0.5172500212788582,
+        "Metrics/motion/error_anchor_ang_vel": 1.01606587433815,
+        "Metrics/motion/error_anchor_lin_vel": 0.8315969755649567,
+        "Metrics/motion/error_anchor_pos": 0.30211313968896863,
+        "Metrics/motion/error_anchor_rot": 0.22580383157730102,
+        "Metrics/motion/error_body_ang_vel": 2.4652924299240113,
+        "Metrics/motion/error_body_lin_vel": 0.851917868733406,
+        "Metrics/motion/error_body_pos": 0.12255856609344483,
+        "Metrics/motion/error_body_rot": 0.42548685508966444,
+        "Metrics/motion/error_joint_pos": 2.306267776489258,
+        "Metrics/motion/error_joint_vel": 11.106888467788696,
+        "Metrics/motion/sampling_entropy": 0.7742424030303955,
+        "Metrics/motion/sampling_top1_bin": 0.3076923484802246,
+        "Metrics/motion/sampling_top1_prob": 0.24540646147727965,
+        "Perf/collection time": 1.7282310123443603,
+        "Perf/learning_time": 0.10374166250228882,
+        "Perf/total_fps": 53662.008,
+        "Policy/mean_noise_std": 0.5444176079034805,
+        "Train/mean_episode_length": 190.73693983459472,
+        "Train/mean_reward": 28.973104526519776
+      },
+      "termination_shares": {
+        "anchor_ori": 9.96907524137072e-07,
+        "anchor_pos": 3.275553305026884e-06,
+        "anchor_pos_xy": 0.7133277980921201,
+        "ee_body_pos": 0.013468302357401258,
+        "motion_end": 0.26933264305208177,
+        "swing_foot_height": 0.0038669840375675606,
+        "time_out": 0.0
+      },
+      "mean_episode_length": 190.73693983459472,
+      "episode_length_ceiling": 421.2,
+      "episode_length_ceiling_basis": "clip end (615 frames, approx)",
+      "episode_length_fraction": 0.45284173749903783,
+      "mean_reward": 28.973104526519776,
+      "reward_per_step": 0.1519008564971472,
+      "checkpoints": [
+        {
+          "name": "model_0.pt",
+          "iteration": 0,
+          "size_bytes": 6597719
+        },
+        {
+          "name": "model_500.pt",
+          "iteration": 500,
+          "size_bytes": 6598315
+        },
+        {
+          "name": "model_1000.pt",
+          "iteration": 1000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_1500.pt",
+          "iteration": 1500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_2000.pt",
+          "iteration": 2000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_2500.pt",
+          "iteration": 2500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_3000.pt",
+          "iteration": 3000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_3500.pt",
+          "iteration": 3500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_4000.pt",
+          "iteration": 4000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_4500.pt",
+          "iteration": 4500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_5000.pt",
+          "iteration": 5000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_5500.pt",
+          "iteration": 5500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_6000.pt",
+          "iteration": 6000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_6500.pt",
+          "iteration": 6500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_7000.pt",
+          "iteration": 7000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_7500.pt",
+          "iteration": 7500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_8000.pt",
+          "iteration": 8000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_8500.pt",
+          "iteration": 8500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_9000.pt",
+          "iteration": 9000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_9500.pt",
+          "iteration": 9500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_10000.pt",
+          "iteration": 10000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_10500.pt",
+          "iteration": 10500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_11000.pt",
+          "iteration": 11000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_11500.pt",
+          "iteration": 11500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_12000.pt",
+          "iteration": 12000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_12500.pt",
+          "iteration": 12500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_13000.pt",
+          "iteration": 13000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_13500.pt",
+          "iteration": 13500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_14000.pt",
+          "iteration": 14000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_14500.pt",
+          "iteration": 14500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_15000.pt",
+          "iteration": 15000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_15500.pt",
+          "iteration": 15500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_16000.pt",
+          "iteration": 16000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_16500.pt",
+          "iteration": 16500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_17000.pt",
+          "iteration": 17000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_17500.pt",
+          "iteration": 17500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_18000.pt",
+          "iteration": 18000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_18500.pt",
+          "iteration": 18500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_19000.pt",
+          "iteration": 19000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_19500.pt",
+          "iteration": 19500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_20000.pt",
+          "iteration": 20000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_20500.pt",
+          "iteration": 20500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_21000.pt",
+          "iteration": 21000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_21500.pt",
+          "iteration": 21500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_22000.pt",
+          "iteration": 22000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_22500.pt",
+          "iteration": 22500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_23000.pt",
+          "iteration": 23000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_23500.pt",
+          "iteration": 23500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_24000.pt",
+          "iteration": 24000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_24500.pt",
+          "iteration": 24500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_25000.pt",
+          "iteration": 25000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_25500.pt",
+          "iteration": 25500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_26000.pt",
+          "iteration": 26000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_26500.pt",
+          "iteration": 26500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_27000.pt",
+          "iteration": 27000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_27500.pt",
+          "iteration": 27500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_28000.pt",
+          "iteration": 28000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_28500.pt",
+          "iteration": 28500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_29000.pt",
+          "iteration": 29000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_29500.pt",
+          "iteration": 29500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_29999.pt",
+          "iteration": 29999,
+          "size_bytes": 6598463,
+          "sha256": "01d3e5d7aaafed2b05cad372aa9ae9dc7c6d04f68be0225e66858840313601e5"
+        }
+      ],
+      "copied_config_files": [
+        "agent.yaml",
+        "env.yaml",
+        "tracking_env_cfg.py",
+        "unitree_rl_lab.diff"
+      ]
+    },
+    {
+      "run": "2026-08-17_22-32-51",
+      "experiment": "ustc_humanoid_ultra_27dof_mimic_houtaitui",
+      "source_path": "/home/zxh/unitree_rl_lab/logs/rsl_rl/ustc_humanoid_ultra_27dof_mimic_houtaitui/2026-08-17_22-32-51",
+      "event_file": "events.out.tfevents.1786977186.zxh-system-product-name.589958.0",
+      "event_size_bytes": 85439734,
+      "first_iteration": 0,
+      "final_iteration": 23552,
+      "summary_window": 500,
+      "fingerprint": {
+        "motion_file": "ustc1_rightstand_stand_transition.npz",
+        "end_behavior": "hold",
+        "frame_zero_p": 0.2,
+        "targeted_p": 0.4,
+        "targeted_range": [
+          420,
+          494
+        ],
+        "reset_vel_xy": [
+          [
+            -0.5,
+            0.5
+          ],
+          [
+            -0.5,
+            0.5
+          ]
+        ],
+        "push_interval": [
+          4.0,
+          8.0
+        ],
+        "push_vel_xy": [
+          [
+            -0.05,
+            0.05
+          ],
+          [
+            -0.05,
+            0.05
+          ]
+        ],
+        "armature": [
+          0.8,
+          1.2
+        ],
+        "max_delay": [
+          2
+        ],
+        "gains": {
+          "hip_yaw_E8112": [
+            80.0,
+            1.6
+          ],
+          "hip_roll_E10020_P24": [
+            150.0,
+            2.5
+          ],
+          "hip_pitch_knee_E13715": [
+            180.0,
+            2.4
+          ],
+          "ankles_E4315_P36_approx": [
+            {
+              ".*_ankle_pitch_joint": 40.0,
+              ".*_ankle_roll_joint": 20.0
+            },
+            {
+              ".*_ankle_pitch_joint": 0.8,
+              ".*_ankle_roll_joint": 0.4
+            }
+          ],
+          "waist_yaw_E10020_P12": [
+            150.0,
+            2.5
+          ],
+          "shoulders_E4315_P36": [
+            80.0,
+            1.5
+          ],
+          "elbows_E4315_P36": [
+            60.0,
+            1.2
+          ],
+          "wrists_E4310_P36": [
+            25.0,
+            0.8
+          ]
+        },
+        "episode_length_s": 30.0,
+        "decimation": 4,
+        "sim_dt": 0.005,
+        "terminations": [
+          "time_out",
+          "anchor_pos",
+          "anchor_pos_xy",
+          "anchor_ori",
+          "ee_body_pos",
+          "swing_foot_height",
+          "motion_end"
+        ],
+        "rewards": [
+          "joint_acc",
+          "joint_torque",
+          "hip_yaw_torque_l2",
+          "knee_torque_l2",
+          "action_rate_l2",
+          "joint_limit",
+          "motion_global_anchor_pos",
+          "motion_anchor_xy",
+          "motion_global_anchor_ori",
+          "motion_base_pos",
+          "motion_base_ori",
+          "motion_body_pos",
+          "motion_body_ori",
+          "motion_body_lin_vel",
+          "motion_body_ang_vel",
+          "motion_left_ankle_pos",
+          "single_support_stability",
+          "swing_foot_clearance",
+          "swing_foot_contact_penalty",
+          "feet_impact_velocity",
+          "undesired_contacts"
+        ],
+        "motion_path": "/home/zxh/unitree_rl_lab/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/ustc1_rightstand_stand_transition.npz"
+      },
+      "errors": {
+        "Metrics/motion/error_body_pos": 0.10438206589221954,
+        "Metrics/motion/error_body_rot": 0.3757785252332687,
+        "Metrics/motion/error_joint_pos": 2.086338767051697,
+        "Metrics/motion/error_anchor_pos": 0.25459149354696275,
+        "Metrics/motion/error_anchor_rot": 0.1847124028801918,
+        "Metrics/motion/error_joint_vel": 10.954609872817993
+      },
+      "tail_means": {
+        "Episode_Reward/action_rate_l2": -0.3351725254654884,
+        "Episode_Reward/feet_impact_velocity": -0.0001788831624435261,
+        "Episode_Reward/hip_yaw_torque_l2": -0.0026431752457283437,
+        "Episode_Reward/joint_acc": -0.012778788140043617,
+        "Episode_Reward/joint_limit": -0.006668738366104663,
+        "Episode_Reward/joint_torque": -0.012197448616847396,
+        "Episode_Reward/knee_torque_l2": -0.005623046088963747,
+        "Episode_Reward/motion_anchor_xy": 0.15286479529738425,
+        "Episode_Reward/motion_base_ori": 0.1907967474758625,
+        "Episode_Reward/motion_base_pos": 0.20451444017887116,
+        "Episode_Reward/motion_body_ang_vel": 0.11096052749454975,
+        "Episode_Reward/motion_body_lin_vel": 0.1756315011382103,
+        "Episode_Reward/motion_body_ori": 0.14807220888137818,
+        "Episode_Reward/motion_body_pos": 0.20084453627467155,
+        "Episode_Reward/motion_global_anchor_ori": 0.19224949613213538,
+        "Episode_Reward/motion_global_anchor_pos": 0.08342087380588055,
+        "Episode_Reward/motion_left_ankle_pos": 0.7155200957059861,
+        "Episode_Reward/single_support_stability": 0.001063146817847155,
+        "Episode_Reward/swing_foot_clearance": 0.03827219457179308,
+        "Episode_Reward/swing_foot_contact_penalty": -1.6839800451180052e-05,
+        "Episode_Reward/undesired_contacts": -0.00173045325698331,
+        "Episode_Termination/anchor_ori": 0.0,
+        "Episode_Termination/anchor_pos": 9.41975912428461e-06,
+        "Episode_Termination/anchor_pos_xy": 0.5217973002791405,
+        "Episode_Termination/ee_body_pos": 0.004664388138800859,
+        "Episode_Termination/motion_end": 0.4651646422743797,
+        "Episode_Termination/swing_foot_height": 0.008364278399385512,
+        "Episode_Termination/time_out": 0.0,
+        "Loss/entropy": 19.442903633117677,
+        "Loss/learning_rate": 0.00010199672070302768,
+        "Loss/surrogate": -0.01046706171799451,
+        "Loss/value_function": 0.2562489538192749,
+        "Metrics/motion/error_anchor_ang_vel": 1.1545543993711471,
+        "Metrics/motion/error_anchor_lin_vel": 0.6438358076810837,
+        "Metrics/motion/error_anchor_pos": 0.25459149354696275,
+        "Metrics/motion/error_anchor_rot": 0.1847124028801918,
+        "Metrics/motion/error_body_ang_vel": 2.4751120076179505,
+        "Metrics/motion/error_body_lin_vel": 0.7420607401132584,
+        "Metrics/motion/error_body_pos": 0.10438206589221954,
+        "Metrics/motion/error_body_rot": 0.3757785252332687,
+        "Metrics/motion/error_joint_pos": 2.086338767051697,
+        "Metrics/motion/error_joint_vel": 10.954609872817993,
+        "Metrics/motion/sampling_entropy": 0.5067117121219635,
+        "Metrics/motion/sampling_top1_bin": 0.47368425130844116,
+        "Metrics/motion/sampling_top1_prob": 0.379648171544075,
+        "Perf/collection time": 1.8795541682243346,
+        "Perf/learning_time": 0.1135303282737732,
+        "Perf/total_fps": 49613.646,
+        "Policy/mean_noise_std": 0.5027347238659858,
+        "Train/mean_episode_length": 321.54774029541016,
+        "Train/mean_reward": 55.16429578399658
+      },
+      "termination_shares": {
+        "anchor_ori": 0.0,
+        "anchor_pos": 9.41975885251674e-06,
+        "anchor_pos_xy": 0.5217972852248554,
+        "ee_body_pos": 0.00466438800422939,
+        "motion_end": 0.4651646288539937,
+        "swing_foot_height": 0.008364278158069137,
+        "time_out": 0.0
+      },
+      "mean_episode_length": 321.54774029541016,
+      "episode_length_ceiling": 569.2,
+      "episode_length_ceiling_basis": "clip end (941 frames, approx)",
+      "episode_length_fraction": 0.5649117011514584,
+      "mean_reward": 55.16429578399658,
+      "reward_per_step": 0.17155864859543535,
+      "checkpoints": [
+        {
+          "name": "model_0.pt",
+          "iteration": 0,
+          "size_bytes": 6597719
+        },
+        {
+          "name": "model_500.pt",
+          "iteration": 500,
+          "size_bytes": 6598315
+        },
+        {
+          "name": "model_1000.pt",
+          "iteration": 1000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_1500.pt",
+          "iteration": 1500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_2000.pt",
+          "iteration": 2000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_2500.pt",
+          "iteration": 2500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_3000.pt",
+          "iteration": 3000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_3500.pt",
+          "iteration": 3500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_4000.pt",
+          "iteration": 4000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_4500.pt",
+          "iteration": 4500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_5000.pt",
+          "iteration": 5000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_5500.pt",
+          "iteration": 5500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_6000.pt",
+          "iteration": 6000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_6500.pt",
+          "iteration": 6500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_7000.pt",
+          "iteration": 7000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_7500.pt",
+          "iteration": 7500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_8000.pt",
+          "iteration": 8000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_8500.pt",
+          "iteration": 8500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_9000.pt",
+          "iteration": 9000,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_9500.pt",
+          "iteration": 9500,
+          "size_bytes": 6598389
+        },
+        {
+          "name": "model_10000.pt",
+          "iteration": 10000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_10500.pt",
+          "iteration": 10500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_11000.pt",
+          "iteration": 11000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_11500.pt",
+          "iteration": 11500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_12000.pt",
+          "iteration": 12000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_12500.pt",
+          "iteration": 12500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_13000.pt",
+          "iteration": 13000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_13500.pt",
+          "iteration": 13500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_14000.pt",
+          "iteration": 14000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_14500.pt",
+          "iteration": 14500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_15000.pt",
+          "iteration": 15000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_15500.pt",
+          "iteration": 15500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_16000.pt",
+          "iteration": 16000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_16500.pt",
+          "iteration": 16500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_17000.pt",
+          "iteration": 17000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_17500.pt",
+          "iteration": 17500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_18000.pt",
+          "iteration": 18000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_18500.pt",
+          "iteration": 18500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_19000.pt",
+          "iteration": 19000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_19500.pt",
+          "iteration": 19500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_20000.pt",
+          "iteration": 20000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_20500.pt",
+          "iteration": 20500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_21000.pt",
+          "iteration": 21000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_21500.pt",
+          "iteration": 21500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_22000.pt",
+          "iteration": 22000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_22500.pt",
+          "iteration": 22500,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_23000.pt",
+          "iteration": 23000,
+          "size_bytes": 6598463
+        },
+        {
+          "name": "model_23500.pt",
+          "iteration": 23500,
+          "size_bytes": 6598463,
+          "sha256": "3d0e503a8a97ad346882a8a5911258a4c7db8076997c0b26423c7e311d90b614"
+        }
+      ],
+      "copied_config_files": [
+        "agent.yaml",
+        "env.yaml",
+        "tracking_env_cfg.py",
+        "unitree_rl_lab.diff"
+      ]
+    }
+  ],
+  "motions": [
+    {
+      "name": "ustc1_rightstand_stand_transition.npz",
+      "source_path": "/home/zxh/unitree_rl_lab/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/ustc1_rightstand_stand_transition.npz",
+      "size_bytes": 1575146,
+      "sha256": "f5936f603daa4dbb24971ffa949625fc41546692f6d7620578a780bb535aa614",
+      "frames": 941,
+      "fps": 50.0,
+      "duration_s": 18.82
+    },
+    {
+      "name": "ustc1_rightstand.npz",
+      "source_path": "/home/zxh/.local/share/Trash/files/ustc1_rightstand.npz",
+      "size_bytes": 1030074,
+      "sha256": "530ea806c2703d6d80785217de1e5fa2d4d2ce2a43e4aa82a7d38ee711da5887",
+      "frames": 615,
+      "fps": 50.0,
+      "duration_s": 12.3
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+--- git status ---
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/mdp/actions.py
+	modified:   source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/mdp/rewards.py
+	modified:   source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/tracking_env_cfg.py
+
+no changes added to commit (use "git add" and/or "git commit -a") 
+
+
+--- git diff ---
+diff --git a/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/mdp/actions.py b/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/mdp/actions.py
+index 5bd8a48..9116efe 100644
+--- a/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/mdp/actions.py
++++ b/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/mdp/actions.py
+@@ -92,8 +92,8 @@ class DeploymentLimitedJointPositionActionCfg(JointPositionActionCfg):
+ 
+     ``y[k] = y[k-1] + alpha * (u[k] - y[k-1])``, applied before scaling, clipping and
+     slew limiting.  ``None`` (default) disables the filter, so existing tasks are
+-    unaffected.  At the 50 Hz policy rate ``alpha=0.5`` is about -0.5 dB at 2 Hz and
+-    -6.8 dB at 12 Hz.  Because the filter sits upstream of the target pipeline, the
++    unaffected.  For reference, at the 50 Hz policy rate ``alpha=0.5`` is about
++    -0.5 dB at 2 Hz and -6.8 dB at 12 Hz.  Because the filter sits upstream of the target pipeline, the
+     ``last_applied_action`` observation already reflects it.
+     """
+ 
+diff --git a/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/mdp/rewards.py b/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/mdp/rewards.py
+index 78e69f5..5bdcf51 100644
+--- a/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/mdp/rewards.py
++++ b/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/mdp/rewards.py
+@@ -102,6 +102,56 @@ def feet_contact_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, thresh
+     return reward
+ 
+ 
++def single_support_stability(
++    env: ManagerBasedRLEnv,
++    sensor_cfg: SceneEntityCfg,
++    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
++    contact_threshold: float = 10.0,
++    tilt_scale: float = 0.20,
++    angular_velocity_scale: float = 1.5,
++) -> torch.Tensor:
++    """Reward a quiet, upright torso while exactly one foot supports the robot.
++
++    This is deliberately gated by measured foot contact, so it does not reward
++    freezing in the air or merely matching the reference pose.  The exponential
++    score is one near upright/low angular velocity and smoothly approaches zero
++    as the single-support torso becomes unstable.
++    """
++    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
++    asset = env.scene[asset_cfg.name]
++    foot_forces = contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids, :]
++    foot_contact = torch.linalg.norm(foot_forces, dim=-1) > contact_threshold
++    single_support = foot_contact.sum(dim=-1) == 1
++
++    tilt = torch.linalg.norm(asset.data.projected_gravity_b[:, :2], dim=-1)
++    angular_velocity = torch.linalg.norm(asset.data.root_ang_vel_b[:, :2], dim=-1)
++    score = torch.exp(
++        -torch.square(tilt / tilt_scale)
++        - torch.square(angular_velocity / angular_velocity_scale)
++    )
++    return score * single_support.float()
++
++
++def feet_impact_velocity(
++    env: ManagerBasedRLEnv,
++    sensor_cfg: SceneEntityCfg,
++    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
++) -> torch.Tensor:
++    """Measure downward foot speed on the first simulation step of contact.
++
++    The reward manager applies the configured negative weight, so this term
++    penalizes hard touchdown without penalizing the normal vertical velocity
++    while the foot is still in swing.
++    """
++    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
++    asset = env.scene[asset_cfg.name]
++    first_contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
++    downward_velocity = torch.clamp(
++        -asset.data.body_lin_vel_w[:, asset_cfg.body_ids, 2], min=0.0
++    )
++    return torch.sum(first_contact * downward_velocity, dim=-1)
++
++
+ def jump_landing_distance(
+     env: ManagerBasedRLEnv,
+     command_name: str,
+diff --git a/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/tracking_env_cfg.py b/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/tracking_env_cfg.py
+index 36bc5cd..736c9a7 100644
+--- a/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/tracking_env_cfg.py
++++ b/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/tracking_env_cfg.py
+@@ -73,10 +73,10 @@ DEPLOYMENT_JOINT_POSITION_LIMITS = {
+ # of position-target change per policy step.
+ DEPLOYMENT_TARGET_VELOCITY = 6.0
+ 
+-# Action EMA used by the houtaituiEMA task only. At the 50 Hz policy rate this is
+-# -0.5 dB / -14 deg at 2 Hz and -6.8 dB / -27 deg at 12 Hz, the frequency of the
+-# limit cycle seen in the 0813 deployment log.
+-ACTION_EMA_ALPHA = 0.5
++# Action EMA used by the houtaituiEMA task only.  The original alpha=0.5 run
++# was visibly behind the unfiltered baseline during early single-support
++# learning; alpha=0.7 keeps smoothing while reducing task-band phase lag.
++ACTION_EMA_ALPHA = 0.7
+ 
+ # Anchor body: central torso link used to align robot vs. reference (G1 uses "torso_link").
+ ANCHOR_BODY_NAME = "trunk_link"
+@@ -245,8 +245,8 @@ class EmaDeploymentSafeActionsCfg(DeploymentSafeActionsCfg):
+     injecting about 8 W: 11 of 12 leg joints have a positive band-limited
+     <tau * dq>.  The filter does not touch the 10-24 Hz mechanical modes that
+     footstrikes ring; it removes the loop gain that keeps re-exciting one of
+-    them.  At alpha=0.5 the 12 Hz loop gain drops to 0.46 while the task band
+-    below 3 Hz loses at most 1.1 dB.
++    them.  At alpha=0.7 the 12 Hz loop gain is about 0.68 while the task band
++    below 3 Hz loses less than 0.4 dB.
+ 
+     The same filter must run in deployment.  Training with it and deploying
+     without it (or the reverse) puts the policy on a plant it never saw.
+@@ -451,6 +451,37 @@ class RewardsCfg:
+         params={"command_name": "motion", "std": 0.08, "body_names": ["left_ankle_roll_link"]},
+     )
+ 
++    # Targeted single-support and touchdown terms.  These are intentionally
++    # separate from generic action-rate/joint-acceleration penalties so the
++    # training log exposes whether the lifted-leg transition is actually quiet.
++    single_support_stability = RewTerm(
++        func=mdp.single_support_stability,
++        weight=0.25,
++        params={
++            "sensor_cfg": SceneEntityCfg(
++                "contact_forces",
++                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
++            ),
++            "asset_cfg": SceneEntityCfg("robot"),
++            "contact_threshold": 10.0,
++            "tilt_scale": 0.20,
++            "angular_velocity_scale": 1.5,
++        },
++    )
++    feet_impact_velocity = RewTerm(
++        func=mdp.feet_impact_velocity,
++        weight=-1.0,
++        params={
++            "sensor_cfg": SceneEntityCfg(
++                "contact_forces",
++                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
++            ),
++            "asset_cfg": SceneEntityCfg(
++                "robot", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]
++            ),
++        },
++    )
++
+     undesired_contacts = RewTerm(
+         func=mdp.undesired_contacts,
+         weight=-0.1,

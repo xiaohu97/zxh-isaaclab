@@ -1,0 +1,98 @@
+--- git status ---
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   scripts/rsl_rl/play.py
+	modified:   source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/tracking_env_cfg.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	artifacts/leftarm_tracking_eval/
+	scripts/rsl_rl/eval_leftarm_tracking.py
+
+no changes added to commit (use "git add" and/or "git commit -a") 
+
+
+--- git diff ---
+diff --git a/scripts/rsl_rl/play.py b/scripts/rsl_rl/play.py
+index 5c11aa9..ee3f34c 100644
+--- a/scripts/rsl_rl/play.py
++++ b/scripts/rsl_rl/play.py
+@@ -248,7 +248,7 @@ def _run_root_displacement_measurements(env, policy, policy_nn, dt, limits, sett
+     if not ee_body_indexes:
+         raise RuntimeError("Measurement requires at least one configured ee_body_pos body.")
+ 
+-    term_names = ("anchor_pos", "anchor_pos_xy", "anchor_ori")
++    term_names = tuple(name for name in ("anchor_pos", "anchor_pos_xy", "anchor_ori") if name in limits)
+     first_term_frames = {
+         name: torch.full((num_envs,), -1, dtype=torch.long, device=base_env.device) for name in term_names
+     }
+@@ -485,9 +485,12 @@ def main():
+             }
+ 
+         measurement_limits = {}
++        # anchor_pos_xy is optional: some tasks terminate on the vertical anchor error only.
+         for term_name in ("anchor_pos", "anchor_pos_xy", "anchor_ori", "ee_body_pos"):
+             term_cfg = getattr(env_cfg.terminations, term_name, None)
+             if term_cfg is None or "threshold" not in term_cfg.params:
++                if term_name == "anchor_pos_xy":
++                    continue
+                 raise RuntimeError(f"Measurement requires a configured {term_name!r} threshold termination.")
+             measurement_limits[term_name] = {
+                 "threshold": float(term_cfg.params["threshold"]),
+@@ -499,6 +502,11 @@ def main():
+         if hasattr(env_cfg.terminations, "motion_end"):
+             env_cfg.terminations.motion_end = None
+ 
++        # The final policy step advances the command past the last frame. Under
++        # "resample" that rewrites the robot to a fresh randomized frame 0, so the
++        # end-of-rollout root pose would reflect resampling noise, not the policy.
++        env_cfg.commands.motion.motion_end_behavior = "hold"
++
+         # The measurement harness supplies its own deterministic push table.
+         # Disable training-only randomizers, including the phase-targeted push,
+         # so nominal/noise profiles stay clean and push profiles contain only
+diff --git a/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/tracking_env_cfg.py b/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/tracking_env_cfg.py
+index 05f9244..f4a06cf 100644
+--- a/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/tracking_env_cfg.py
++++ b/source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/humanoid_ultra_27dof/ustc1_rightstand/tracking_env_cfg.py
+@@ -24,6 +24,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+ import unitree_rl_lab.tasks.mimic.mdp as mdp
+ 
+ from unitree_rl_lab.assets.robots.humanoid_ultra import HUMANOIDULTRA27DOF_MIMIC_CFG as ROBOT_CFG
++from unitree_rl_lab.tasks.mimic.terrain import LocalGridPlaneTerrainImporter
+ 
+ ##
+ # Scene definition
+@@ -117,6 +118,7 @@ class RobotSceneCfg(InteractiveSceneCfg):
+ 
+     # ground terrain
+     terrain = TerrainImporterCfg(
++        class_type=LocalGridPlaneTerrainImporter,
+         prim_path="/World/ground",
+         terrain_type="plane",
+         collision_group=-1,
+@@ -357,8 +359,18 @@ class RewardsCfg:
+     )
+     motion_global_anchor_ori = RewTerm(
+         func=mdp.motion_global_anchor_orientation_error_exp,
+-        weight=0.5,
+-        params={"command_name": "motion", "std": 0.4},
++        weight=1.0,
++        params={"command_name": "motion", "std": 0.3},
++    )
++    motion_base_pos = RewTerm(
++        func=mdp.motion_relative_body_position_error_exp,
++        weight=1.0,
++        params={"command_name": "motion", "std": 0.08, "body_names": ["base_link"]},
++    )
++    motion_base_ori = RewTerm(
++        func=mdp.motion_relative_body_orientation_error_exp,
++        weight=1.0,
++        params={"command_name": "motion", "std": 0.20, "body_names": ["base_link"]},
+     )
+     motion_body_pos = RewTerm(
+         func=mdp.motion_relative_body_position_error_exp,
