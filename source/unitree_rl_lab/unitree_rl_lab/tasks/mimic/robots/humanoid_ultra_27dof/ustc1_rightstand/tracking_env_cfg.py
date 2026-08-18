@@ -113,10 +113,28 @@ EE_BODY_NAMES = [
 ]
 
 # Root-velocity spread applied once per episode reset, on top of the reference
-# body velocity.  Unchanged from the shared mimic value.
+# body velocity.
+#
+# The horizontal components are narrowed from the shared mimic +-0.5 m/s.  A
+# reset writes the robot into the reference state and then adds this velocity,
+# so it is an impulse the policy has to null out from frame one.  In single
+# support the ankle-roll position-target clip caps CoP travel at 1.87 cm, i.e.
+# 0.194 m/s^2 of horizontal deceleration, so the minimum braking distance for a
+# +-0.5 m/s draw has a median of 0.246 m.
+#
+# The 2026-08-17 run measured error_anchor_pos = 0.2546 m, within 5% of that
+# floor, while 52% of its terminations came from anchor_pos_xy at 0.35 m.  The
+# policy was already braking near-optimally; the drift was the reset impulse,
+# not a tracking failure, and the termination was reporting an initial
+# condition the robot cannot satisfy rather than a fixable behavior.
+#
+# Braking distance scales with v^2, so +-0.30 m/s is 0.36x of that: a predicted
+# median of about 0.09 m, clear of the 0.35 m termination.  Narrow this before
+# loosening anchor_pos_xy -- a threshold wide enough to cover +-0.5 m/s resets
+# would need to be about 0.60 m, which is the drift the term exists to catch.
 VELOCITY_RANGE = {
-    "x": (-0.5, 0.5),
-    "y": (-0.5, 0.5),
+    "x": (-0.30, 0.30),
+    "y": (-0.30, 0.30),
     "z": (-0.2, 0.2),
     "roll": (-0.52, 0.52),
     "pitch": (-0.52, 0.52),
