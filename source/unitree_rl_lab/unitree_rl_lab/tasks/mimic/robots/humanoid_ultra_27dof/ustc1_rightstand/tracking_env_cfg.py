@@ -575,9 +575,30 @@ class RewardsCfg:
     # Targeted single-support and touchdown terms.  These are intentionally
     # separate from generic action-rate/joint-acceleration penalties so the
     # training log exposes whether the lifted-leg transition is actually quiet.
+    # Zeroed as a decisive experiment, not as tuning.  This term scores
+    # exp(-(tilt/0.20)^2 - (w/1.5)^2) against VERTICAL, where tilt is the root's
+    # own projected gravity.  But the reference itself holds base_link at a
+    # median 35.3 deg lean through single support (it is a rear-leg lift; the
+    # torso counterbalances the raised leg), so a policy that reproduced the
+    # reference exactly would score an Episode_Reward of 9.65e-5.
+    #
+    # The 2026-08-19 runs logged 0.000889, i.e. 9.2x what perfect tracking pays.
+    # The only way to collect that is to hold the pelvis more upright than the
+    # reference: inverting the score gives roughly 19 deg against the
+    # reference's 35 deg.  Measured error_body_rot over the same window is
+    # 0.2660 rad = 15.2 deg, consistent with this term buying its own reward
+    # with attitude-tracking error.
+    #
+    # That inversion assumes ~83 single-support steps per episode and compares
+    # against a 14-body rotation average, so it is a hypothesis, not a result.
+    # Zeroing the weight is the cheap test: if error_body_rot drops materially,
+    # the term was distorting the motion and should be re-specified as a
+    # deviation from the REFERENCE attitude (quat_error against
+    # body_quat_relative_w) rather than from vertical.  If error_body_rot does
+    # not move, restore 0.25 and look elsewhere.
     single_support_stability = RewTerm(
         func=mdp.single_support_stability,
-        weight=0.25,
+        weight=0.0,
         params={
             "sensor_cfg": SceneEntityCfg(
                 "contact_forces",

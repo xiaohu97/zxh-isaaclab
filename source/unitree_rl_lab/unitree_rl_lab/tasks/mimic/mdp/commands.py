@@ -136,6 +136,11 @@ class MotionCommand(CommandTerm):
         self.kernel = self.kernel / self.kernel.sum()
 
         self.metrics["error_anchor_pos"] = torch.zeros(self.num_envs, device=self.device)
+        # error_anchor_pos is a 3D norm, so it mixes horizontal drift with height
+        # error and cannot be compared against a horizontal-only model. Keep the
+        # original for continuity and log the two components separately.
+        self.metrics["error_anchor_pos_xy"] = torch.zeros(self.num_envs, device=self.device)
+        self.metrics["error_anchor_pos_z"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["error_anchor_rot"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["error_anchor_lin_vel"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["error_anchor_ang_vel"] = torch.zeros(self.num_envs, device=self.device)
@@ -146,6 +151,17 @@ class MotionCommand(CommandTerm):
         self.metrics["sampling_entropy"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["sampling_top1_prob"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["sampling_top1_bin"] = torch.zeros(self.num_envs, device=self.device)
+        # The sampling_* metrics above describe the reset distribution actually
+        # used, which mixes the failure-adaptive part with the forced
+        # frame_zero_probability and targeted_frame_probability shares. Recovering
+        # the adaptive part from them requires deconvolving those constants by
+        # hand. The failure_* metrics below report bin_failed_count directly, so
+        # "where is the policy failing" can be read without that correction.
+        self.metrics["failure_entropy"] = torch.zeros(self.num_envs, device=self.device)
+        self.metrics["failure_top1_bin"] = torch.zeros(self.num_envs, device=self.device)
+        self.metrics["failure_top1_share"] = torch.zeros(self.num_envs, device=self.device)
+        for bin_index in range(self.bin_count):
+            self.metrics[f"failure_share_bin{bin_index:02d}"] = torch.zeros(self.num_envs, device=self.device)
 
     @property
     def command(self) -> torch.Tensor:  # TODO Consider again if this is the best observation
@@ -232,7 +248,10 @@ class MotionCommand(CommandTerm):
         return self.robot.data.body_ang_vel_w[:, self.robot_anchor_body_index]
 
     def _update_metrics(self):
-        self.metrics["error_anchor_pos"] = torch.norm(self.anchor_pos_w - self.robot_anchor_pos_w, dim=-1)
+        anchor_pos_error = self.anchor_pos_w - self.robot_anchor_pos_w
+        self.metrics["error_anchor_pos"] = torch.norm(anchor_pos_error, dim=-1)
+        self.metrics["error_anchor_pos_xy"] = torch.norm(anchor_pos_error[:, :2], dim=-1)
+        self.metrics["error_anchor_pos_z"] = torch.abs(anchor_pos_error[:, 2])
         self.metrics["error_anchor_rot"] = quat_error_magnitude(self.anchor_quat_w, self.robot_anchor_quat_w)
         self.metrics["error_anchor_lin_vel"] = torch.norm(self.anchor_lin_vel_w - self.robot_anchor_lin_vel_w, dim=-1)
         self.metrics["error_anchor_ang_vel"] = torch.norm(self.anchor_ang_vel_w - self.robot_anchor_ang_vel_w, dim=-1)
@@ -253,6 +272,26 @@ class MotionCommand(CommandTerm):
 
         self.metrics["error_joint_pos"] = torch.norm(self.joint_pos - self.robot_joint_pos, dim=-1)
         self.metrics["error_joint_vel"] = torch.norm(self.joint_vel - self.robot_joint_vel, dim=-1)
+
+        # Failure-adaptive bin statistics, uncontaminated by the forced reset shares.
+        failed_total = self.bin_failed_count.sum()
+        if failed_total > 0.0:
+            failure_shares = self.bin_failed_count / failed_total
+            top_share, top_bin = failure_shares.max(dim=0)
+            entropy = -(failure_shares * (failure_shares + 1.0e-12).log()).sum()
+            # bin_count == 1 for a sub-1-second clip; log(1) == 0 would divide by zero.
+            self.metrics["failure_entropy"][:] = (
+                entropy / math.log(self.bin_count) if self.bin_count > 1 else 0.0
+            )
+            self.metrics["failure_top1_bin"][:] = top_bin.float() / self.bin_count
+            self.metrics["failure_top1_share"][:] = top_share
+        else:
+            failure_shares = torch.zeros_like(self.bin_failed_count)
+            self.metrics["failure_entropy"][:] = 0.0
+            self.metrics["failure_top1_bin"][:] = 0.0
+            self.metrics["failure_top1_share"][:] = 0.0
+        for bin_index in range(self.bin_count):
+            self.metrics[f"failure_share_bin{bin_index:02d}"][:] = failure_shares[bin_index]
 
     def _adaptive_sampling(self, env_ids: Sequence[int]):
         episode_failed = self._env.termination_manager.terminated[env_ids]
