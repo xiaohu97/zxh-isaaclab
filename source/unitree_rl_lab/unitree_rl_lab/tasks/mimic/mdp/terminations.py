@@ -8,6 +8,8 @@ try:
 except ImportError:
     from isaaclab.utils.math import quat_rotate_inverse as quat_apply_inverse
 
+from isaaclab.utils.math import quat_error_magnitude, yaw_quat
+
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -53,6 +55,23 @@ def bad_anchor_ori(
     robot_projected_gravity_b = quat_apply_inverse(command.robot_anchor_quat_w, asset.data.GRAVITY_VEC_W)
 
     return (motion_projected_gravity_b[:, 2] - robot_projected_gravity_b[:, 2]).abs() > threshold
+
+
+def bad_anchor_yaw(env: ManagerBasedRLEnv, command_name: str, threshold: float) -> torch.Tensor:
+    """Terminate when the anchor has rotated past the reference about vertical.
+
+    ``bad_anchor_ori`` compares projected-gravity z, which is tilt and is
+    invariant to rotation about the world z axis.  Every other orientation
+    reward is anchor-relative -- ``body_pos_relative_w`` re-yaws the reference
+    onto the robot each step -- so before this term nothing in the MDP could
+    see the robot unscrewing itself about the stance foot.  On the houtaitui
+    clip a MuJoCo rollout of 2026-08-17/model_24000 leaves the reference yaw by
+    a median of 0.947 rad while the leg comes down, having stayed inside 0.285
+    rad for the whole lift, so the two regimes are cleanly separable.
+    """
+    command: MotionCommand = env.command_manager.get_term(command_name)
+    error = quat_error_magnitude(yaw_quat(command.anchor_quat_w), yaw_quat(command.robot_anchor_quat_w))
+    return error > threshold
 
 
 def bad_motion_body_pos(

@@ -293,12 +293,31 @@ class MotionCommand(CommandTerm):
         for bin_index in range(self.bin_count):
             self.metrics[f"failure_share_bin{bin_index:02d}"][:] = failure_shares[bin_index]
 
+    def _bin_index(self, frames: torch.Tensor) -> torch.Tensor:
+        """Canonical frame -> bin mapping shared by sampling and failure credit."""
+        return torch.clamp(
+            (frames * self.bin_count) // max(self.motion.time_step_total, 1), 0, self.bin_count - 1
+        )
+
+    def _bin_frame_bounds(self, bins: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Exact inclusive frame range whose ``_bin_index`` equals ``bins``.
+
+        ``_bin_index`` floors ``frame * bin_count / total``, so its inverse image
+        starts at ``ceil(bin * total / bin_count)``.  Sampling inside these
+        bounds keeps the reset frame and the bin later credited with the failure
+        in agreement.  The previous sampler scaled by ``total - 1`` instead,
+        which credited 1.9% of resets to the bin below the one they came from
+        and made the final frame unreachable.
+        """
+        total = max(self.motion.time_step_total, 1)
+        lower = -((-bins * total) // self.bin_count)
+        upper = -((-(bins + 1) * total) // self.bin_count) - 1
+        return lower, torch.clamp(upper, max=total - 1)
+
     def _adaptive_sampling(self, env_ids: Sequence[int]):
         episode_failed = self._env.termination_manager.terminated[env_ids]
         if torch.any(episode_failed):
-            current_bin_index = torch.clamp(
-                (self.time_steps * self.bin_count) // max(self.motion.time_step_total, 1), 0, self.bin_count - 1
-            )
+            current_bin_index = self._bin_index(self.time_steps)
             fail_bins = current_bin_index[env_ids][episode_failed]
             self._current_bin_failed[:] = torch.bincount(fail_bins, minlength=self.bin_count)
 
@@ -315,11 +334,10 @@ class MotionCommand(CommandTerm):
 
         sampled_bins = torch.multinomial(sampling_probabilities, len(env_ids), replacement=True)
 
-        self.time_steps[env_ids] = (
-            (sampled_bins + sample_uniform(0.0, 1.0, (len(env_ids),), device=self.device))
-            / self.bin_count
-            * (self.motion.time_step_total - 1)
-        ).long()
+        bin_lower, bin_upper = self._bin_frame_bounds(sampled_bins)
+        bin_width = (bin_upper - bin_lower + 1).float()
+        offset = (sample_uniform(0.0, 1.0, (len(env_ids),), device=self.device) * bin_width).long()
+        self.time_steps[env_ids] = torch.clamp(bin_lower + offset, max=bin_upper)
 
         # Reserve mutually exclusive reset fractions for exact frame 0 and an
         # explicitly difficult frame range.  All remaining resets retain the
@@ -352,11 +370,7 @@ class MotionCommand(CommandTerm):
         if targeted_frame_probability > 0.0:
             target_start, target_end = self.cfg.targeted_frame_range
             target_frames = torch.arange(target_start, target_end + 1, device=self.device)
-            target_bins = torch.clamp(
-                (target_frames * self.bin_count) // max(self.motion.time_step_total, 1),
-                0,
-                self.bin_count - 1,
-            )
+            target_bins = self._bin_index(target_frames)
             target_bin_probabilities = torch.bincount(target_bins, minlength=self.bin_count).float()
             target_bin_probabilities /= target_bin_probabilities.sum()
             effective_bin_probabilities += targeted_frame_probability * target_bin_probabilities

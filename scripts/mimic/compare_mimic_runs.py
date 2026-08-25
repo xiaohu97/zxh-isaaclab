@@ -12,10 +12,22 @@ Most TensorBoard scalars in this repo are not comparable across config changes:
   ``episode_length_s / step_dt``; with ``"hold"`` plus ``motion_end`` it is the
   expected number of reference frames left after the reset phase is sampled.
 
-``Metrics/motion/error_*`` is the exception: it is a per-step mean in metres and
-radians and is directly comparable. This script leads with those, converts the
-termination counts to shares, and reports reward per step rather than per
-episode.
+``Metrics/motion/error_*`` is **not** the exception it was once documented to
+be.  ``MotionCommand._update_metrics`` overwrites each metric with the current
+instantaneous error every step, and Isaac Lab's ``CommandTerm.reset`` logs
+``mean(metric[env_ids])`` at the moment those environments reset, before the
+next ``compute`` runs.  What lands in TensorBoard is therefore the error *at
+termination*, averaged over whichever environments happened to reset in that
+iteration -- not an episode mean and not a per-step mean.
+
+That makes it a mixture over termination causes.  When ``anchor_pos_xy``
+terminates at 0.35 m, every episode on that branch contributes ~0.35 m by
+definition, so the logged ``error_anchor_pos`` moves whenever the termination
+mix moves, even if tracking is unchanged.  Read it together with the
+termination shares below, and never rank two runs by it alone -- especially not
+across a reset-distribution change, where each run's mix is measured under its
+own conditions.  For an unbiased ranking, roll the checkpoints out under one
+fixed condition offline instead.
 
 Usage::
 
@@ -34,7 +46,8 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-# Directly comparable: per-step physical error, no episode-length normalization.
+# Error at termination, averaged over the environments resetting that iteration.
+# Comparable only at a fixed termination mix -- see the module docstring.
 ERROR_TAGS = [
     "Metrics/motion/error_body_pos",
     "Metrics/motion/error_body_rot",
@@ -192,7 +205,10 @@ def main() -> None:
         present = ["Y" if name in r["fp"].get("terminations", []) else "-" for r in rows]
         print(f"{'term:'+name:>16} | " + " | ".join(present))
 
-    print(f"\n{'='*100}\nDIRECTLY COMPARABLE  (per-step physical error, mean of last {args.window} iters)\n{'='*100}")
+    print(
+        f"\n{'='*100}\nERROR AT TERMINATION  (snapshot, NOT an episode mean; mean of last {args.window} iters)"
+        f"\n  A mixture over termination causes -- read alongside the shares below.\n{'='*100}"
+    )
     print(f"{'run':<{w}}{'iters':>8}" + "".join(f"{t.split('error_')[1]:>16}" for t in ERROR_TAGS))
     for r in rows:
         print(f"{r['run']:<{w}}{r['iters']:>8}" + "".join(f"{fmt(r['errors'][t]):>16}" for t in ERROR_TAGS))

@@ -38,33 +38,58 @@ from unitree_rl_lab.tasks.mimic.terrain import LocalGridPlaneTerrainImporter
 ROBOT_ACTION_SCALE = 0.25
 
 # Position-command safety boundary used by the real Humanoid Ultra controller.
-# These are command limits, not the articulation's physical joint limits.
+# These are command limits, not the articulation's physical joint limits -- but
+# they are intersected with them, because a target outside the mechanical range
+# is dead action budget: the joint stops at the URDF limit and the remaining
+# command only presses into the hard stop.
+#
+# Six entries were outside ``humanoid_ultra_27dof_description_identified.urdf``
+# and have been clipped to it:
+#
+#   *_ankle_roll_joint    +-0.5236 -> +-0.45     (0.0736 rad, 16% of the range)
+#   left_shoulder_yaw       +2.5   -> +1.623156
+#   right_shoulder_yaw      -2.5   -> -1.623156
+#   left_wrist_yaw          -2.5   -> -1.1519173
+#   right_wrist_yaw         +2.5   -> +1.1519173
+#
+# The ankle-roll entry is the one that changes the physics reasoning in this
+# file: the single-support CoP budget below was derived from kp * 0.5236 =
+# 10.47 Nm, but only kp * 0.45 = 9.0 Nm is reachable through free motion.
+# Isaac clips resets and the joint-limit penalty at ``0.9 *`` the URDF value
+# (+-0.405 rad for ankle roll), which is tighter still.
+#
+# Hip and knee entries differ from the URDF by <= 0.001 rad (1.5708 vs 1.57,
+# 2.356 vs 2.36).  That is rounding, not a reachability problem, and is left
+# alone so the table still reads as the controller's own numbers.
+#
+# ustc1_pick/tracking_env_cfg.py carries its own copy of this table with the
+# same six mismatches; it has not been touched.
 DEPLOYMENT_JOINT_POSITION_LIMITS = {
     "left_hip_roll_joint": (-0.25, 1.5708),
     "left_hip_yaw_joint": (-1.5708, 1.5708),
     "left_hip_pitch_joint": (-1.5708, 1.5708),
     "left_knee_joint": (0.0, 2.356),
     "left_ankle_pitch_joint": (-0.7, 0.95),
-    "left_ankle_roll_joint": (-0.5236, 0.5236),
+    "left_ankle_roll_joint": (-0.45, 0.45),
     "right_hip_roll_joint": (-1.5708, 0.25),
     "right_hip_yaw_joint": (-1.5708, 1.5708),
     "right_hip_pitch_joint": (-1.5708, 1.5708),
     "right_knee_joint": (0.0, 2.356),
     "right_ankle_pitch_joint": (-0.7, 0.95),
-    "right_ankle_roll_joint": (-0.5236, 0.5236),
+    "right_ankle_roll_joint": (-0.45, 0.45),
     "waist_yaw_joint": (-2.618, 2.618),
     "left_shoulder_pitch_joint": (-2.4, 1.2),
     "left_shoulder_roll_joint": (-0.3, 2.7),
-    "left_shoulder_yaw_joint": (-2.5, 2.5),
+    "left_shoulder_yaw_joint": (-2.5, 1.623156),
     "left_elbow_joint": (-2.17, 0.0),
-    "left_wrist_yaw_joint": (-2.5, 2.5),
+    "left_wrist_yaw_joint": (-1.1519173, 2.5),
     "left_wrist_roll_joint": (-1.11, 1.11),
     "left_wrist_pitch_joint": (-1.05, 1.05),
     "right_shoulder_pitch_joint": (-1.2, 2.4),
     "right_shoulder_roll_joint": (-2.7, 0.3),
-    "right_shoulder_yaw_joint": (-2.5, 2.5),
+    "right_shoulder_yaw_joint": (-1.623156, 2.5),
     "right_elbow_joint": (0.0, 2.17),
-    "right_wrist_yaw_joint": (-2.5, 2.5),
+    "right_wrist_yaw_joint": (-2.5, 1.1519173),
     "right_wrist_roll_joint": (-1.11, 1.11),
     "right_wrist_pitch_joint": (-1.05, 1.05),
 }
@@ -115,26 +140,39 @@ EE_BODY_NAMES = [
 # Root-velocity spread applied once per episode reset, on top of the reference
 # body velocity.
 #
-# The horizontal components are narrowed from the shared mimic +-0.5 m/s.  A
-# reset writes the robot into the reference state and then adds this velocity,
-# so it is an impulse the policy has to null out from frame one.  In single
-# support the ankle-roll position-target clip caps CoP travel at 1.87 cm, i.e.
-# 0.194 m/s^2 of horizontal deceleration, so the minimum braking distance for a
-# +-0.5 m/s draw has a median of 0.246 m.
+# REVERTED to +-0.5 m/s on 2026-08-19.  The +-0.30 experiment ran from
+# 2026-08-18_11-14-52 and has to be undone: it improved every number Isaac
+# logs and made the policy materially worse.
 #
-# The 2026-08-17 run measured error_anchor_pos = 0.2546 m, within 5% of that
-# floor, while 52% of its terminations came from anchor_pos_xy at 0.35 m.  The
-# policy was already braking near-optimally; the drift was the reset impulse,
-# not a tracking failure, and the termination was reporting an initial
-# condition the robot cannot satisfy rather than a fixable behavior.
+# The narrowing was argued from a braking-distance estimate, and the run's own
+# telemetry appeared to confirm it -- error_anchor_pos fell 0.2546 -> 0.2140 and
+# the anchor_pos_xy termination share fell 52% -> 39%.  Both readings were
+# artifacts:
 #
-# Braking distance scales with v^2, so +-0.30 m/s is 0.36x of that: a predicted
-# median of about 0.09 m, clear of the 0.35 m termination.  Narrow this before
-# loosening anchor_pos_xy -- a threshold wide enough to cover +-0.5 m/s resets
-# would need to be about 0.60 m, which is the drift the term exists to catch.
+#   * ``Metrics/motion/error_*`` is the error at termination, not an episode
+#     mean (see compare_mimic_runs.py), so it moves with the termination mix.
+#   * The two runs were measured under their own reset distributions.  A policy
+#     handed a smaller impulse trips a fixed 0.35 m drift threshold less often
+#     no matter how well it brakes.
+#
+# Rolling both checkpoints out in MuJoCo under one fixed condition inverts the
+# ranking.  At the +-0.30 reset the +-0.30-trained policy is the worse one, and
+# it degrades monotonically as it trains:
+#
+#   iter            10k    15k    20k    24k    30k    36k    42k
+#   +-0.5 drift    0.166  0.174  0.163  0.254    -      -      -     median [m]
+#   +-0.5 falls      1      1      2      1      -      -      -     of 30
+#   +-0.3 drift    0.139  0.166  0.269  0.383  0.313  0.557  0.454
+#   +-0.3 falls      1      4      8     10      6     11      9
+#
+# Same seed (42), same everything else, so this is the reset spread and not
+# run-to-run noise.  The impulse the term was removing is what taught the
+# policy to null drift at all; without it, drift rejection decays with
+# training.  Keep the 0.35 m anchor_pos_xy threshold: under +-0.5 it fires on
+# real failures, which is the point.
 VELOCITY_RANGE = {
-    "x": (-0.30, 0.30),
-    "y": (-0.30, 0.30),
+    "x": (-0.50, 0.50),
+    "y": (-0.50, 0.50),
     "z": (-0.2, 0.2),
     "roll": (-0.52, 0.52),
     "pitch": (-0.52, 0.52),
@@ -148,9 +186,11 @@ VELOCITY_RANGE = {
 # A 57 kg robot with its CoM at 0.95 m has an ankle-strategy capture limit of
 # 0.32 m/s fore-aft and 0.12 m/s lateral from the foot's contact-rail
 # half-extents (0.101 m and 0.037 m, times sqrt(g/h) = 3.21 rad/s).  The
-# lateral figure drops to about 0.06 m/s once the ankle-roll position-target
-# clip is taken into account: +-0.5236 rad at kp = 20 Nm/rad caps the joint at
-# 10.5 Nm, which is only 1.87 cm of CoP travel against the foot's 3.7 cm.  The
+# lateral figure drops to about 0.05 m/s once the ankle-roll position-target
+# clip is taken into account: the clip is now +-0.45 rad (the URDF stop; it
+# used to read +-0.5236, which the joint cannot reach), so at kp = 20 Nm/rad
+# the joint caps at 9.0 Nm, which is only 1.61 cm of CoP travel against the
+# foot's 3.7 cm, i.e. 0.166 m/s^2 of horizontal deceleration.  The
 # original +-0.5 m/s every 1-3 s was therefore 4-8x beyond what the support
 # ankle can absorb, while the swing-foot reward and termination forbid the step
 # that would otherwise recover it.
@@ -180,20 +220,65 @@ PUSH_INTERVAL_RANGE_S = (4.0, 8.0)
 # (ustc-humanoid-identification/results/houtaitui_0813) shows a 12.1 Hz
 # whole-body limit cycle that needs roughly 150 deg of loop lag to sustain.
 #
-# Held back at the shared 0-10 ms while the Phase-1 lift curriculum is still
-# failing.  The 0-20 ms widening was introduced in the same change as the lift
-# curriculum, the swing-foot termination and the plant randomization, so a
-# failed run cannot attribute blame between them.  The policy observes a single
-# frame and cannot identify the per-step delay, so widening the range only buys
-# a more conservative policy until an observation history exists.  Restore 4
-# once the lift is reliable, or once the delay has been measured on hardware.
-ACTUATOR_MAX_DELAY = 2
+# 2026-08-25, reverted to the shared 0-10 ms the same day it was widened.
+#
+# It was set to 7-10 steps and then 5-7 on the reading that houtaitui2.csv had
+# measured a 42.5 ms transport delay.  That reading does not hold up:
+#
+#   * The number came from cross-correlating targetPos against measured
+#     position at 12.2 Hz and converting 187 deg to time as though the path
+#     were a pure delay.  It is not.  targetPos is the policy's response to the
+#     measured state, so command and motion are mutually caused, and a PD loop
+#     plus plant already approaches -180 deg on its own well above its natural
+#     frequency.  Near-antiphase says the loop cannot track 12 Hz; it does not
+#     say where the phase comes from.
+#   * One common delay tau produces the same lag 2*pi*f*tau at a given
+#     frequency for every joint.  The measured lags were 11, -11, 66, 187, -187
+#     and -231 deg.  That spread rules out a single fixed delay -- and the
+#     write-up that set this constant explained the sign flips away as period
+#     wrapping while passing over the two joints sitting at +-11 deg.
+#   * Loop instrumentation the same day (sim2real_humanoidultra27dof_walk_TEST.py
+#     -> houtaitui.csv) puts the entire in-process path at about 1.3 ms: leg
+#     state age 0.53 ms median, inference 0.29, publish 0.32.  A 42 ms transport
+#     delay would have to sit entirely in a bus whose own overrun statistics
+#     quote 1.1 ms cycles.
+#
+# What survives: the 12.2 Hz tone is present in targetPos itself, so the
+# oscillation is generated inside the control loop rather than excited
+# mechanically, and the loop is near-antiphase there.  The cause is open, and
+# the MuJoCo scores that made delay look dominant (C@42000 falling 100/100 at a
+# 40 ms command delay) were measuring an assumed condition, not a measured one.
+#
+# Put a measured value here only after an open-loop test: drive one joint with
+# a swept sine, robot unloaded and kp low, and fit phase against frequency.  A
+# transport delay gives phase linear in f with the same slope on every joint;
+# PD dynamics do not.  A single-frequency closed-loop number cannot separate
+# them.
+#
+# 1-3 steps is a deliberately modest standing assumption rather than a measured
+# value.  Zero would be wrong in the other direction: the loop instrumentation
+# puts the in-process path alone at ~1.3 ms median (leg state age 0.53,
+# inference 0.29, publish 0.32) and the driver side has never been measured, so
+# some latency certainly exists.  5-15 ms brackets that without asserting a
+# figure the data does not support.
+ACTUATOR_MIN_DELAY = 1   # 5 ms
+ACTUATOR_MAX_DELAY = 3   # 15 ms, mean 10 ms -- an assumption, not a measurement
 
 
-def _with_command_delay(robot_cfg: ArticulationCfg, max_delay: int = ACTUATOR_MAX_DELAY) -> ArticulationCfg:
-    """Copy ``robot_cfg`` with every actuator group's command delay widened."""
+def _with_command_delay(
+    robot_cfg: ArticulationCfg,
+    min_delay: int = ACTUATOR_MIN_DELAY,
+    max_delay: int = ACTUATOR_MAX_DELAY,
+) -> ArticulationCfg:
+    """Copy ``robot_cfg`` with every actuator group's command delay retimed.
+
+    Both ends are set: the delay is resampled per episode from
+    ``[min_delay, max_delay]``, so leaving ``min_delay`` at 0 would halve the
+    mean and miss the measured value.
+    """
     cfg = robot_cfg.copy()
     for actuator in cfg.actuators.values():
+        actuator.min_delay = min_delay
         actuator.max_delay = max_delay
     return cfg
 
@@ -829,6 +914,192 @@ class RobotHoutaituiLeftArm2P5kgEnvCfg(RobotHoutaituiEnvCfg):
 class RobotHoutaituiLeftArm2P5kgPlayEnvCfg(RobotHoutaituiPlayEnvCfg):
     """Play configuration for the 2.5 kg left-arm payload model."""
 
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = _with_command_delay(
+            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
+        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+##
+# Yaw-guarded variant
+##
+
+
+@configclass
+class YawGuardedRewardsCfg(RewardsCfg):
+    """Unchanged from the base rewards.  The std widening was tried and reverted.
+
+    The first attempt raised ``motion_global_anchor_ori`` from std 0.3 to 0.6 on
+    the argument that at 0.3 the term is dead where it is needed:
+    ``exp(-0.96^2 / 0.3^2) = 4e-5`` at the 55 degrees a rollout actually
+    reaches, i.e. no reward and no gradient.  That half was right, but widening
+    the same Gaussian is the wrong instrument, because it also flattens the
+    reward near zero -- the gradient ``-2e/std^2`` is 4x weaker at small error
+    with std 0.6.  The policy traded away the tightness it had in the normal
+    regime to buy gradient in a regime it visits rarely.
+
+    Measured at iteration 36000, 30 seeds, reset +-0.5, both variants warm
+    started from the same checkpoint:
+
+                    drift median   falls/30   completes/30   yaw median   yaw p90
+      std 0.3 (A)      0.196 m         1           29           21.5 deg   52.2 deg
+      std 0.6 (B)      0.445 m         5           25           32.8 deg   43.5 deg
+
+    Exactly the predicted shape: p90 yaw improved 52.2 -> 43.5 deg, the far
+    field the change was aimed at, while median yaw got *worse* 21.5 -> 32.8
+    deg and drift and falls degraded with it.  The far-field gain did not pay
+    for the near-field loss.  Getting both would need a second, wider term
+    added alongside std 0.3 rather than one term stretched to cover both --
+    untried.
+    """
+
+    pass
+
+
+@configclass
+class YawGuardedTerminationsCfg(TerminationsCfg):
+    """Close the yaw loophole that no existing termination could see.
+
+    ``anchor_ori`` compares projected-gravity z, which is tilt and is blind to
+    rotation about vertical; ``anchor_pos_xy`` sees translation; the swing-foot
+    and end-effector terms are z-only.  The threshold is measured, not guessed,
+    and was re-measured against the current policy once the reset spread went
+    back to +-0.5.  Over 30 perturbed rollouts of the iteration-36000 checkpoint
+    the yaw error stays under 0.311 rad through the entire lift and reaches a
+    median of 0.443 rad (25.4 deg) once the leg starts coming down.
+
+    0.7 rad was the first setting, sized off the +-0.3 run, and it was too far
+    out to do any work: it accounted for 0.9% of terminations across 12000
+    iterations, because half the episodes are already ended by anchor_pos_xy
+    before the descent begins.  0.55 rad keeps a 1.8x margin over the worst
+    legitimate lift-phase error and fires on 43% of the descents instead of
+    33%.
+    """
+
+    anchor_yaw = DoneTerm(
+        func=mdp.bad_anchor_yaw,
+        params={"command_name": "motion", "threshold": 0.55},
+    )
+
+
+@configclass
+class RobotHoutaituiYawEnvCfg(RobotHoutaituiEnvCfg):
+    """Houtaitui plus the yaw termination, and nothing else.
+
+    Now exactly one term apart from the plain houtaitui task, so the pair
+    answers a single question: does making the twist a terminable failure help?
+    The first version of this config also widened the anchor-orientation reward
+    std, which turned out to be the dominant effect and a harmful one -- see
+    YawGuardedRewardsCfg for the measurement that reverted it.
+    """
+
+    rewards: YawGuardedRewardsCfg = YawGuardedRewardsCfg()
+    terminations: YawGuardedTerminationsCfg = YawGuardedTerminationsCfg()
+
+
+class RobotHoutaituiYawPlayEnvCfg(RobotHoutaituiYawEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+        # Keep displaying the held final frame instead of resetting.
+        self.terminations.motion_end = None
+
+
+##
+# Yaw termination + arm balance variant
+##
+
+
+@configclass
+class ArmBalanceRewardsCfg(RewardsCfg):
+    """Pay the arms to keep the reference's counter-swing during the lift.
+
+    The reference clip cannot be executed by an ankle strategy alone: its own
+    lateral CoM acceleration in single support averages 0.30 m/s^2 and peaks at
+    0.95, which needs 15.3 / 48.6 Nm against a support ankle whose commandable
+    span is about 21 Nm.  The motion is only feasible with angular-momentum
+    (hip/arm) control, and the reference supplies it through the arms.
+
+    The policy currently does not: measured over 20 perturbed rollouts of
+    A@36000, the six arm bodies sit 0.027 m from the reference for the whole
+    clip but open up to 0.152 m median (0.215 p90) exactly across the lift
+    window.  So the arms abandon the reference precisely when their counter-
+    swing is needed, and the angular momentum is absorbed by the torso and
+    support hip instead -- which is the twist that ``anchor_yaw`` terminates,
+    and, once that route is closed, shows up as horizontal drift.
+
+    std = 0.20 puts the current 0.152 m operating point essentially on the
+    Gaussian's steepest gradient (max at e = std/sqrt(2) = 0.141), which is the
+    property the reverted std 0.6 experiment showed matters most: a term whose
+    operating point sits in a saturated tail has no reward *and* no gradient.
+    The whole-clip part of this term is nearly constant at 0.98 and therefore
+    contributes nothing to the policy gradient; the lift window is where it
+    varies and where its leverage is.
+    """
+
+    motion_arm_pos = RewTerm(
+        func=mdp.motion_relative_body_position_error_exp,
+        weight=2.5,
+        params={
+            "command_name": "motion",
+            "std": 0.20,
+            "body_names": [
+                "left_shoulder_roll_link",
+                "left_elbow_link",
+                "left_wrist_pitch_link",
+                "right_shoulder_roll_link",
+                "right_elbow_link",
+                "right_wrist_pitch_link",
+            ],
+        },
+    )
+
+
+@configclass
+class RobotHoutaituiYawArmEnvCfg(RobotHoutaituiEnvCfg):
+    """Give the swing leg's angular momentum a legal outlet, then close the twist.
+
+    ``anchor_yaw`` alone was tested and is not enough: across five checkpoints
+    it pinned the twist at 20-28 degrees, where the unconstrained line ranged
+    18-61, but bought no robustness -- drift stayed at 0.30 and the fall rate
+    swung between 12% and 87% on checkpoints 1000 iterations apart.  Blocking
+    the torso route without opening another one leaves the momentum nowhere to
+    go but horizontal translation.
+    """
+
+    rewards: ArmBalanceRewardsCfg = ArmBalanceRewardsCfg()
+    terminations: YawGuardedTerminationsCfg = YawGuardedTerminationsCfg()
+
+
+class RobotHoutaituiYawArmPlayEnvCfg(RobotHoutaituiYawArmEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+        # Keep displaying the held final frame instead of resetting.
+        self.terminations.motion_end = None
+
+
+@configclass
+class RobotHoutaituiYawArmLeftArm2P5kgEnvCfg(RobotHoutaituiYawArmEnvCfg):
+    """The yaw+arm recipe carrying the identified 2.5 kg left-arm payload.
+
+    Same clip as the unloaded variant, so the two measured constants transfer
+    unchanged: the ``anchor_yaw`` threshold was sized against this clip's lift
+    window and the ``motion_arm_pos`` std against this clip's arm excursion.
+    The payload only changes the plant.
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = _with_command_delay(
+            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
+        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+class RobotHoutaituiYawArmLeftArm2P5kgPlayEnvCfg(RobotHoutaituiYawArmPlayEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.robot = _with_command_delay(
