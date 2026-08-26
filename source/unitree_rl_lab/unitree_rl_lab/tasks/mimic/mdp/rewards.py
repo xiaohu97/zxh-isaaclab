@@ -308,3 +308,73 @@ def jump_landing_distance(
     )
     paid[stable_landing] = True
     return score * stable_landing.float() / env.step_dt
+
+
+def feet_contact_force_excess(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    threshold_body_weights: float = 1.5,
+) -> torch.Tensor:
+    """Penalize foot contact force above a multiple of body weight.
+
+    This replaces ``feet_impact_velocity`` for the landing objective, which
+    cannot work as written: ``compute_first_contact`` is true on the env step
+    *after* contact is established, and physics runs 4 substeps per env step, so
+    the foot's vertical velocity has already been arrested by the time the term
+    reads it.  Measured on the identified plant over 60 seeds, the true
+    pre-impact speed is 0.401 m/s median, which at weight -0.6 should log about
+    0.049; the term actually logs -0.00046, two orders of magnitude down, and
+    tripling the weight from -0.2 moved nothing.
+
+    Force is read from the sensor's history and reduced with a max rather than
+    the instantaneous value, so a spike that peaks between env steps is still
+    seen.  The excess is normalized by body weight, which keeps the term O(1)
+    and makes the threshold mean what it says regardless of the payload.
+    """
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    forces = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids]
+    peak = torch.max(torch.linalg.norm(forces, dim=-1), dim=1).values
+    weight = env.scene["robot"].data.default_mass.sum(dim=-1).to(peak.device) * 9.81
+    excess = torch.clamp(peak / weight.unsqueeze(-1) - threshold_body_weights, min=0.0)
+    return torch.sum(excess, dim=-1)
+
+
+def motion_body_speed_overshoot(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    body_names: list[str],
+    tolerance: float = 1.15,
+) -> torch.Tensor:
+    """Penalize end-effector speed beyond what the reference itself moves at.
+
+    This attacks the source of the twist rather than its outlets.  Measured on
+    the identified plant over 40 seeds at 15 ms delay, against a reference whose
+    swing foot peaks at 2.756 m/s:
+
+                    swing-foot peak   vertical |Lz|   torso yaw rate   falls/100
+      0725              2.596 m/s        3.844          2.829 rad/s        0
+      J1@62000          4.517 m/s        6.588          3.819 rad/s       11
+
+    Same lift height (0.547 vs 0.545), same moment arm (0.851 vs 0.845 m), same
+    lateral offset (0.820 vs 0.822 m) -- the whole difference is speed.  0725
+    tracks the reference to within 6% and generates little angular momentum
+    about vertical; the overshooting policy generates 71% more, which has to
+    leave through the torso (the yaw twist) or through horizontal translation
+    (drift, and falls).  ``anchor_yaw`` closes the first outlet without reducing
+    what needs to leave, which is why adding it cut yaw from 37.7 to 23 degrees
+    and pushed falls from 5 up to 11-61.
+
+    ``motion_body_lin_vel`` does not cover this: it is an exponential on the
+    velocity *error*, wide enough that a 64% overshoot costs little, and it
+    rewards matching the reference direction rather than bounding the magnitude.
+
+    The penalty is one-sided, so tracking slower than the reference is free.
+    Only overshoot is charged, and only above ``tolerance``, which keeps normal
+    tracking noise out of it.
+    """
+    command: MotionCommand = env.command_manager.get_term(command_name)
+    body_indexes = _get_body_indexes(command, body_names)
+    reference = torch.linalg.norm(command.body_lin_vel_w[:, body_indexes], dim=-1)
+    actual = torch.linalg.norm(command.robot_body_lin_vel_w[:, body_indexes], dim=-1)
+    excess = torch.clamp(actual - tolerance * reference, min=0.0)
+    return torch.sum(excess, dim=-1)

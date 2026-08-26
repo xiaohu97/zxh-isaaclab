@@ -1105,3 +1105,231 @@ class RobotHoutaituiYawArmLeftArm2P5kgPlayEnvCfg(RobotHoutaituiYawArmPlayEnvCfg)
         self.scene.robot = _with_command_delay(
             HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
         ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+@configclass
+class SoftLandingRewardsCfg(ArmBalanceRewardsCfg):
+    """Raise the touchdown penalty now that the lift no longer needs protecting.
+
+    ``feet_impact_velocity`` was cut to -0.2 as a phase 1 concession, to stop
+    the landing penalty from suppressing the lift before the policy had one.
+    That concession has outlived its purpose: measured at 15 ms delay over 100
+    seeds, every checkpoint of the current line lifts to 0.547-0.551 against a
+    0.542 reference, so there is margin to spend.
+
+    What has not improved is the landing itself.  Against the 0725 policy the
+    deliverable is aimed at -- the one that lifts and recovers on the robot --
+    the current line lands harder on every checkpoint:
+
+                    falls/100   drift median   touchdown median (body weights)
+      0725              0           0.410              2.15
+      H1@53000          5           0.340              2.48
+      H1@55000         15           0.391              2.90
+      H1@57000          5           0.281              2.59
+
+    Drift is already better than 0725; touchdown is the gap.  -0.6 rather than
+    the original -1.0 because a 5x jump risks buying the landing back with the
+    lift, and the warm start already lifts -- if the touchdown median does not
+    reach 0725's 2.15, the next rung is -1.0.
+    """
+
+    feet_impact_velocity = RewTerm(
+        func=mdp.feet_impact_velocity,
+        weight=-0.6,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+            ),
+            "asset_cfg": SceneEntityCfg(
+                "robot", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]
+            ),
+        },
+    )
+
+
+@configclass
+class RobotHoutaituiSoftLandEnvCfg(RobotHoutaituiYawArmEnvCfg):
+    """The yaw+arm recipe with the phase 2 landing penalty.
+
+    Inherits from the yawarm config rather than the plain one deliberately: the
+    previous round trained the plain ``houtaitui`` task from yawarm weights,
+    which silently dropped both ``anchor_yaw`` and ``motion_arm_pos``.  Yaw went
+    from 11.4 deg (0725) to 37.7-47.9 deg across that line's checkpoints, and a
+    torso free to twist pushes the swing leg's angular momentum into horizontal
+    translation instead.
+    """
+
+    rewards: SoftLandingRewardsCfg = SoftLandingRewardsCfg()
+
+
+@configclass
+class RobotHoutaituiSoftLandPlayEnvCfg(RobotHoutaituiSoftLandEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+        self.terminations.motion_end = None
+
+
+@configclass
+class RobotHoutaituiSoftLandLeftArm2P5kgEnvCfg(RobotHoutaituiSoftLandEnvCfg):
+    """Same recipe carrying the identified 2.5 kg left-arm payload."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = _with_command_delay(
+            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
+        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+@configclass
+class RobotHoutaituiSoftLandLeftArm2P5kgPlayEnvCfg(RobotHoutaituiSoftLandPlayEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = _with_command_delay(
+            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
+        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+@configclass
+class ContactForceLandingRewardsCfg(SoftLandingRewardsCfg):
+    """Penalize the landing force itself, since the impact-velocity term cannot.
+
+    ``feet_impact_velocity`` reads the foot's vertical speed on the env step
+    after contact is established, by which point four physics substeps have
+    already absorbed the impact.  It logs -0.00046 of a 3.128 total -- 0.0% --
+    and raising its weight from -0.2 to -0.6 moved it to -0.0005, which is why
+    the soft-landing round did not land any lighter:
+
+                      falls/100   drift median   touchdown median
+      H1@57000 (start)     5          0.281            2.59
+      I1@59000            12          0.356            2.91
+      I1@61000            27          0.350            2.88
+      I1@62000            27          0.411            2.68
+
+    The replacement reads force from the contact sensor's history with a max, so
+    a spike peaking between env steps still registers, and normalizes by body
+    weight so the threshold transfers to the payload plant unchanged.
+
+    Threshold 2.0 body weights, not 1.5: single support already carries 1.0 and
+    push recovery drives it higher, so 1.5 would tax legitimate support.
+    Measured touchdown is 2.68 median and 6.0 max on the identified plant, so
+    2.0 sits below the landing spike and above the support load.
+
+    Weight -20 is measured, not estimated.  The first launch used -0.5, sized on
+    an assumption that the excess would persist over the few steps of a landing;
+    it logged -0.0020 of a 2.662 total, 0.1%.  Dividing out the weight gives a
+    mean unweighted term of 0.004 body weights per step, and 1/325 steps is
+    exactly one firing per episode -- the term is correct and simply sparse, an
+    excess of about 1.3 body weights on the single step that lands.
+
+    So 0.08 (3% of 2.662) needs weight 0.08 / 0.004 = 20.  That puts 0.26 of
+    reward on the landing step against 0.053 for a typical step, a 5x spike on
+    one step in 325 rather than a penalty spread over many.
+    """
+
+    feet_contact_force = RewTerm(
+        func=mdp.feet_contact_force_excess,
+        weight=-20.0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+            ),
+            "threshold_body_weights": 2.0,
+        },
+    )
+
+
+@configclass
+class RobotHoutaituiForceLandEnvCfg(RobotHoutaituiSoftLandEnvCfg):
+    rewards: ContactForceLandingRewardsCfg = ContactForceLandingRewardsCfg()
+
+
+@configclass
+class RobotHoutaituiForceLandPlayEnvCfg(RobotHoutaituiForceLandEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+        self.terminations.motion_end = None
+
+
+@configclass
+class RobotHoutaituiForceLandLeftArm2P5kgEnvCfg(RobotHoutaituiForceLandEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = _with_command_delay(
+            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
+        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+@configclass
+class RobotHoutaituiForceLandLeftArm2P5kgPlayEnvCfg(RobotHoutaituiForceLandPlayEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = _with_command_delay(
+            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
+        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+@configclass
+class SpeedBoundedRewardsCfg(ContactForceLandingRewardsCfg):
+    """Bound the swing speed that generates the twist in the first place.
+
+    Every earlier attempt treated an outlet: ``anchor_yaw`` terminates the
+    torso twist, the arm reward offers the momentum somewhere else to go, and
+    the landing penalty charges for the impact it ends in.  None of them reduce
+    how much angular momentum the swing leg makes, and the measurement says
+    that is the whole difference between 0725 and this line -- see
+    ``mdp.motion_body_speed_overshoot`` for the table.
+
+    Weight -1.0 is measured: the term averages 0.1087 m/s per step summed over
+    both feet on J1@62000, which at weight 1.0 logs 0.109 of a 2.626 total, or
+    4.1%.  Unlike the landing penalty this term is dense -- it charges on every
+    step that overshoots, not one step per episode -- so it needs no spike to
+    carry weight.
+    """
+
+    motion_speed_overshoot = RewTerm(
+        func=mdp.motion_body_speed_overshoot,
+        weight=-1.0,
+        params={
+            "command_name": "motion",
+            "body_names": ["left_ankle_roll_link", "right_ankle_roll_link"],
+            "tolerance": 1.15,
+        },
+    )
+
+
+@configclass
+class RobotHoutaituiSpeedEnvCfg(RobotHoutaituiForceLandEnvCfg):
+    rewards: SpeedBoundedRewardsCfg = SpeedBoundedRewardsCfg()
+
+
+@configclass
+class RobotHoutaituiSpeedPlayEnvCfg(RobotHoutaituiSpeedEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+        self.terminations.motion_end = None
+
+
+@configclass
+class RobotHoutaituiSpeedLeftArm2P5kgEnvCfg(RobotHoutaituiSpeedEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = _with_command_delay(
+            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
+        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+@configclass
+class RobotHoutaituiSpeedLeftArm2P5kgPlayEnvCfg(RobotHoutaituiSpeedPlayEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = _with_command_delay(
+            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
+        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
