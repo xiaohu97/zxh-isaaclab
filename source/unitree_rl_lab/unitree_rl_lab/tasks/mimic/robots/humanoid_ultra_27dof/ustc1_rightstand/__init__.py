@@ -12,17 +12,6 @@ gym.register(
 )
 
 gym.register(
-    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaituiEMA",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.tracking_env_cfg:RobotHoutaituiEmaEnvCfg",
-        "play_env_cfg_entry_point": f"{__name__}.tracking_env_cfg:RobotHoutaituiEmaPlayEnvCfg",
-        "rsl_rl_cfg_entry_point": "unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg:BasePPORunnerCfg",
-    },
-)
-
-gym.register(
     id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-2-5kg",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
@@ -33,17 +22,6 @@ gym.register(
         "play_env_cfg_entry_point": (
             f"{__name__}.tracking_env_cfg:RobotHoutaituiLeftArm2P5kgPlayEnvCfg"
         ),
-        "rsl_rl_cfg_entry_point": "unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg:BasePPORunnerCfg",
-    },
-)
-
-gym.register(
-    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-yaw",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.tracking_env_cfg:RobotHoutaituiYawEnvCfg",
-        "play_env_cfg_entry_point": f"{__name__}.tracking_env_cfg:RobotHoutaituiYawPlayEnvCfg",
         "rsl_rl_cfg_entry_point": "unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg:BasePPORunnerCfg",
     },
 )
@@ -60,101 +38,52 @@ gym.register(
 )
 
 gym.register(
-    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-yawarm-2-5kg",
+    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-0808base",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiYawArmLeftArm2P5kgEnvCfg"
-        ),
-        "play_env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiYawArmLeftArm2P5kgPlayEnvCfg"
-        ),
-        "rsl_rl_cfg_entry_point": "unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg:LowEntropyPPORunnerCfg",
+        "env_cfg_entry_point": f"{__name__}.tracking_env_cfg:RobotHoutaitui0808EnvCfg",
+        "play_env_cfg_entry_point": f"{__name__}.tracking_env_cfg:RobotHoutaitui0808PlayEnvCfg",
+        "rsl_rl_cfg_entry_point": "unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg:BasePPORunnerCfg",
     },
 )
 
 gym.register(
-    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-softland",
+    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-0808drift",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiSoftLandEnvCfg"
+            f"{__name__}.tracking_env_cfg:RobotHoutaitui0808DriftEnvCfg"
         ),
         "play_env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiSoftLandPlayEnvCfg"
+            f"{__name__}.tracking_env_cfg:RobotHoutaitui0808DriftPlayEnvCfg"
         ),
         "rsl_rl_cfg_entry_point": "unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg:BasePPORunnerCfg",
     },
 )
 
 gym.register(
-    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-softland-2-5kg",
+    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-ankle",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiSoftLandLeftArm2P5kgEnvCfg"
-        ),
-        "play_env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiSoftLandLeftArm2P5kgPlayEnvCfg"
-        ),
+        "env_cfg_entry_point": f"{__name__}.tracking_env_cfg:RobotHoutaituiAnkleEnvCfg",
+        "play_env_cfg_entry_point": f"{__name__}.tracking_env_cfg:RobotHoutaituiAnklePlayEnvCfg",
         "rsl_rl_cfg_entry_point": "unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg:BasePPORunnerCfg",
     },
 )
 
 gym.register(
-    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-forceland",
+    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-ankleposture",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiForceLandEnvCfg"
+            f"{__name__}.tracking_env_cfg:RobotHoutaituiAnklePostureEnvCfg"
         ),
         "play_env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiForceLandPlayEnvCfg"
-        ),
-        "rsl_rl_cfg_entry_point": "unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg:BasePPORunnerCfg",
-    },
-)
-
-gym.register(
-    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-forceland-2-5kg",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiForceLandLeftArm2P5kgEnvCfg"
-        ),
-        "play_env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiForceLandLeftArm2P5kgPlayEnvCfg"
-        ),
-        "rsl_rl_cfg_entry_point": "unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg:BasePPORunnerCfg",
-    },
-)
-
-gym.register(
-    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-speed",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.tracking_env_cfg:RobotHoutaituiSpeedEnvCfg",
-        "play_env_cfg_entry_point": f"{__name__}.tracking_env_cfg:RobotHoutaituiSpeedPlayEnvCfg",
-        "rsl_rl_cfg_entry_point": "unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg:BasePPORunnerCfg",
-    },
-)
-
-gym.register(
-    id="USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-speed-2-5kg",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiSpeedLeftArm2P5kgEnvCfg"
-        ),
-        "play_env_cfg_entry_point": (
-            f"{__name__}.tracking_env_cfg:RobotHoutaituiSpeedLeftArm2P5kgPlayEnvCfg"
+            f"{__name__}.tracking_env_cfg:RobotHoutaituiAnklePosturePlayEnvCfg"
         ),
         "rsl_rl_cfg_entry_point": "unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg:BasePPORunnerCfg",
     },

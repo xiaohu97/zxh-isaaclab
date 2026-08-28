@@ -378,3 +378,28 @@ def motion_body_speed_overshoot(
     actual = torch.linalg.norm(command.robot_body_lin_vel_w[:, body_indexes], dim=-1)
     excess = torch.clamp(actual - tolerance * reference, min=0.0)
     return torch.sum(excess, dim=-1)
+
+
+def motion_joint_deviation_excess(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    threshold: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Charge only the part of a joint's tracking error above ``threshold``.
+
+    ``motion_joint_position_error_exp`` on the hip yaws was tried and moved the
+    wrong statistic.  Its reward climbed from 0.007 to 0.22 of a 3.65 total
+    while the measured deviation at the worst instant went from -70.8 to -83.5
+    degrees on the right hip: an exponential on mean squared error pays for the
+    easy majority of the episode and leaves the peak alone, and the defect is
+    entirely in the peak.
+
+    One-sided and thresholded, so tracking inside the band is free and the
+    gradient exists only where the deviation is actually objectionable.  The
+    same shape is what made ``feet_contact_force_excess`` work.
+    """
+    command: MotionCommand = env.command_manager.get_term(command_name)
+    joint_ids = asset_cfg.joint_ids
+    error = torch.abs(command.joint_pos[:, joint_ids] - command.robot_joint_pos[:, joint_ids])
+    return torch.sum(torch.clamp(error - threshold, min=0.0), dim=-1)

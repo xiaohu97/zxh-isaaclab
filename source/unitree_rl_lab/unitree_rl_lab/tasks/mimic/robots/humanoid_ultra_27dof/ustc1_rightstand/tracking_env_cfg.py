@@ -25,6 +25,7 @@ import unitree_rl_lab.tasks.mimic.mdp as mdp
 from unitree_rl_lab.tasks.mimic.domain_randomization import PlantRandomizationEventCfg
 
 from unitree_rl_lab.assets.robots.humanoid_ultra import (
+    HUMANOIDULTRA27DOF_CFG as NOMINAL_ROBOT_CFG,
     HUMANOIDULTRA27DOF_MIMIC_CFG as ROBOT_CFG,
     HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG,
 )
@@ -356,13 +357,6 @@ class CommandsCfg:
     )
 
 
-@configclass
-class StandTransitionCommandsCfg(CommandsCfg):
-    """RightStand reference with deployment-ready standing entry and exit."""
-
-    motion = CommandsCfg().motion.replace(
-        motion_file=f"{os.path.dirname(__file__)}/ustc1_rightstand_stand_transition.npz"
-    )
 
 
 @configclass
@@ -414,31 +408,6 @@ class DeploymentSafeActionsCfg:
     )
 
 
-@configclass
-class EmaDeploymentSafeActionsCfg(DeploymentSafeActionsCfg):
-    """Deployment-safe commands with the action EMA enabled.
-
-    The 0813 houtaitui log (ustc-humanoid-identification/results/houtaitui_0813)
-    shows a 12.1 Hz whole-body limit cycle that the controller sustains by
-    injecting about 8 W: 11 of 12 leg joints have a positive band-limited
-    <tau * dq>.  The filter does not touch the 10-24 Hz mechanical modes that
-    footstrikes ring; it removes the loop gain that keeps re-exciting one of
-    them.  At alpha=0.85 the 12 Hz loop gain is about 0.85 while the task band
-    below 3 Hz loses less than 0.2 dB.
-
-    The same filter must run in deployment.  Training with it and deploying
-    without it (or the reverse) puts the policy on a plant it never saw.
-    """
-
-    JointPositionAction = mdp.DeploymentLimitedJointPositionActionCfg(
-        asset_name="robot",
-        joint_names=[".*"],
-        scale=ROBOT_ACTION_SCALE,
-        use_default_offset=True,
-        clip=DEPLOYMENT_JOINT_POSITION_LIMITS,
-        max_target_velocity=DEPLOYMENT_TARGET_VELOCITY,
-        ema_alpha=ACTION_EMA_ALPHA,
-    )
 
 
 @configclass
@@ -751,17 +720,6 @@ class RewardsCfg:
     )
 
 
-@configclass
-class EmaRewardsCfg(RewardsCfg):
-    """EMA variant with phase 1 lift incentives.
-
-    Phase 1 curriculum: strong direct lift rewards + weak landing penalty.
-    Once the policy lifts consistently (timeout rate > 85%, swing_foot_clearance > 0.3),
-    transition to phase 2 by reducing swing weights and increasing landing penalty.
-    """
-
-    # Inherit all base rewards including the new swing terms
-    pass
 
 
 @configclass
@@ -874,21 +832,8 @@ class RobotHoutaituiEnvCfg(RobotDeploySafeEnvCfg):
     commands: Phase1LiftCommandsCfg = Phase1LiftCommandsCfg()
 
 
-@configclass
-class RobotHoutaituiEmaEnvCfg(RobotHoutaituiEnvCfg):
-    """Houtaitui with the action EMA, aimed at the 12.1 Hz deployment limit cycle."""
-
-    actions: EmaDeploymentSafeActionsCfg = EmaDeploymentSafeActionsCfg()
-    rewards: EmaRewardsCfg = EmaRewardsCfg()
 
 
-class RobotHoutaituiEmaPlayEnvCfg(RobotHoutaituiEmaEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.num_envs = 1
-        self.episode_length_s = 1e9
-        # Keep displaying the held final frame instead of resetting.
-        self.terminations.motion_end = None
 
 
 class RobotHoutaituiPlayEnvCfg(RobotHoutaituiEnvCfg):
@@ -926,35 +871,6 @@ class RobotHoutaituiLeftArm2P5kgPlayEnvCfg(RobotHoutaituiPlayEnvCfg):
 ##
 
 
-@configclass
-class YawGuardedRewardsCfg(RewardsCfg):
-    """Unchanged from the base rewards.  The std widening was tried and reverted.
-
-    The first attempt raised ``motion_global_anchor_ori`` from std 0.3 to 0.6 on
-    the argument that at 0.3 the term is dead where it is needed:
-    ``exp(-0.96^2 / 0.3^2) = 4e-5`` at the 55 degrees a rollout actually
-    reaches, i.e. no reward and no gradient.  That half was right, but widening
-    the same Gaussian is the wrong instrument, because it also flattens the
-    reward near zero -- the gradient ``-2e/std^2`` is 4x weaker at small error
-    with std 0.6.  The policy traded away the tightness it had in the normal
-    regime to buy gradient in a regime it visits rarely.
-
-    Measured at iteration 36000, 30 seeds, reset +-0.5, both variants warm
-    started from the same checkpoint:
-
-                    drift median   falls/30   completes/30   yaw median   yaw p90
-      std 0.3 (A)      0.196 m         1           29           21.5 deg   52.2 deg
-      std 0.6 (B)      0.445 m         5           25           32.8 deg   43.5 deg
-
-    Exactly the predicted shape: p90 yaw improved 52.2 -> 43.5 deg, the far
-    field the change was aimed at, while median yaw got *worse* 21.5 -> 32.8
-    deg and drift and falls degraded with it.  The far-field gain did not pay
-    for the near-field loss.  Getting both would need a second, wider term
-    added alongside std 0.3 rather than one term stretched to cover both --
-    untried.
-    """
-
-    pass
 
 
 @configclass
@@ -983,28 +899,8 @@ class YawGuardedTerminationsCfg(TerminationsCfg):
     )
 
 
-@configclass
-class RobotHoutaituiYawEnvCfg(RobotHoutaituiEnvCfg):
-    """Houtaitui plus the yaw termination, and nothing else.
-
-    Now exactly one term apart from the plain houtaitui task, so the pair
-    answers a single question: does making the twist a terminable failure help?
-    The first version of this config also widened the anchor-orientation reward
-    std, which turned out to be the dominant effect and a harmful one -- see
-    YawGuardedRewardsCfg for the measurement that reverted it.
-    """
-
-    rewards: YawGuardedRewardsCfg = YawGuardedRewardsCfg()
-    terminations: YawGuardedTerminationsCfg = YawGuardedTerminationsCfg()
 
 
-class RobotHoutaituiYawPlayEnvCfg(RobotHoutaituiYawEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.num_envs = 1
-        self.episode_length_s = 1e9
-        # Keep displaying the held final frame instead of resetting.
-        self.terminations.motion_end = None
 
 
 ##
@@ -1082,152 +978,151 @@ class RobotHoutaituiYawArmPlayEnvCfg(RobotHoutaituiYawArmEnvCfg):
         self.terminations.motion_end = None
 
 
-@configclass
-class RobotHoutaituiYawArmLeftArm2P5kgEnvCfg(RobotHoutaituiYawArmEnvCfg):
-    """The yaw+arm recipe carrying the identified 2.5 kg left-arm payload.
 
-    Same clip as the unloaded variant, so the two measured constants transfer
-    unchanged: the ``anchor_yaw`` threshold was sized against this clip's lift
-    window and the ``motion_arm_pos`` std against this clip's arm excursion.
-    The payload only changes the plant.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@configclass
+class Minimal0725TerminationsCfg(TerminationsCfg):
+    """0725's four terminations: time_out, anchor_pos, anchor_ori, ee_body_pos.
+
+    Dropping ``motion_end`` changes the episode shape, not just the count: the
+    clip's final frame is held and the episode runs on to the 30 s timeout
+    rather than ending at the clip end.  ``anchor_pos_xy`` is the drift bound,
+    and 0725 does drift more than the current line (0.410 vs 0.282) -- it simply
+    never falls while doing it.
     """
 
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.robot = _with_command_delay(
-            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
-        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-
-class RobotHoutaituiYawArmLeftArm2P5kgPlayEnvCfg(RobotHoutaituiYawArmPlayEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.robot = _with_command_delay(
-            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
-        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+    anchor_pos_xy = None
+    swing_foot_height = None
+    motion_end = None
 
 
 @configclass
-class SoftLandingRewardsCfg(ArmBalanceRewardsCfg):
-    """Raise the touchdown penalty now that the lift no longer needs protecting.
+class Minimal0725EventCfg(EventCfg):
+    """0725 randomized only reset, base CoM, friction and pushes.
 
-    ``feet_impact_velocity`` was cut to -0.2 as a phase 1 concession, to stop
-    the landing penalty from suppressing the lift before the policy had one.
-    That concession has outlived its purpose: measured at 15 ms delay over 100
-    seeds, every checkpoint of the current line lifts to 0.547-0.551 against a
-    0.542 reference, so there is margin to spend.
-
-    What has not improved is the landing itself.  Against the 0725 policy the
-    deliverable is aimed at -- the one that lifts and recovers on the robot --
-    the current line lands harder on every checkpoint:
-
-                    falls/100   drift median   touchdown median (body weights)
-      0725              0           0.410              2.15
-      H1@53000          5           0.340              2.48
-      H1@55000         15           0.391              2.90
-      H1@57000          5           0.281              2.59
-
-    Drift is already better than 0725; touchdown is the gap.  -0.6 rather than
-    the original -1.0 because a 5x jump risks buying the landing back with the
-    lift, and the warm start already lifts -- if the touchdown median does not
-    reach 0725's 2.15, the next rung is -1.0.
+    The three plant randomizations added since -- actuator gains, joint
+    parameters, link mass -- are dropped here so the comparison is against
+    0725's actual method.  They are the one part of this revert that trades
+    against sim-to-real robustness rather than for it, so if the resulting
+    policy is stable in sim but not on the robot, these come back first.
     """
 
-    feet_impact_velocity = RewTerm(
-        func=mdp.feet_impact_velocity,
-        weight=-0.6,
-        params={
-            "sensor_cfg": SceneEntityCfg(
-                "contact_forces",
-                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
-            ),
-            "asset_cfg": SceneEntityCfg(
-                "robot", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]
-            ),
-        },
-    )
+    scale_actuator_gains = None
+    scale_joint_parameters = None
+    scale_link_mass = None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 @configclass
-class RobotHoutaituiSoftLandEnvCfg(RobotHoutaituiYawArmEnvCfg):
-    """The yaw+arm recipe with the phase 2 landing penalty.
+class PreYawarm0808RewardsCfg(RewardsCfg):
+    """0808's reward set plus the landing penalty, on the current plant.
 
-    Inherits from the yawarm config rather than the plain one deliberately: the
-    previous round trained the plain ``houtaitui`` task from yawarm weights,
-    which silently dropped both ``anchor_yaw`` and ``motion_arm_pos``.  Yaw went
-    from 11.4 deg (0725) to 37.7-47.9 deg across that line's checkpoints, and a
-    torso free to twist pushes the swing leg's angular momentum into horizontal
-    translation instead.
+    A survey of every archived policy located the defect in time rather than in
+    the plant.  Signed right-hip-yaw deviation from the reference, 40 seeds:
+
+      0723 -9.4    0725 -20.6   0727id -17.5   0806id -13.6   0808 -16.2
+      0810 -13.1   0812 -15.5   0813cha -16.4  0813ema +11.3
+      0820 -46.0   <- first yawarm run, anchor_yaw added here
+      J1@62000 -70.8    P1@69000 -83.5
+
+    Everything before 0820 sits within 20 degrees, and all five of those scored
+    0 falls in 100 seeds.  0727id, 0806id and 0808 trained on the identified
+    URDF with the USTCActuator envelope, so neither the plant nor the
+    torque-speed curve causes the twist: ``anchor_yaw`` terminates the torso
+    rotation and the angular momentum moves into the stance hip, which nothing
+    was measuring.  Five interventions on top of that line failed because they
+    were all applied downstream of the branch that created the problem.
+
+    0808 is the base with the best drift of the archive (0.371 against 0.410 for
+    0725) and 0 falls, and its full checkpoint survives at
+    ``2026-08-08_18-06-58/model_49999.pt`` -- confirmed by first-layer checksum.
+    Its 16 terms differ from the current set only by omission, and every shared
+    weight and parameter is already identical.
+
+    What it lacks and this restores nothing of: ``motion_anchor_xy``,
+    ``single_support_stability`` (measured at exactly 0), ``swing_foot_clearance``,
+    ``swing_foot_contact_penalty``, ``feet_impact_velocity`` (measured at 0.0%
+    and reading the wrong instant).  Added instead is ``feet_contact_force``,
+    the one term of the last month with a clean measurement behind it: touchdown
+    peak 7.49 -> 3.6 body weights across eight checkpoints.  0808's own peak is
+    7.75, so this is the gap it is aimed at.
+
+    ``swing_foot_clearance`` stays out to match 0808, which learned the lift
+    without it.  M1 needed it only because it trained from scratch; this warm
+    starts from a policy that already lifts to 0.543.  The lift column is the
+    thing to watch anyway.
     """
 
-    rewards: SoftLandingRewardsCfg = SoftLandingRewardsCfg()
-
-
-@configclass
-class RobotHoutaituiSoftLandPlayEnvCfg(RobotHoutaituiSoftLandEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.num_envs = 1
-        self.episode_length_s = 1e9
-        self.terminations.motion_end = None
-
-
-@configclass
-class RobotHoutaituiSoftLandLeftArm2P5kgEnvCfg(RobotHoutaituiSoftLandEnvCfg):
-    """Same recipe carrying the identified 2.5 kg left-arm payload."""
-
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.robot = _with_command_delay(
-            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
-        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-
-@configclass
-class RobotHoutaituiSoftLandLeftArm2P5kgPlayEnvCfg(RobotHoutaituiSoftLandPlayEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.robot = _with_command_delay(
-            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
-        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-
-@configclass
-class ContactForceLandingRewardsCfg(SoftLandingRewardsCfg):
-    """Penalize the landing force itself, since the impact-velocity term cannot.
-
-    ``feet_impact_velocity`` reads the foot's vertical speed on the env step
-    after contact is established, by which point four physics substeps have
-    already absorbed the impact.  It logs -0.00046 of a 3.128 total -- 0.0% --
-    and raising its weight from -0.2 to -0.6 moved it to -0.0005, which is why
-    the soft-landing round did not land any lighter:
-
-                      falls/100   drift median   touchdown median
-      H1@57000 (start)     5          0.281            2.59
-      I1@59000            12          0.356            2.91
-      I1@61000            27          0.350            2.88
-      I1@62000            27          0.411            2.68
-
-    The replacement reads force from the contact sensor's history with a max, so
-    a spike peaking between env steps still registers, and normalizes by body
-    weight so the threshold transfers to the payload plant unchanged.
-
-    Threshold 2.0 body weights, not 1.5: single support already carries 1.0 and
-    push recovery drives it higher, so 1.5 would tax legitimate support.
-    Measured touchdown is 2.68 median and 6.0 max on the identified plant, so
-    2.0 sits below the landing spike and above the support load.
-
-    Weight -20 is measured, not estimated.  The first launch used -0.5, sized on
-    an assumption that the excess would persist over the few steps of a landing;
-    it logged -0.0020 of a 2.662 total, 0.1%.  Dividing out the weight gives a
-    mean unweighted term of 0.004 body weights per step, and 1/325 steps is
-    exactly one firing per episode -- the term is correct and simply sparse, an
-    excess of about 1.3 body weights on the single step that lands.
-
-    So 0.08 (3% of 2.662) needs weight 0.08 / 0.004 = 20.  That puts 0.26 of
-    reward on the landing step against 0.053 for a typical step, a 5x spike on
-    one step in 325 rather than a penalty spread over many.
-    """
+    motion_anchor_xy = None
+    single_support_stability = None
+    swing_foot_clearance = None
+    swing_foot_contact_penalty = None
+    feet_impact_velocity = None
 
     feet_contact_force = RewTerm(
         func=mdp.feet_contact_force_excess,
@@ -1243,93 +1138,190 @@ class ContactForceLandingRewardsCfg(SoftLandingRewardsCfg):
 
 
 @configclass
-class RobotHoutaituiForceLandEnvCfg(RobotHoutaituiSoftLandEnvCfg):
-    rewards: ContactForceLandingRewardsCfg = ContactForceLandingRewardsCfg()
+class RobotHoutaitui0808EnvCfg(RobotHoutaituiEnvCfg):
+    """0808's structure, current plant.
+
+    The plant is deliberately not reverted with the rewards.  0808 ran with a
+    uniform armature of 0.01 and hip_yaw damping 0.8; the current values are
+    identified ones (hip_yaw 0.02, hip_roll 0.20, hip_pitch 0.10, knee 0.12) and
+    the damping was raised to 1.6 against the measured 12.1 Hz limit cycle.
+    Those are improvements with reasons behind them, so they stay and the warm
+    start adapts to them.
+    """
+
+    rewards: PreYawarm0808RewardsCfg = PreYawarm0808RewardsCfg()
+    terminations: Minimal0725TerminationsCfg = Minimal0725TerminationsCfg()
+    events: Minimal0725EventCfg = Minimal0725EventCfg()
 
 
 @configclass
-class RobotHoutaituiForceLandPlayEnvCfg(RobotHoutaituiForceLandEnvCfg):
+class RobotHoutaitui0808PlayEnvCfg(RobotHoutaitui0808EnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 1
         self.episode_length_s = 1e9
-        self.terminations.motion_end = None
 
 
 @configclass
-class RobotHoutaituiForceLandLeftArm2P5kgEnvCfg(RobotHoutaituiForceLandEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.robot = _with_command_delay(
-            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
-        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+class Drift0808TerminationsCfg(Minimal0725TerminationsCfg):
+    """0808's four terminations plus the horizontal drift bound.
 
+    R1 restored 0808's structure and the landing penalty took touchdown peak
+    from 7.75 to 2.10-2.31 body weights at 2-4 falls, with the right hip back
+    within 22-34 degrees.  Drift was the one regression: 0.371 -> 0.555-0.649.
 
-@configclass
-class RobotHoutaituiForceLandLeftArm2P5kgPlayEnvCfg(RobotHoutaituiForceLandPlayEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.robot = _with_command_delay(
-            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
-        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-
-@configclass
-class SpeedBoundedRewardsCfg(ContactForceLandingRewardsCfg):
-    """Bound the swing speed that generates the twist in the first place.
-
-    Every earlier attempt treated an outlet: ``anchor_yaw`` terminates the
-    torso twist, the arm reward offers the momentum somewhere else to go, and
-    the landing penalty charges for the impact it ends in.  None of them reduce
-    how much angular momentum the swing leg makes, and the measurement says
-    that is the whole difference between 0725 and this line -- see
-    ``mdp.motion_body_speed_overshoot`` for the table.
-
-    Weight -1.0 is measured: the term averages 0.1087 m/s per step summed over
-    both feet on J1@62000, which at weight 1.0 logs 0.109 of a 2.626 total, or
-    4.1%.  Unlike the landing penalty this term is dense -- it charges on every
-    step that overshoots, not one step per episode -- so it needs no spike to
-    carry weight.
+    0808 has no ``anchor_pos_xy``, so nothing bounds horizontal travel; the H/I/J
+    line held drift at 0.28 precisely because it had this term.  It is a
+    different term from ``anchor_yaw`` and carries none of that one's history --
+    the twist came from terminating torso rotation, not from bounding
+    translation.  The trunk reference travels 0.244 m over the clip, so 0.35
+    cannot fire on legitimate tracking.
     """
 
-    motion_speed_overshoot = RewTerm(
-        func=mdp.motion_body_speed_overshoot,
-        weight=-1.0,
+    anchor_pos_xy = DoneTerm(
+        func=mdp.bad_anchor_pos_xy,
+        params={"command_name": "motion", "threshold": 0.35},
+    )
+
+
+@configclass
+class RobotHoutaitui0808DriftEnvCfg(RobotHoutaitui0808EnvCfg):
+    terminations: Drift0808TerminationsCfg = Drift0808TerminationsCfg()
+
+
+@configclass
+class RobotHoutaitui0808DriftPlayEnvCfg(RobotHoutaitui0808DriftEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+
+
+@configclass
+class AnkleGuardedRewardsCfg(PreYawarm0808RewardsCfg):
+    """Stop the landing penalty from being paid for out of the ankle.
+
+    R1@51000 and R1@52500 both fall backward on the robot; 0808, the checkpoint
+    they were warm started from, deploys.  Nothing inside the simulator
+    separates them -- CoM fore-aft margin (-0.514 vs -0.518 m), torso pitch
+    (-32.6 vs -32.5 deg), peak ankle torque (27.0 for both, saturated), landing
+    load (1.71 vs 1.68 body weights), stance load (1.56 vs 1.54), and 8-25 Hz
+    command energy (0.54% vs 0.59%) all match.  Every one of those reduces the
+    episode to an extreme, and the difference is not an extreme.
+
+    It is a sustained posture offset during the standing phase, before the lift:
+
+                        commanded ankle pitch      sustained torque    PD error
+                          left      right          left    right       left
+      reference          +23.5     +23.5
+      0808                +3.5      -4.3           7.8    13.2 N.m     -10.4 deg
+      R1@51000           -22.2      +8.6          22.9     9.0         -32.9
+      R1@52500           -26.0      +9.6          23.1    11.9         -40.4
+      R2@53000           -18.4     +14.4          22.5     4.7         -32.2
+
+    R1 commands the left ankle 33-40 degrees away from where the ground holds
+    the foot, so the PD loop sits at 22.9 N.m -- 85% of the 27 N.m saturation --
+    for the whole standing phase.  The simulated ankle is one virtual DoF with a
+    derated curve applied in joint space; the physical ankle is two coupled
+    E4315 motors with less real authority, so what balances in simulation walks
+    the centre of pressure to the heel on hardware.
+
+    This is reward hacking on the landing term: ``feet_contact_force_excess``
+    constrains force and says nothing about posture, so the policy pre-positions
+    the feet to blunt the impact and the cost lands somewhere the simulator does
+    not charge for.
+
+    Weight -3e-4 is measured over full rollouts, not the standing phase alone:
+    mean squared ankle-pitch torque is 116.4 for 0808 and 413.2 for R1, so the
+    term logs 1.0% of total at 0808's behaviour and 3.4% at R1's.  It is nearly
+    free to behave like the checkpoint that deploys and it costs to drift.
+    """
+
+    ankle_pitch_torque_l2 = RewTerm(
+        func=mdp.joint_torques_l2,
+        weight=-3.0e-4,
         params={
-            "command_name": "motion",
-            "body_names": ["left_ankle_roll_link", "right_ankle_roll_link"],
-            "tolerance": 1.15,
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=[".*_ankle_pitch_joint"]
+            )
         },
     )
 
 
 @configclass
-class RobotHoutaituiSpeedEnvCfg(RobotHoutaituiForceLandEnvCfg):
-    rewards: SpeedBoundedRewardsCfg = SpeedBoundedRewardsCfg()
+class RobotHoutaituiAnkleEnvCfg(RobotHoutaitui0808DriftEnvCfg):
+    """0808 plus all three additions, started from 0808 rather than from R2.
+
+    The ankle offset is present in every R1 and R2 checkpoint measured, so warm
+    starting from one of those would mean unlearning it.  From 0808 the penalty
+    is in place before the posture can form.
+    """
+
+    rewards: AnkleGuardedRewardsCfg = AnkleGuardedRewardsCfg()
 
 
 @configclass
-class RobotHoutaituiSpeedPlayEnvCfg(RobotHoutaituiSpeedEnvCfg):
+class RobotHoutaituiAnklePlayEnvCfg(RobotHoutaituiAnkleEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 1
         self.episode_length_s = 1e9
-        self.terminations.motion_end = None
 
 
 @configclass
-class RobotHoutaituiSpeedLeftArm2P5kgEnvCfg(RobotHoutaituiSpeedEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.robot = _with_command_delay(
-            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
-        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+class AnklePostureRewardsCfg(AnkleGuardedRewardsCfg):
+    """Constrain all four ankle joints at once, because patching one moved it.
+
+    The pitch-torque penalty worked on pitch and the policy carried the same
+    trick to roll.  Standing-phase commands, against a reference that asks for
+    0 degrees of roll on both feet and a +-25.8 degree roll limit:
+
+                          left roll   right roll   left pitch
+      0808 (deploys)          -1.2       -10.1        +3.5
+      R1@51000 (falls back)  -18.6       -11.6       -22.2
+      S1@60000               -29.5       -21.8        +7.5
+
+    S1 commands the left roll past its own limit, so the foot cannot sit flat --
+    the robot tilted left with the left foot not flat, then fell forward.  Pitch
+    was fixed and roll took over, which is what penalising a joint rather than a
+    posture buys.
+
+    So this charges deviation from the reference across all four ankle joints
+    together.  Threshold 0.25 rad is measured over full rollouts: the term
+    averages 0.0028 rad/step for 0808 and 0.0514 for S1, an 18x separation, and
+    at weight -5 that is 0.2% of total reward for the policy that deploys
+    against 3.9% for the one that does not.
+
+    ``ankle_pitch_torque_l2`` stays: it measures saturation rather than posture
+    and it did move pitch from -22.2 to +7.5 degrees.
+
+    The trick could move again -- knee or hip roll are not constrained this way.
+    The ankles are singled out because they are the ground interface, their
+    limits are the tightest on the leg, and the hardware ankle is two coupled
+    motors behind a virtual joint the simulator models optimistically.
+    """
+
+    motion_ankle_posture = RewTerm(
+        func=mdp.motion_joint_deviation_excess,
+        weight=-5.0,
+        params={
+            "command_name": "motion",
+            "threshold": 0.25,
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"]
+            ),
+        },
+    )
 
 
 @configclass
-class RobotHoutaituiSpeedLeftArm2P5kgPlayEnvCfg(RobotHoutaituiSpeedPlayEnvCfg):
+class RobotHoutaituiAnklePostureEnvCfg(RobotHoutaituiAnkleEnvCfg):
+    rewards: AnklePostureRewardsCfg = AnklePostureRewardsCfg()
+
+
+@configclass
+class RobotHoutaituiAnklePosturePlayEnvCfg(RobotHoutaituiAnklePostureEnvCfg):
     def __post_init__(self):
         super().__post_init__()
-        self.scene.robot = _with_command_delay(
-            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
-        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
