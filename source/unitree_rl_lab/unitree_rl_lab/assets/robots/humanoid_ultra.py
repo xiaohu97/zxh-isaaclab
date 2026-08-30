@@ -393,6 +393,55 @@ HUMANOIDULTRA27DOF_IDENTIFIED_LEFTARM5KG_CFG.spawn.asset_path = _prepared_urdf(
     HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM5KG_URDF
 )
 
+# Identified plant with the task-local PD gains used by the ``newpd`` tasks.
+# Assign every gain on the copy explicitly so later edits to the shared
+# identified config cannot silently change the experiment.
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG = HUMANOIDULTRA27DOF_IDENTIFIED_CFG.copy()
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["legs"].stiffness = {
+    ".*_hip_yaw_joint": 80.0,
+    ".*_hip_roll_joint": 150.0,
+    ".*_hip_pitch_joint": 180.0,
+    ".*_knee_joint": 180.0,
+}
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["legs"].damping = {
+    ".*_hip_yaw_joint": 2.0,
+    ".*_hip_roll_joint": 5.0,
+    ".*_hip_pitch_joint": 5.0,
+    ".*_knee_joint": 5.0,
+}
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["feet"].stiffness = {
+    ".*_ankle_pitch_joint": 40.0,
+    ".*_ankle_roll_joint": 20.0,
+}
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["feet"].damping = {
+    ".*_ankle_pitch_joint": 0.8,
+    ".*_ankle_roll_joint": 0.4,
+}
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["waist"].stiffness = {
+    ".*waist_yaw_joint": 150.0,
+}
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["waist"].damping = {
+    ".*waist_yaw_joint": 2.5,
+}
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["shoulders"].stiffness = 80.0
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["shoulders"].damping = 3.0
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["elbow"].stiffness = {
+    ".*_elbow_joint": 60.0,
+}
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["elbow"].damping = {
+    ".*_elbow_joint": 2.0,
+}
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["wrist"].stiffness = {
+    ".*_wrist_yaw_joint": 25.0,
+    ".*_wrist_roll_joint": 25.0,
+    ".*_wrist_pitch_joint": 25.0,
+}
+HUMANOIDULTRA27DOF_IDENTIFIED_NEWPD_CFG.actuators["wrist"].damping = {
+    ".*_wrist_yaw_joint": 1.0,
+    ".*_wrist_roll_joint": 1.0,
+    ".*_wrist_pitch_joint": 1.0,
+}
+
 # Mimic-only motor model. Keep the identified asset available to non-mimic
 # tasks while applying the USTC torque-speed curves to all 27 controlled DoFs.
 HUMANOIDULTRA27DOF_MIMIC_CFG = HUMANOIDULTRA27DOF_IDENTIFIED_CFG.copy()
@@ -492,6 +541,39 @@ HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG = HUMANOIDULTRA27DOF_MIMIC_CFG.copy()
 HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG.spawn.asset_path = _prepared_urdf(
     HUMANOID_ULTRA_27DOF_IDENTIFIED_LEFTARM2P5KG_URDF
 )
+
+# The same task-local PD table on top of the Mimic torque-speed actuator model.
+# This is a separate deep copy: existing Mimic, payload, walk, pick, and stand
+# tasks continue to reference ``HUMANOIDULTRA27DOF_MIMIC_CFG`` unchanged.
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG = HUMANOIDULTRA27DOF_MIMIC_CFG.copy()
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["hip_yaw_E8112"].stiffness = 80.0
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["hip_yaw_E8112"].damping = 2.0
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["hip_roll_E10020_P24"].stiffness = 150.0
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["hip_roll_E10020_P24"].damping = 5.0
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["hip_pitch_knee_E13715"].stiffness = {
+    ".*_hip_pitch_joint": 180.0,
+    ".*_knee_joint": 180.0,
+}
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["hip_pitch_knee_E13715"].damping = {
+    ".*_hip_pitch_joint": 5.0,
+    ".*_knee_joint": 5.0,
+}
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["ankles_E4315_P36_approx"].stiffness = {
+    ".*_ankle_pitch_joint": 40.0,
+    ".*_ankle_roll_joint": 20.0,
+}
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["ankles_E4315_P36_approx"].damping = {
+    ".*_ankle_pitch_joint": 0.8,
+    ".*_ankle_roll_joint": 0.4,
+}
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["waist_yaw_E10020_P12"].stiffness = 150.0
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["waist_yaw_E10020_P12"].damping = 2.5
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["shoulders_E4315_P36"].stiffness = 80.0
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["shoulders_E4315_P36"].damping = 3.0
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["elbows_E4315_P36"].stiffness = 60.0
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["elbows_E4315_P36"].damping = 2.0
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["wrists_E4310_P36"].stiffness = 25.0
+HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG.actuators["wrists_E4310_P36"].damping = 1.0
 
 #腿部6个，腰部1个，手臂7个   
 HUMANOIDULTRA27DOF_AMP_CFG = ArticulationCfg(

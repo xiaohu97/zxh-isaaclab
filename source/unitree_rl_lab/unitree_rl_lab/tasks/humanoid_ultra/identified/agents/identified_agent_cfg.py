@@ -21,6 +21,16 @@ class HumanoidUltra27dofIdentifiedFlatAgentCfg(Humanoidultra27dofFlatAgentCfg):
 
 
 @configclass
+class HumanoidUltra27dofIdentifiedFlatNewPDAgentCfg(Humanoidultra27dofFlatAgentCfg):
+    """Keep ``newpd`` checkpoints separate from the original identified task."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.experiment_name = "humanoidultra27dof_identified_flat_newpd"
+        self.wandb_project = "humanoidultra27dof_identified_flat_newpd"
+
+
+@configclass
 class HumanoidUltra27dofIdentifiedFlatLeftArm2kgAgentCfg(Humanoidultra27dofFlatAgentCfg):
     """Keep left-arm payload Flat runs separate from other identified runs."""
 

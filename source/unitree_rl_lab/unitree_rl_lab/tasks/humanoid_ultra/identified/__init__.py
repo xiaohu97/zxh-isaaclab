@@ -22,6 +22,26 @@ gym.register(
 )
 
 gym.register(
+    id="USTC-Humanoid-Ultra-27dof-Identified-Flat-newpd",
+    entry_point="unitree_rl_lab.tasks.humanoid_ultra.base.base_env:BaseEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": (
+            f"{__name__}.identified_env_cfg:"
+            "HumanoidUltra27dofIdentifiedFlatNewPDEnvCfg"
+        ),
+        "play_env_cfg_entry_point": (
+            f"{__name__}.identified_env_cfg:"
+            "HumanoidUltra27dofIdentifiedFlatNewPDEnvCfg"
+        ),
+        "rsl_rl_cfg_entry_point": (
+            f"{__name__}.agents.identified_agent_cfg:"
+            "HumanoidUltra27dofIdentifiedFlatNewPDAgentCfg"
+        ),
+    },
+)
+
+gym.register(
     id="USTC-Humanoid-Ultra-27dof-Identified-Flat-LeftArm2kg",
     entry_point="unitree_rl_lab.tasks.humanoid_ultra.base.base_env:BaseEnv",
     disable_env_checker=True,

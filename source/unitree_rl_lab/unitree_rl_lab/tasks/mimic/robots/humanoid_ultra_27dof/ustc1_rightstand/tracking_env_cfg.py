@@ -28,6 +28,7 @@ from unitree_rl_lab.assets.robots.humanoid_ultra import (
     HUMANOIDULTRA27DOF_CFG as NOMINAL_ROBOT_CFG,
     HUMANOIDULTRA27DOF_MIMIC_CFG as ROBOT_CFG,
     HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG,
+    HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG,
 )
 from unitree_rl_lab.tasks.mimic.terrain import LocalGridPlaneTerrainImporter
 
@@ -98,6 +99,28 @@ DEPLOYMENT_JOINT_POSITION_LIMITS = {
 # The deployment controller updates at 50 Hz, so this permits at most 0.12 rad
 # of position-target change per policy step.
 DEPLOYMENT_TARGET_VELOCITY = 6.0
+
+# Narrows ankle roll from the deployment limit to a hard ceiling the policy
+# cannot game.  Four reward-shaped attempts to stop the ankle from absorbing
+# the landing penalty all failed the same way: a per-checkpoint scan of every
+# archived policy (station phase, 100 steps post-reset) shows ankle roll as
+# the single worst-tracked joint in 12/12 checkpoints across the S1/T1/U1
+# lineage (17-26 deg) and in 0/9 checkpoints before the landing penalty
+# existed (0723-0813ema, all ankle *pitch*, and much smaller).  0808 itself
+# commands roll at -1.2/-10.1 deg standing; R1 (landing penalty, no ankle
+# guard) moved the twist to *pitch* (-22.2 deg, confirmed backward fall on
+# hardware); S1 (pitch penalty added) moved it back to roll (-29.5 deg,
+# confirmed the robot tilted left, foot not flat, then fell forward); T1 (all
+# four ankle joints penalized on mean deviation) did not move it (still
+# -29.0, because the defect lives in the standing phase and the lift phase
+# dilutes the mean); U1 (landing weight cut 4x) did not move it either
+# (-29.2..-29.3).  Every soft penalty tried can be routed around; the action
+# space itself cannot.  0.20 rad (~11.5 deg) sits above 0808's own standing
+# command (max magnitude 10.1 deg) so ordinary balance is not starved, and
+# far below the ~26-40 deg the hacking lineage needs.
+TIGHT_ANKLE_ROLL_LIMITS = dict(DEPLOYMENT_JOINT_POSITION_LIMITS)
+TIGHT_ANKLE_ROLL_LIMITS["left_ankle_roll_joint"] = (-0.20, 0.20)
+TIGHT_ANKLE_ROLL_LIMITS["right_ankle_roll_joint"] = (-0.20, 0.20)
 
 # Action EMA used by the houtaituiEMA task only.  The alpha=0.7 run still
 # plateaued well behind the unfiltered policy after the first 30-minute window;
@@ -408,6 +431,20 @@ class DeploymentSafeActionsCfg:
     )
 
 
+@configclass
+class TightAnkleRollActionsCfg:
+    """Deployment-safe actions with ankle roll narrowed further -- see
+    ``TIGHT_ANKLE_ROLL_LIMITS``.  Every other joint keeps the deployment limit
+    unchanged."""
+
+    JointPositionAction = mdp.DeploymentLimitedJointPositionActionCfg(
+        asset_name="robot",
+        joint_names=[".*"],
+        scale=ROBOT_ACTION_SCALE,
+        use_default_offset=True,
+        clip=TIGHT_ANKLE_ROLL_LIMITS,
+        max_target_velocity=DEPLOYMENT_TARGET_VELOCITY,
+    )
 
 
 @configclass
@@ -843,6 +880,27 @@ class RobotHoutaituiPlayEnvCfg(RobotHoutaituiEnvCfg):
         self.episode_length_s = 1e9
         # Keep displaying the held final frame instead of resetting.
         self.terminations.motion_end = None
+
+
+@configclass
+class RobotHoutaituiNewPDEnvCfg(RobotHoutaituiEnvCfg):
+    """Base houtaitui task using only the task-local ``newpd`` robot copy."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = _with_command_delay(HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG).replace(
+            prim_path="{ENV_REGEX_NS}/Robot"
+        )
+
+
+class RobotHoutaituiNewPDPlayEnvCfg(RobotHoutaituiPlayEnvCfg):
+    """Single-environment play config using the same isolated PD table."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = _with_command_delay(HUMANOIDULTRA27DOF_MIMIC_NEWPD_CFG).replace(
+            prim_path="{ENV_REGEX_NS}/Robot"
+        )
 
 
 @configclass
@@ -1321,6 +1379,108 @@ class RobotHoutaituiAnklePostureEnvCfg(RobotHoutaituiAnkleEnvCfg):
 
 @configclass
 class RobotHoutaituiAnklePosturePlayEnvCfg(RobotHoutaituiAnklePostureEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+
+
+@configclass
+class MildLandingRewardsCfg(AnklePostureRewardsCfg):
+    """Back the landing penalty off, because posture keeps paying for it.
+
+    Three rounds now have traded ankle posture for landing force, moving to
+    whichever joint was left unconstrained.  Standing-phase commands against a
+    reference asking for 0 degrees of roll:
+
+                       feet_contact_force   left roll   right roll   hardware
+      0808                    none            -1.2       -10.1       deploys
+      R1@51000                -20            -18.6       -11.6       falls back
+      S1@60000                -20            -29.5       -21.8       tilts, falls
+      T1@62000                -20            -29.0       -24.1       untested
+
+    T1 added a posture penalty covering all four ankle joints and the roll did
+    not move: the term charges deviation averaged over the episode, and the
+    defect is confined to the standing phase, so the lift phase dilutes it to
+    0.0043 rad/step against 0808's 0.0028.  That is the same mistake as the hip
+    yaw exponential -- a mean-shaped penalty against a phase-shaped defect.
+
+    Rather than a fourth patch on a fourth joint, this reduces the pressure at
+    its source.  At -20 the landing peak fell from 7.75 to 2.1 body weights;
+    -5 should land somewhere near 3-4, still well under 0808, while the
+    incentive to buy that with posture drops fourfold.
+
+    Both ankle guards stay.  They are cheap and neither has been shown harmful;
+    the pitch-torque one did move pitch from -22.2 to +5.4 degrees.
+    """
+
+    feet_contact_force = RewTerm(
+        func=mdp.feet_contact_force_excess,
+        weight=-5.0,
+        params={
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces",
+                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
+            ),
+            "threshold_body_weights": 2.0,
+        },
+    )
+
+
+@configclass
+class RobotHoutaituiMildLandEnvCfg(RobotHoutaituiAnklePostureEnvCfg):
+    rewards: MildLandingRewardsCfg = MildLandingRewardsCfg()
+
+
+@configclass
+class RobotHoutaituiMildLandPlayEnvCfg(RobotHoutaituiMildLandEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+
+
+@configclass
+class RobotHoutaituiTightRollEnvCfg(RobotHoutaituiAnkleEnvCfg):
+    """AnkleGuardedRewardsCfg's reward/termination set, ankle roll hard-clipped.
+
+    U1 halved ``feet_contact_force`` to -5 and the roll problem did not move
+    (still -29.2/-29.3 deg standing command, matching S1/T1 at full weight).
+    T1 penalized deviation on all four ankle joints and it did not move either
+    (-29.0, because the penalty averages over the episode and the defect is
+    confined to the standing phase -- the same mistake as the hip-yaw
+    exponential).  R1's own defect was ankle *pitch*, not roll, and
+    ``ankle_pitch_torque_l2`` did fix that (-22.2 -> +5.4 deg) -- so soft
+    penalties are not uniformly powerless, they are powerless specifically
+    against this one, because a command clip already sits right where the
+    trick wants to go: every checkpoint across three rounds (S1/T1/U1, 12/12)
+    commands roll within a degree or two of the 25.8 deg action clip.  Nothing
+    closer to the true optimum is available on that side to trade against.
+
+    So this closes the route directly: ``TightAnkleRollActionsCfg`` clips
+    commanded ankle roll to +-0.20 rad (~11.5 deg), see the constant's own
+    comment for the archive-wide measurement behind that number.  This is a
+    different kind of intervention than the last four -- it bounds the action
+    space itself rather than adding a cost the policy can route around.
+
+    ``feet_contact_force`` is left at -20 (inherited from
+    ``AnkleGuardedRewardsCfg``/``PreYawarm0808RewardsCfg``, not the -5 U1 used)
+    because the premise of backing it off no longer applies once the roll
+    escape is physically unavailable; the policy needs the full landing signal
+    to actually get lighter rather than just quieter on this one joint.
+
+    Warm starts from 0808, not from the S1/T1/U1 lineage: those checkpoints
+    have three rounds of training invested in the roll workaround, and
+    starting from 0808 puts the clip in place before that habit can form,
+    matching the reasoning ``RobotHoutaituiAnkleEnvCfg`` already used for the
+    same reason against R1/R2.
+    """
+
+    actions: TightAnkleRollActionsCfg = TightAnkleRollActionsCfg()
+
+
+@configclass
+class RobotHoutaituiTightRollPlayEnvCfg(RobotHoutaituiTightRollEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 1
