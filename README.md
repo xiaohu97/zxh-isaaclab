@@ -139,8 +139,16 @@ adding another robot are documented in
     ```bash
     ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Mimic-Pick-2-5kg
     ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Mimic-Taitui-Right-2-5kg
-    ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-2-5kg
+    ./unitree_rl_lab.sh -t --task USTC-Humanoid-Ultra-27dof-Mimic-houtaitui-rawroll-2-5kg
     ```
+
+    houtaitui 的负载线用 `-rawroll-2-5kg`，不是旧的 `-houtaitui-2-5kg`。后者继承
+    最初的 `RobotHoutaituiEnvCfg`，缺少这条线上验证过的每一项：0808 的奖励/终止
+    骨架、`feet_contact_force_excess`（触地峰值 7.75 → 2.1 体重）、`anchor_pos_xy`
+    （漂移 0.371 → 0.22）、`ankle_pitch_torque_l2` 与踝 roll 动作裁剪（两次实机
+    失败的直接成因），以及 `raw_action_excess`——最后这一项让踝 roll 的约束成为
+    网络自身的性质而非环境裁剪的产物，否则策略导出到 sim2sim/实机（裁剪 ±30°，
+    比训练的 ±11.5° 宽）后会退回失败时的姿态。
 
     原有 `USTC-Humanoid-Ultra-27dof-Mimic-Pick` 仍使用无负载 identified URDF。
 

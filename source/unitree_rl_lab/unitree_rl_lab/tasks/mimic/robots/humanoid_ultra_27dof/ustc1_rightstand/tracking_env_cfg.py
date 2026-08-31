@@ -1292,6 +1292,49 @@ class RobotHoutaituiTightRollPlayEnvCfg(RobotHoutaituiTightRollEnvCfg):
 
 
 @configclass
+class Phase1LiftSmoothApexCommandsCfg(Phase1LiftCommandsCfg):
+    """Phase-1 lift curriculum on the apex-smoothed clip.
+
+    ``ustc1_rightstand_stand_transition_smoothapex.npz`` differs from the
+    original only in frames 477-523: the retarget jitter at the top of the kick
+    -- where the reference foot fell 12 cm and climbed 6.5 cm again, and where
+    72% of this run's failures land -- is replaced by a single smooth arc.  See
+    ``APEX_SMOOTH.md`` for the measurements and the guarantees.
+
+    ``targeted_frame_range`` carries over unchanged.  It was derived from
+    take-off at frame 453, the 0.30 m crossing at 468 and the 0.542 m peak at
+    478; the first two frames are bit-identical in the smoothed clip and the
+    peak stays at frame 478 (0.543 m), so the window still spans take-off
+    through the early hold.
+    """
+
+    motion = Phase1LiftCommandsCfg().motion.replace(
+        motion_file=(
+            f"{os.path.dirname(__file__)}/ustc1_rightstand_stand_transition_smoothapex.npz"
+        ),
+    )
+
+
+@configclass
+class RobotHoutaituiTightRollSmoothApexEnvCfg(RobotHoutaituiTightRollEnvCfg):
+    """V1 tight-roll rewards, terminations and actions on the smoothed clip.
+
+    Everything except ``motion_file`` matches ``RobotHoutaituiTightRollEnvCfg``
+    so the two runs isolate the reference change.
+    """
+
+    commands: Phase1LiftSmoothApexCommandsCfg = Phase1LiftSmoothApexCommandsCfg()
+
+
+@configclass
+class RobotHoutaituiTightRollSmoothApexPlayEnvCfg(RobotHoutaituiTightRollSmoothApexEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+
+
+@configclass
 class RawBoundedRollRewardsCfg(AnkleGuardedRewardsCfg):
     """Make the ankle-roll bound a property of the network, not of the clip.
 
