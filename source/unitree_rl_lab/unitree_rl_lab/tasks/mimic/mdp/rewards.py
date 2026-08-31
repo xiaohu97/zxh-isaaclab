@@ -403,3 +403,45 @@ def motion_joint_deviation_excess(
     joint_ids = asset_cfg.joint_ids
     error = torch.abs(command.joint_pos[:, joint_ids] - command.robot_joint_pos[:, joint_ids])
     return torch.sum(torch.clamp(error - threshold, min=0.0), dim=-1)
+
+
+def raw_action_excess(
+    env: ManagerBasedRLEnv,
+    action_term_name: str,
+    joint_names: list[str],
+    threshold: float,
+) -> torch.Tensor:
+    """Charge the part of the *raw* policy output beyond ``threshold``.
+
+    Clipping an action in the environment bounds what the robot receives, but
+    it does not bound what the network asks for: every raw value past the clip
+    produces the identical transition, so PPO gets no gradient distinguishing
+    them and the output magnitude on that dimension is free to drift.  V1
+    demonstrated both halves of this -- under the training clip (+-0.20 rad)
+    the achieved ankle roll settled at -0.2..-0.4 deg, better than 0808, while
+    the same checkpoint evaluated under sim2sim's looser +-0.5236 rad clip
+    reverted to -25..-29 deg commands, because nothing had ever constrained
+    the raw output that the tighter clip was silently absorbing.
+
+    That matters because the training clip does not travel with the exported
+    policy: sim2sim and the real controller apply their own, wider limits.  So
+    this penalises the raw request itself, making the bound a property of the
+    network rather than of whichever environment happens to run it.
+
+    ``threshold`` is in raw-action units.  With ``use_default_offset`` and a
+    default of zero, the joint target is ``raw * scale``, so the raw value
+    matching a position clip of ``c`` rad is ``c / scale`` -- for ankle roll,
+    0.20 / 0.25 = 0.8.  One-sided, so ordinary use of the full clipped range
+    stays free and only the unreachable surplus is charged.
+    """
+    term = env.action_manager.get_term(action_term_name)
+    asset = env.scene[term.cfg.asset_name]
+    joint_ids, _ = asset.find_joints(joint_names, preserve_order=False)
+    term_ids = term._joint_ids
+    if isinstance(term_ids, slice):
+        columns = joint_ids
+    else:
+        lookup = {int(j): i for i, j in enumerate(term_ids)}
+        columns = [lookup[int(j)] for j in joint_ids]
+    raw = term.raw_actions[:, columns]
+    return torch.sum(torch.clamp(torch.abs(raw) - threshold, min=0.0), dim=-1)

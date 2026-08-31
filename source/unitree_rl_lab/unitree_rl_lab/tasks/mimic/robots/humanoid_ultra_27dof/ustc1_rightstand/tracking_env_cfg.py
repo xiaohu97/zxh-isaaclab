@@ -931,30 +931,6 @@ class RobotHoutaituiLeftArm2P5kgPlayEnvCfg(RobotHoutaituiPlayEnvCfg):
 
 
 
-@configclass
-class YawGuardedTerminationsCfg(TerminationsCfg):
-    """Close the yaw loophole that no existing termination could see.
-
-    ``anchor_ori`` compares projected-gravity z, which is tilt and is blind to
-    rotation about vertical; ``anchor_pos_xy`` sees translation; the swing-foot
-    and end-effector terms are z-only.  The threshold is measured, not guessed,
-    and was re-measured against the current policy once the reset spread went
-    back to +-0.5.  Over 30 perturbed rollouts of the iteration-36000 checkpoint
-    the yaw error stays under 0.311 rad through the entire lift and reaches a
-    median of 0.443 rad (25.4 deg) once the leg starts coming down.
-
-    0.7 rad was the first setting, sized off the +-0.3 run, and it was too far
-    out to do any work: it accounted for 0.9% of terminations across 12000
-    iterations, because half the episodes are already ended by anchor_pos_xy
-    before the descent begins.  0.55 rad keeps a 1.8x margin over the worst
-    legitimate lift-phase error and fires on 43% of the descents instead of
-    33%.
-    """
-
-    anchor_yaw = DoneTerm(
-        func=mdp.bad_anchor_yaw,
-        params={"command_name": "motion", "threshold": 0.55},
-    )
 
 
 
@@ -966,74 +942,10 @@ class YawGuardedTerminationsCfg(TerminationsCfg):
 ##
 
 
-@configclass
-class ArmBalanceRewardsCfg(RewardsCfg):
-    """Pay the arms to keep the reference's counter-swing during the lift.
-
-    The reference clip cannot be executed by an ankle strategy alone: its own
-    lateral CoM acceleration in single support averages 0.30 m/s^2 and peaks at
-    0.95, which needs 15.3 / 48.6 Nm against a support ankle whose commandable
-    span is about 21 Nm.  The motion is only feasible with angular-momentum
-    (hip/arm) control, and the reference supplies it through the arms.
-
-    The policy currently does not: measured over 20 perturbed rollouts of
-    A@36000, the six arm bodies sit 0.027 m from the reference for the whole
-    clip but open up to 0.152 m median (0.215 p90) exactly across the lift
-    window.  So the arms abandon the reference precisely when their counter-
-    swing is needed, and the angular momentum is absorbed by the torso and
-    support hip instead -- which is the twist that ``anchor_yaw`` terminates,
-    and, once that route is closed, shows up as horizontal drift.
-
-    std = 0.20 puts the current 0.152 m operating point essentially on the
-    Gaussian's steepest gradient (max at e = std/sqrt(2) = 0.141), which is the
-    property the reverted std 0.6 experiment showed matters most: a term whose
-    operating point sits in a saturated tail has no reward *and* no gradient.
-    The whole-clip part of this term is nearly constant at 0.98 and therefore
-    contributes nothing to the policy gradient; the lift window is where it
-    varies and where its leverage is.
-    """
-
-    motion_arm_pos = RewTerm(
-        func=mdp.motion_relative_body_position_error_exp,
-        weight=2.5,
-        params={
-            "command_name": "motion",
-            "std": 0.20,
-            "body_names": [
-                "left_shoulder_roll_link",
-                "left_elbow_link",
-                "left_wrist_pitch_link",
-                "right_shoulder_roll_link",
-                "right_elbow_link",
-                "right_wrist_pitch_link",
-            ],
-        },
-    )
 
 
-@configclass
-class RobotHoutaituiYawArmEnvCfg(RobotHoutaituiEnvCfg):
-    """Give the swing leg's angular momentum a legal outlet, then close the twist.
-
-    ``anchor_yaw`` alone was tested and is not enough: across five checkpoints
-    it pinned the twist at 20-28 degrees, where the unconstrained line ranged
-    18-61, but bought no robustness -- drift stayed at 0.30 and the fall rate
-    swung between 12% and 87% on checkpoints 1000 iterations apart.  Blocking
-    the torso route without opening another one leaves the momentum nowhere to
-    go but horizontal translation.
-    """
-
-    rewards: ArmBalanceRewardsCfg = ArmBalanceRewardsCfg()
-    terminations: YawGuardedTerminationsCfg = YawGuardedTerminationsCfg()
 
 
-class RobotHoutaituiYawArmPlayEnvCfg(RobotHoutaituiYawArmEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.num_envs = 1
-        self.episode_length_s = 1e9
-        # Keep displaying the held final frame instead of resetting.
-        self.terminations.motion_end = None
 
 
 
@@ -1247,12 +1159,6 @@ class RobotHoutaitui0808DriftEnvCfg(RobotHoutaitui0808EnvCfg):
     terminations: Drift0808TerminationsCfg = Drift0808TerminationsCfg()
 
 
-@configclass
-class RobotHoutaitui0808DriftPlayEnvCfg(RobotHoutaitui0808DriftEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.num_envs = 1
-        self.episode_length_s = 1e9
 
 
 @configclass
@@ -1326,118 +1232,16 @@ class RobotHoutaituiAnklePlayEnvCfg(RobotHoutaituiAnkleEnvCfg):
         self.episode_length_s = 1e9
 
 
-@configclass
-class AnklePostureRewardsCfg(AnkleGuardedRewardsCfg):
-    """Constrain all four ankle joints at once, because patching one moved it.
-
-    The pitch-torque penalty worked on pitch and the policy carried the same
-    trick to roll.  Standing-phase commands, against a reference that asks for
-    0 degrees of roll on both feet and a +-25.8 degree roll limit:
-
-                          left roll   right roll   left pitch
-      0808 (deploys)          -1.2       -10.1        +3.5
-      R1@51000 (falls back)  -18.6       -11.6       -22.2
-      S1@60000               -29.5       -21.8        +7.5
-
-    S1 commands the left roll past its own limit, so the foot cannot sit flat --
-    the robot tilted left with the left foot not flat, then fell forward.  Pitch
-    was fixed and roll took over, which is what penalising a joint rather than a
-    posture buys.
-
-    So this charges deviation from the reference across all four ankle joints
-    together.  Threshold 0.25 rad is measured over full rollouts: the term
-    averages 0.0028 rad/step for 0808 and 0.0514 for S1, an 18x separation, and
-    at weight -5 that is 0.2% of total reward for the policy that deploys
-    against 3.9% for the one that does not.
-
-    ``ankle_pitch_torque_l2`` stays: it measures saturation rather than posture
-    and it did move pitch from -22.2 to +7.5 degrees.
-
-    The trick could move again -- knee or hip roll are not constrained this way.
-    The ankles are singled out because they are the ground interface, their
-    limits are the tightest on the leg, and the hardware ankle is two coupled
-    motors behind a virtual joint the simulator models optimistically.
-    """
-
-    motion_ankle_posture = RewTerm(
-        func=mdp.motion_joint_deviation_excess,
-        weight=-5.0,
-        params={
-            "command_name": "motion",
-            "threshold": 0.25,
-            "asset_cfg": SceneEntityCfg(
-                "robot", joint_names=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"]
-            ),
-        },
-    )
 
 
-@configclass
-class RobotHoutaituiAnklePostureEnvCfg(RobotHoutaituiAnkleEnvCfg):
-    rewards: AnklePostureRewardsCfg = AnklePostureRewardsCfg()
 
 
-@configclass
-class RobotHoutaituiAnklePosturePlayEnvCfg(RobotHoutaituiAnklePostureEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.num_envs = 1
-        self.episode_length_s = 1e9
 
 
-@configclass
-class MildLandingRewardsCfg(AnklePostureRewardsCfg):
-    """Back the landing penalty off, because posture keeps paying for it.
-
-    Three rounds now have traded ankle posture for landing force, moving to
-    whichever joint was left unconstrained.  Standing-phase commands against a
-    reference asking for 0 degrees of roll:
-
-                       feet_contact_force   left roll   right roll   hardware
-      0808                    none            -1.2       -10.1       deploys
-      R1@51000                -20            -18.6       -11.6       falls back
-      S1@60000                -20            -29.5       -21.8       tilts, falls
-      T1@62000                -20            -29.0       -24.1       untested
-
-    T1 added a posture penalty covering all four ankle joints and the roll did
-    not move: the term charges deviation averaged over the episode, and the
-    defect is confined to the standing phase, so the lift phase dilutes it to
-    0.0043 rad/step against 0808's 0.0028.  That is the same mistake as the hip
-    yaw exponential -- a mean-shaped penalty against a phase-shaped defect.
-
-    Rather than a fourth patch on a fourth joint, this reduces the pressure at
-    its source.  At -20 the landing peak fell from 7.75 to 2.1 body weights;
-    -5 should land somewhere near 3-4, still well under 0808, while the
-    incentive to buy that with posture drops fourfold.
-
-    Both ankle guards stay.  They are cheap and neither has been shown harmful;
-    the pitch-torque one did move pitch from -22.2 to +5.4 degrees.
-    """
-
-    feet_contact_force = RewTerm(
-        func=mdp.feet_contact_force_excess,
-        weight=-5.0,
-        params={
-            "sensor_cfg": SceneEntityCfg(
-                "contact_forces",
-                body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
-            ),
-            "threshold_body_weights": 2.0,
-        },
-    )
 
 
-@configclass
-class RobotHoutaituiMildLandEnvCfg(RobotHoutaituiAnklePostureEnvCfg):
-    rewards: MildLandingRewardsCfg = MildLandingRewardsCfg()
 
 
-@configclass
-class RobotHoutaituiMildLandPlayEnvCfg(RobotHoutaituiMildLandEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-        self.scene.num_envs = 1
-        self.episode_length_s = 1e9
 
 
 @configclass
@@ -1481,6 +1285,112 @@ class RobotHoutaituiTightRollEnvCfg(RobotHoutaituiAnkleEnvCfg):
 
 @configclass
 class RobotHoutaituiTightRollPlayEnvCfg(RobotHoutaituiTightRollEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+
+
+@configclass
+class RawBoundedRollRewardsCfg(AnkleGuardedRewardsCfg):
+    """Make the ankle-roll bound a property of the network, not of the clip.
+
+    V1 showed the clip works and that it does not travel.  Under the +-0.20 rad
+    clip Isaac trained with, achieved ankle roll settled at -0.2..-0.4 deg,
+    slightly better than 0808, and the aggregate columns came out ahead of it
+    on every axis but falls: drift 0.245-0.295 against 0.371, touchdown peak
+    2.1-2.6 against 7.75, lift 0.529-0.585, falls 3-8/100 against 0.  Eight
+    checkpoints agreed and two survived a disjoint seed set.
+
+    But the same checkpoints, evaluated through sim2sim's own +-0.5236 rad
+    clip -- which is also the real controller's -- command -25..-29 deg again,
+    back in S1/T1/U1 territory.  The clip bounds what the robot receives; it
+    never bounded what the network asks for, because every raw value past the
+    clip yields the identical transition and therefore the identical return.
+    Measured raw surplus past the clip, per step:
+
+      0808        0.23 (full episode)   0.32 (standing)   peak |raw| 3.14
+      V1@55500    1.05                  1.65              5.37
+      V1@69998    2.39                  1.80              6.25
+
+    0808 is not perfectly inside the budget either, but V1 asks for 5-10x more
+    of what only the clip was absorbing.  ``raw_action_excess`` charges that
+    surplus directly, so the bound holds under whatever clip is downstream and
+    the fix survives export.  This does not replace tightening the deployment
+    limits -- that remains the user's call and is the more direct guarantee --
+    it makes the policy safe to export either way.
+
+    Weight -0.25 is sized from those measurements against a total reward
+    magnitude near 7: 0808's 0.23 costs 0.06 (under 1%, effectively free),
+    V1@55500's 1.05 costs 0.26 (~4%), V1@69998's 2.39 costs 0.60 (~8.5%).
+    """
+
+    raw_roll_excess = RewTerm(
+        func=mdp.raw_action_excess,
+        weight=-0.25,
+        params={
+            "action_term_name": "JointPositionAction",
+            "joint_names": [".*_ankle_roll_joint"],
+            # 0.20 rad clip / 0.25 action scale; default ankle roll is 0.
+            "threshold": 0.8,
+        },
+    )
+
+
+@configclass
+class RobotHoutaituiRawBoundedRollEnvCfg(RobotHoutaituiTightRollEnvCfg):
+    """V1's setup plus the raw-action bound, warm started from V1.
+
+    Started from V1@56500 rather than 0808: V1 already carries the balance
+    strategy learned under the narrow roll budget, verified on two disjoint
+    seed sets (4 and 5 falls, drift 0.245 and 0.260).  What it lacks is any
+    reason to stop asking for more roll than the clip grants, which is exactly
+    what this term supplies -- so the habit to unlearn is narrow and specific,
+    unlike the S1/T1/U1 workaround that had to be avoided from scratch.
+    """
+
+    rewards: RawBoundedRollRewardsCfg = RawBoundedRollRewardsCfg()
+
+
+@configclass
+class RobotHoutaituiRawBoundedRollPlayEnvCfg(RobotHoutaituiRawBoundedRollEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
+
+
+@configclass
+class RobotHoutaituiRawBoundedRollLeftArm2P5kgEnvCfg(RobotHoutaituiRawBoundedRollEnvCfg):
+    """The current line, carrying the identified 2.5 kg left-arm payload.
+
+    The older ``RobotHoutaituiLeftArm2P5kgEnvCfg`` inherits the bare
+    ``RobotHoutaituiEnvCfg``, so it has none of what this month established:
+    0808's reward and termination set, ``feet_contact_force`` for the landing,
+    ``anchor_pos_xy`` for drift, ``ankle_pitch_torque_l2`` against the pitch
+    workaround, the +-0.20 rad roll clip against the roll workaround, and
+    ``raw_action_excess`` so that clip survives export.  Training the payload
+    line on that base would replay the R1 -> S1 hardware failures with a
+    heavier arm.
+
+    Only the plant differs from the unloaded line, exactly as the previous
+    payload config did -- the two measured constants it depends on (the roll
+    clip sized against 0808's own standing command, the raw threshold at
+    0.20/0.25) are properties of the joint and the action scale, not of the
+    payload, so they transfer unchanged.
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.robot = _with_command_delay(
+            HUMANOIDULTRA27DOF_MIMIC_LEFTARM2P5KG_CFG
+        ).replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+@configclass
+class RobotHoutaituiRawBoundedRollLeftArm2P5kgPlayEnvCfg(
+    RobotHoutaituiRawBoundedRollLeftArm2P5kgEnvCfg
+):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 1
