@@ -17,7 +17,7 @@ from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
 
-from .gait_command import IDX_BODY_HEIGHT, IDX_BODY_PITCH, IDX_LIN_VEL_X, GaitCommand
+from .gait_command import IDX_ANG_VEL_Z, IDX_BODY_HEIGHT, IDX_BODY_PITCH, IDX_LIN_VEL_X, GaitCommand
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -100,6 +100,32 @@ def base_roll_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntity
 
 
 """
+偏航。替代 IsaacLab 的 track_ang_vel_z_exp —— 那个用瞬时机体系角速度，被步态振荡淹没
+（见 GaitCommand._update_command 里的说明）。
+"""
+
+
+def track_yaw_rate_filtered(env: ManagerBasedRLEnv, command_name: str, std: float) -> torch.Tensor:
+    """用低通后的世界系偏航角速度跟踪转弯指令。"""
+    command = _gait_command(env, command_name)
+    error = torch.square(command.command[:, IDX_ANG_VEL_Z] - command.yaw_rate_filt)
+    return torch.exp(-error / std**2)
+
+
+def yaw_rate_oscillation_l2(
+    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """惩罚偏航角速度的交流分量（瞬时值 − 低通值）²。
+
+    双足走路天然有一点骨盆偏航摆动（人类约 ±0.3 rad/s），不该压到零，所以权重要小；
+    目的只是把实测的 ±0.7 rad/s 收敛到正常水平。
+    """
+    command = _gait_command(env, command_name)
+    asset: Articulation = env.scene[asset_cfg.name]
+    return torch.square(asset.data.root_ang_vel_w[:, 2] - command.yaw_rate_filt)
+
+
+"""
 摆臂。
 """
 
@@ -142,11 +168,15 @@ def arm_swing(
 def stand_still_joint_deviation(
     env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
-    """站立指令下惩罚关节偏离默认位姿（替代 locomotion.mdp.stand_still，见文件头警告）。"""
+    """双脚站定（is_settled）时惩罚关节偏离默认位姿（替代 locomotion.mdp.stand_still，见文件头警告）。
+
+    只在 θ 接近 1 时生效：站立课程早期 θ∈[0.5,0.65] 是原地踏步，gait_contact 要求迈步，这里再罚
+    "别动"就自相矛盾。
+    """
     command = _gait_command(env, command_name)
     asset: Articulation = env.scene[asset_cfg.name]
     deviation = torch.sum(
         torch.abs(asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]),
         dim=1,
     )
-    return deviation * command.is_standing.float()
+    return deviation * command.is_settled.float()

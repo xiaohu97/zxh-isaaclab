@@ -25,6 +25,28 @@
 5. **两条物理自洽约束**（见 ``_apply_feasibility``）。步态参数与速度独立采样会产生
    「1.2 Hz 步频跑 3 m/s」这种不可能的指令，策略只能学会忽略它们，可控性就没了。
    所以采样后按 ``v ≤ f · max_stride_length`` 削速度，并在高速时强制 θ 进入腾空区。
+
+6. **指令有斜率限制**（``cfg.slew_rates``）。采样值先写进 ``target_b``，``command_b``
+   每步按最大变化率向目标滑动；观测、奖励、``is_standing`` 看到的都是滑动后的值。
+   2026-09-06 回放实测：速度指令一步内从 2.5 m/s 清零时，右臂以 10-19 rad/s 向内甩，
+   上臂穿进躯干（2000 N 自碰撞）并触发终止，占全部"摔倒"的 100%。斜率限制让"停下来"
+   变成一段可学的减速过程，也和真机手柄经过平滑后的指令一致。reset 时直接跳到目标，
+   不从上一个 episode 的值滑过来。
+
+7. **站立 = 支撑相比例 1.0，不是隐藏模式**。2026-09-07 回放（run 2026-09-06_21-49-17,
+   model_30700）：从静止开始站立 64/64 在 0.5 s 内前扑，走 1.0 m/s 再停也是 64/64。原因：
+   站立时奖励突然要求双脚落地，策略看到的却只有速度归零和一个还在走的步态时钟，腿部控制器
+   照着时钟摆腿、脚又被钉住，躯干就绕着脚转过去；站立样本又只占 batch 约 0.1%（5% env x
+   0.5 s 就摔），永远学不出来。现在站立 env 的 ``stance_ratio`` 目标设为
+   ``standing_stance_ratio``(1.0)，沿斜率从跑步值滑上去：``desired_contact = phase < θ`` 在
+   θ=1 时自然恒为支撑，摆动足高参考自然为 0，不需要任何硬切；策略在观测里能明确看到 θ→1。
+
+   **但 θ 不能一步跨到 1.0**（2026-09-07 晚，run 2026-09-07_14-12-39, model_41500）：训练分布下
+   56% 的 episode 摔倒，177 次里 157 次发生在 θ>0.65 的爬坡段；而把 θ 固定在 0.5、速度归零时
+   0/64 摔 —— 策略已经学会"零速原地踏步"，只是 θ>0.65 是它从未活过的输入区域，0.5 s 就摔的
+   样本又学不出东西，死锁。所以站立 θ 目标按课程走：从 [standing_stance_ratio_min,
+   standing_stance_ratio_start]=[0.5,0.65]（现在就能活）均匀采样，上限随 progress 线性推到
+   standing_stance_ratio=1.0，让它从"原地小步"连续过渡到"双脚站定"。
 """
 from __future__ import annotations
 
@@ -72,17 +94,36 @@ class GaitCommand(CommandTerm):
         self.robot: Articulation = env.scene[cfg.asset_name]
 
         self.command_b = torch.zeros(self.num_envs, COMMAND_DIM, device=self.device)
+        # 采样目标；command_b 按 slew_rates 向它滑动（见文件头第 6 点）
+        self.target_b = torch.zeros(self.num_envs, COMMAND_DIM, device=self.device)
+        rates = torch.tensor(cfg.slew_rates, dtype=torch.float, device=self.device)
+        assert rates.numel() == COMMAND_DIM, f"slew_rates 需要 {COMMAND_DIM} 个值"
+        self._slew_step = rates * env.step_dt          # 每步最大变化量
+        self._slew_mask = rates > 0.0                   # <=0 的维度立即切换
         # 全局步态相位 ∈ [0, 1)，左腿为基准
         self.phase = torch.zeros(self.num_envs, device=self.device)
         self.is_standing_env = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        # 低通后的世界系偏航角速度（时间常数 = 一个步态周期），见 _update_command
+        self.yaw_rate_filt = torch.zeros(self.num_envs, device=self.device)
         # 课程进度：0 = cfg.ranges（走路），1 = cfg.limit_ranges（跑步）
         self.progress: float = 0.0
+        # 课程判据的累积统计，由 curriculums.gait_cmd_levels 读写。累加项用 0-dim 张量，
+        # 避免每次 reset 都触发一次 GPU->CPU 同步；只在检查点 .item() 一次。
+        self.curriculum_stats: dict = {
+            "kernel_sum": torch.zeros((), device=self.device),
+            "timeout_sum": torch.zeros((), device=self.device),
+            "count": torch.zeros((), device=self.device),
+            "last_check": 0,
+            "mean_kernel": 0.0,
+            "survival": 0.0,
+        }
 
         self.metrics["error_vel_xy"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["error_vel_yaw"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["cmd_progress"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["cmd_max_lin_vel_x"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["cmd_min_stance_ratio"] = torch.zeros(self.num_envs, device=self.device)
+        self.metrics["cmd_stand_stance_ratio_max"] = torch.zeros(self.num_envs, device=self.device)
 
     def __str__(self) -> str:
         msg = "GaitCommand:\n"
@@ -134,11 +175,22 @@ class GaitCommand(CommandTerm):
         return torch.norm(self.command_b[:, IDX_LIN_VEL_X : IDX_ANG_VEL_Z + 1], dim=1) < self.cfg.standing_threshold
 
     @property
+    def standing_stance_ratio_max(self) -> float:
+        """当前课程进度下站立指令的支撑相上限：start -> standing_stance_ratio 线性插值。"""
+        lo, hi = self.cfg.standing_stance_ratio_start, self.cfg.standing_stance_ratio
+        return lo + (hi - lo) * self.progress
+
+    @property
+    def is_settled(self) -> torch.Tensor:
+        """(num_envs,) bool：站立且支撑相已接近 1，即真的要求双脚站定（而不是原地踏步）。
+        ``stand_still`` 一类"别动"的惩罚只在这时生效，否则和 gait_contact 要求的踏步打架。"""
+        return self.is_standing & (self.command_b[:, IDX_STANCE_RATIO] > self.cfg.settled_stance_ratio)
+
+    @property
     def desired_contact(self) -> torch.Tensor:
-        """(num_envs, 2) bool：该腿此刻是否应当支撑。站立时强制双脚触地。"""
+        """(num_envs, 2) bool：该腿此刻是否应当支撑。站立时 θ 滑到 1.0，自然恒为支撑（文件头第 7 点）。"""
         theta = self.command_b[:, IDX_STANCE_RATIO].unsqueeze(1)
-        stance = self.leg_phase < theta
-        return torch.where(self.is_standing.unsqueeze(1), torch.ones_like(stance), stance)
+        return self.leg_phase < theta
 
     @property
     def desired_foot_height(self) -> torch.Tensor:
@@ -148,9 +200,9 @@ class GaitCommand(CommandTerm):
         正弦拱到指令高度。给出完整参考轨迹而不是"最高点"，摆动腿高度才真的可控。
         """
         theta = self.command_b[:, IDX_STANCE_RATIO].unsqueeze(1)
-        # u ∈ [0,1] 是摆动相内的进度；支撑相被 clamp 到 0 -> sin(0)=0 -> 目标即贴地
+        # u ∈ [0,1] 是摆动相内的进度；支撑相被 clamp 到 0 -> sin(0)=0 -> 目标即贴地。
+        # θ=1（站立）时 phase-θ 恒为负，u 恒为 0，不需要特判。
         u = ((self.leg_phase - theta) / (1.0 - theta).clamp(min=1e-3)).clamp(0.0, 1.0)
-        u = torch.where(self.is_standing.unsqueeze(1), torch.zeros_like(u), u)
         swing_h = self.command_b[:, IDX_SWING_HEIGHT].unsqueeze(1)
         return self.cfg.foot_offset + swing_h * torch.sin(math.pi * u)
 
@@ -174,21 +226,39 @@ class GaitCommand(CommandTerm):
             self.phase[ids] = torch.rand_like(self.phase[ids])
         else:
             self.phase[ids] = 0.0
+        self.yaw_rate_filt[ids] = 0.0
+        # 新 episode 直接从目标指令开始，不从上一个 episode 的值滑过来
+        self.command_b[ids] = self.target_b[ids]
         return extras
 
     def _resample_command(self, env_ids: Sequence[int]):
         if len(env_ids) == 0:
             return
         r = torch.empty(len(env_ids), device=self.device)
-        self.command_b[env_ids, IDX_LIN_VEL_X] = r.uniform_(*self._range("lin_vel_x"))
-        self.command_b[env_ids, IDX_LIN_VEL_Y] = r.uniform_(*self._range("lin_vel_y"))
-        self.command_b[env_ids, IDX_ANG_VEL_Z] = r.uniform_(*self._range("ang_vel_z"))
+        self.target_b[env_ids, IDX_LIN_VEL_X] = r.uniform_(*self._range("lin_vel_x"))
+        self.target_b[env_ids, IDX_LIN_VEL_Y] = r.uniform_(*self._range("lin_vel_y"))
+        self.target_b[env_ids, IDX_ANG_VEL_Z] = r.uniform_(*self._range("ang_vel_z"))
         for i, name in enumerate(GAIT_FIELDS):
-            self.command_b[env_ids, IDX_GAIT_FREQ + i] = r.uniform_(*self._range(name))
+            self.target_b[env_ids, IDX_GAIT_FREQ + i] = r.uniform_(*self._range(name))
 
         self._apply_feasibility(env_ids)
 
-        self.is_standing_env[env_ids] = torch.rand(len(env_ids), device=self.device) <= self.cfg.rel_standing_envs
+        standing = torch.rand(len(env_ids), device=self.device) <= self.cfg.rel_standing_envs
+        self.is_standing_env[env_ids] = standing
+        # 站立 env 的目标速度为 0；command_b 会从当前值滑下去（reset 时则直接跳到 0）
+        env_ids_t = torch.as_tensor(env_ids, device=self.device)
+        self.target_b[env_ids_t[standing], IDX_LIN_VEL_X : IDX_ANG_VEL_Z + 1] = 0.0
+        # 目标速度低于站立阈值的 env（含上面的站立 env）：支撑相目标从 [min, θ_max(progress)] 采样，
+        # θ_max 随课程从 0.65 推到 1.0（文件头第 7 点）；摆高目标封顶，站立时只允许小步
+        stand_like = torch.norm(self.target_b[env_ids_t, IDX_LIN_VEL_X : IDX_ANG_VEL_Z + 1], dim=1) < self.cfg.standing_threshold
+        stand_ids = env_ids_t[stand_like]
+        if stand_ids.numel() > 0:
+            self.target_b[stand_ids, IDX_STANCE_RATIO] = torch.empty(stand_ids.numel(), device=self.device).uniform_(
+                self.cfg.standing_stance_ratio_min, self.standing_stance_ratio_max
+            )
+            self.target_b[stand_ids, IDX_SWING_HEIGHT] = self.target_b[stand_ids, IDX_SWING_HEIGHT].clamp(
+                max=self.cfg.standing_swing_height_max
+            )
 
     def _apply_feasibility(self, env_ids: Sequence[int]):
         """把独立采样出来的速度/步态参数拉回物理上可能实现的组合。
@@ -196,9 +266,9 @@ class GaitCommand(CommandTerm):
         不做这一步，训练集里会混进大量"步频 1.2 Hz 跑 3 m/s"式的自相矛盾指令，
         策略学到的最优行为是忽略步态参数，可控性直接没了。
         """
-        freq = self.command_b[env_ids, IDX_GAIT_FREQ]
-        theta = self.command_b[env_ids, IDX_STANCE_RATIO]
-        vx = self.command_b[env_ids, IDX_LIN_VEL_X]
+        freq = self.target_b[env_ids, IDX_GAIT_FREQ]
+        theta = self.target_b[env_ids, IDX_STANCE_RATIO]
+        vx = self.target_b[env_ids, IDX_LIN_VEL_X]
 
         # 1) 一个步态周期最多迈 max_stride_length，于是 |vx| ≤ f · stride
         if self.cfg.max_stride_length > 0.0:
@@ -209,16 +279,25 @@ class GaitCommand(CommandTerm):
         needs_flight = vx.abs() > self.cfg.flight_speed_threshold
         theta = torch.where(needs_flight, theta.clamp(max=self.cfg.running_stance_ratio), theta)
 
-        self.command_b[env_ids, IDX_LIN_VEL_X] = vx
-        self.command_b[env_ids, IDX_STANCE_RATIO] = theta
+        self.target_b[env_ids, IDX_LIN_VEL_X] = vx
+        self.target_b[env_ids, IDX_STANCE_RATIO] = theta
 
     def _update_command(self):
-        # 站立 env：三个速度分量清零（步态参数保留，desired_contact 已强制双脚支撑）
-        self.command_b[self.is_standing_env, IDX_LIN_VEL_X : IDX_ANG_VEL_Z + 1] = 0.0
+        # 指令按斜率限制向目标滑动（站立 env 的目标速度在重采样时已置 0，这里自然减速到 0）
+        delta = self.target_b - self.command_b
+        limited = torch.where(self._slew_mask, delta.clamp(-self._slew_step, self._slew_step), delta)
+        self.command_b += limited
         # 相位积分（见文件头第 3 点）
         self.phase = torch.remainder(
             self.phase + self.command_b[:, IDX_GAIT_FREQ] * self._env.step_dt, 1.0
         )
+        # 偏航角速度低通，时间常数 = 一个步态周期（逐 env 随步频自适应）。
+        # 2026-09-03 回放实测：走路时偏航角速度有 ±0.7 rad/s 的步频锁定振荡（3/4.5/6 Hz），
+        # 用瞬时值跟踪 ±0.5 rad/s 的转弯指令时核值被振荡淹没，策略学到的是"不转弯"
+        # （指令 0.5 实际 0.09）。滤掉振荡再跟踪，衡量的才是"有没有真的在转"。
+        # 用世界系 z 分量：前倾时机体系 z 轴不再竖直，手柄上的"转弯速度"是世界系量。
+        alpha = (self.command_b[:, IDX_GAIT_FREQ] * self._env.step_dt).clamp(max=1.0)
+        self.yaw_rate_filt += alpha * (self.robot.data.root_ang_vel_w[:, 2] - self.yaw_rate_filt)
 
     def _update_metrics(self):
         max_command_step = self.cfg.resampling_time_range[1] / self._env.step_dt
@@ -232,6 +311,7 @@ class GaitCommand(CommandTerm):
         self.metrics["cmd_progress"][:] = self.progress
         self.metrics["cmd_max_lin_vel_x"][:] = self._range("lin_vel_x")[1]
         self.metrics["cmd_min_stance_ratio"][:] = self._range("stance_ratio")[0]
+        self.metrics["cmd_stand_stance_ratio_max"][:] = self.standing_stance_ratio_max
 
     """
     Debug visualization (照搬 UniformVelocityCommand 的速度箭头)。
@@ -318,6 +398,26 @@ class GaitCommandCfg(CommandTermCfg):
 
     standing_threshold: float = 0.1
     """速度指令范数低于该值 [m/s] 即按站立处理（双脚落地）。判据必须是观测量，见 ``is_standing``。"""
+
+    standing_stance_ratio: float = 1.0
+    """站立指令下支撑相比例目标的**最终**上限（progress=1）。1.0 = 双脚全程支撑。"""
+
+    standing_stance_ratio_start: float = 0.65
+    """站立 θ 上限的课程起点（progress=0）。0.65 是跑步区间的上界，策略在这里已经活得下来。"""
+
+    standing_stance_ratio_min: float = 0.5
+    """站立 θ 目标的采样下限：零速度下至少是"原地小步"而不是原地跑。"""
+
+    standing_swing_height_max: float = 0.10
+    """站立指令下摆动足高目标的封顶 [m]：原地踏步只允许小步。"""
+
+    settled_stance_ratio: float = 0.95
+    """θ 超过该值才算"双脚站定"，见 ``is_settled``。"""
+
+    slew_rates: tuple[float, ...] = (2.0, 2.0, 3.0, 2.0, 0.5, 0.3, 0.3, 0.5)
+    """各指令分量的最大变化率，顺序同 command：vx, vy [m/s²]、ωz [rad/s²]、步频 [Hz/s]、
+    支撑相比例 [1/s]、摆高 [m/s]、躯干高 [m/s]、俯仰 [rad/s]。<=0 表示该维立即切换。
+    2.0 m/s² 意味着从 3 m/s 停下来用 1.5 s。"""
 
     randomize_start_phase: bool = True
     """reset 时是否随机初始相位。play / 调试时可设 False 从相位 0 起。"""

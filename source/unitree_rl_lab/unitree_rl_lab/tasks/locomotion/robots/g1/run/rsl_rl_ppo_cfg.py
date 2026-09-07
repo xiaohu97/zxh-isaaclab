@@ -13,6 +13,11 @@ class RunPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     """
 
     num_steps_per_env = 32
+    # 2026-09-07：run 2026-09-06_21-49-17 在 30794 迭代崩于 std NaN。回放实测训好的策略动作幅值
+    # p99=5.7、p99.9=7.2，但偶发 562（=140 rad 关节偏移）；这种尖峰经 action_rate 进奖励
+    # （单次 -1.7e4/s）、再经 last_action 观测正反馈，最终 value loss inf -> 参数 NaN。
+    # 10 对正常动作毫无影响（scale 0.25 -> ±2.5 rad），只掐尖峰。
+    clip_actions = 10.0
     max_iterations = 50000
     save_interval = 100
     experiment_name = ""  # 留空 -> cli_args 自动填成 unitree_g1_29dof_run

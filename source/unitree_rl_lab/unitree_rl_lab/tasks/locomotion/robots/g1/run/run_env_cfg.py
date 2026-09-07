@@ -163,7 +163,8 @@ class CommandsCfg:
         asset_name="robot",
         # 跑步下 10s 一换太长，加减速要练得多一些
         resampling_time_range=(5.0, 8.0),
-        rel_standing_envs=0.05,
+        # 0.05 -> 0.15：站立样本原本只占 batch 约 0.1%（5% env x 0.5 s 内就摔），根本学不出来
+        rel_standing_envs=0.15,
         randomize_start_phase=True,
         foot_offset=0.035,
         max_stride_length=1.0,
@@ -204,14 +205,20 @@ class ActionsCfg:
 class ObservationsCfg:
     @configclass
     class PolicyCfg(ObsGroup):
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2, noise=Unoise(n_min=-0.2, n_max=0.2))
+        # clip 在原始量纲上、加噪之后、缩放之前生效。正常值远在范围内，只挡物理尖峰进网络
+        base_ang_vel = ObsTerm(
+            func=mdp.base_ang_vel, scale=0.2, noise=Unoise(n_min=-0.2, n_max=0.2), clip=(-20.0, 20.0)
+        )
         projected_gravity = ObsTerm(func=mdp.projected_gravity, noise=Unoise(n_min=-0.05, n_max=0.05))
         # 8 维：速度(3, 原量纲) + 步态参数(5, 归一到 [-1,1])
         gait_commands = ObsTerm(func=mdp.gait_commands, params={"command_name": "base_velocity"})
         # 2 维步态时钟。没有它策略只能从触地历史反推相位，腾空期极难学出来
         gait_clock = ObsTerm(func=mdp.gait_clock, params={"command_name": "base_velocity"})
         joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05, noise=Unoise(n_min=-1.5, n_max=1.5))
+        joint_vel_rel = ObsTerm(
+            func=mdp.joint_vel_rel, scale=0.05, noise=Unoise(n_min=-1.5, n_max=1.5), clip=(-100.0, 100.0)
+        )
+        # last_action 的上界由 RunPPORunnerCfg.clip_actions 保证
         last_action = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self):
@@ -224,12 +231,12 @@ class ObservationsCfg:
     @configclass
     class CriticCfg(ObsGroup):
         base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2)
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.2, clip=(-20.0, 20.0))
         projected_gravity = ObsTerm(func=mdp.projected_gravity)
         gait_commands = ObsTerm(func=mdp.gait_commands, params={"command_name": "base_velocity"})
         gait_clock = ObsTerm(func=mdp.gait_clock, params={"command_name": "base_velocity"})
         joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
-        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05)
+        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05, clip=(-100.0, 100.0))
         last_action = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self):
@@ -246,8 +253,9 @@ class RewardsCfg:
         weight=1.5,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
+    # 用滤波后的世界系偏航角速度跟踪，原因见 rewards.track_yaw_rate_filtered
     track_ang_vel_z = RewTerm(
-        func=mdp.track_ang_vel_z_exp, weight=0.75, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
+        func=mdp.track_yaw_rate_filtered, weight=0.75, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
     )
     alive = RewTerm(func=mdp.is_alive, weight=0.15)
 
@@ -291,6 +299,9 @@ class RewardsCfg:
     base_roll = RewTerm(func=mdp.base_roll_l2, weight=-3.0)
     base_linear_velocity = RewTerm(func=mdp.lin_vel_z_l2, weight=-0.3)
     base_angular_velocity = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
+    yaw_rate_oscillation = RewTerm(
+        func=mdp.yaw_rate_oscillation_l2, weight=-0.05, params={"command_name": "base_velocity"}
+    )
 
     # -- 平滑 / 能耗。这些惩罚随速度平方增长，权重整体比 Velocity 任务低一档，
     #    否则 3 m/s 时会盖过跟踪项，策略宁可站着不动
@@ -326,9 +337,10 @@ class RewardsCfg:
         weight=-0.2,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=["waist.*"])},
     )
+    # 转弯要靠髋 yaw，-0.5 时策略宁可不转（回放：指令 0.5 rad/s 实际 0.09）
     joint_deviation_legs = RewTerm(
         func=mdp.joint_deviation_l1,
-        weight=-0.5,
+        weight=-0.25,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_roll_joint", ".*_hip_yaw_joint"])},
     )
 
@@ -366,6 +378,22 @@ class RewardsCfg:
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["(?!.*ankle.*).*"]),
         },
     )
+    # 躯干上的接触力按大小连续惩罚（替代原来的 body_contact 终止）。
+    # 2026-09-06 回放：右臂上臂撞进躯干 150-2000 N，机器人并没倒。终止会把"停下来"的
+    # 过渡直接掐掉，策略永远学不到怎么停；按力惩罚才有梯度。真摔倒由 bad_orientation /
+    # base_height 兜底。2000 N x 1e-3 = -2/step，和跟踪项同量级。
+    # 只看 torso_link：手臂撞躯干时躯干上的力与手臂上的力大小相等，够用；而肩/肘连杆之间
+    # 有隔代碰撞体重叠（shoulder_pitch 圆柱 vs shoulder_yaw 网格等），常驻假接触力，
+    # 把它们列进来会变成噪声（回放实测：列进终止后每 0.24 s 触发一次，训练根本跑不起来）。
+    # pelvis 在 URDF 里没有碰撞体，列不列都是 0。
+    self_contact = RewTerm(
+        func=mdp.contact_forces,
+        weight=-1e-3,
+        params={
+            "threshold": 1.0,
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["torso_link"]),
+        },
+    )
 
 
 @configclass
@@ -374,21 +402,40 @@ class TerminationsCfg:
     base_height = DoneTerm(func=mdp.root_height_below_minimum, params={"minimum_height": 0.25})
     # 指令俯仰最大 0.4 rad，阈值留到 1.0 才不会把正常前倾误判成摔倒
     bad_orientation = DoneTerm(func=mdp.bad_orientation, params={"limit_angle": 1.0})
-    # 骨盆/躯干着地就是摔了，早点结束比让它在地上刷 alive 强
-    body_contact = DoneTerm(
+    # 不再用 1 N 的躯干接触终止：G1 开着自碰撞，上臂碰躯干就会触发，2026-09-06 回放证实原 run
+    # 里 19% 的 body_contact 终止全是这种误判（骨盆 0.72 m、直立）。真摔倒上面两条就够了：
+    # 躯干着地时倾角 >1 rad，坐地时高度 <0.25。1000 N 以下的自碰撞交给 RewardsCfg.self_contact
+    # 连续惩罚出梯度；只保留一个高阈值安全阀 —— 旧策略甩臂穿透到 5600 N 时 PhysX 直接 NaN，
+    # 会把整个 batch 毒掉。1000 N 挡的是极端穿透，不是"碰一下"。
+    self_collision_extreme = DoneTerm(
         func=mdp.illegal_contact,
         params={
-            "threshold": 1.0,
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis", "torso_link"]),
+            "threshold": 1000.0,
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["torso_link"]),
         },
     )
+    # 数值安全阀（见 terminations.py 文件头）：状态出现 NaN/Inf，或关节速度荒谬（仿真限幅 37 rad/s，
+    # 100 只可能来自求解器崩坏），立刻结束，别让它进 batch。
+    state_not_finite = DoneTerm(func=mdp.state_not_finite)
+    joint_vel_insane = DoneTerm(func=mdp.joint_vel_out_of_manual_limit, params={"max_velocity": 100.0})
 
 
 @configclass
 class CurriculumCfg:
+    # 判据见 curriculums.py 文件头。第一次训练用的旧判据 13430 迭代一次都没推进。
+    # 当前走路策略实测：mean_kernel 0.71、survival 0.79，所以 0.65 / 0.6 是"刚好能起步"的线。
     gait_cmd_levels = CurrTerm(
         func=mdp.gait_cmd_levels,
-        params={"command_name": "base_velocity", "reward_term_name": "track_lin_vel_xy", "delta": 0.02},
+        params={
+            "command_name": "base_velocity",
+            "reward_term_name": "track_lin_vel_xy",
+            "delta": 0.02,
+            # 0.65 -> 0.6：2026-09-07 热启动运行在走路区间的 mean_kernel 只有 0.655，贴着门槛会反复卡住；
+            # 0.6 对应平均速度误差 0.36 m/s
+            "kernel_threshold": 0.6,
+            "survival_threshold": 0.6,
+            "regress_margin": 0.15,
+        },
     )
 
 

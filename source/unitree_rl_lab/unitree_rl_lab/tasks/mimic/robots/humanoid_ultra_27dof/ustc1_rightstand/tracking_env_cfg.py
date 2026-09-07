@@ -1438,3 +1438,31 @@ class RobotHoutaituiRawBoundedRollLeftArm2P5kgPlayEnvCfg(
         super().__post_init__()
         self.scene.num_envs = 1
         self.episode_length_s = 1e9
+
+
+@configclass
+class RobotHoutaituiRawRollSmoothApexLeftArm2P5kgEnvCfg(
+    RobotHoutaituiRawBoundedRollLeftArm2P5kgEnvCfg
+):
+    """Payload line on the apex-smoothed clip, with the raw-action bound kept.
+
+    W3 showed the smoothed reference halves foot-height tracking RMSE
+    (0.033 -> 0.015 m) and steadies the torso through the kick, but it was
+    run on ``tightroll`` without ``raw_action_excess`` and its README records
+    the cost: ankle-roll commands pinned to the clip 98% / 92% of steps, worse
+    than V1.  This is the combination W3's own README asks for -- the smoothed
+    clip under the rawroll rewards -- carried onto the 2.5 kg plant.  Only
+    ``commands`` differs from the unloaded rawroll payload config.
+    """
+
+    commands: Phase1LiftSmoothApexCommandsCfg = Phase1LiftSmoothApexCommandsCfg()
+
+
+@configclass
+class RobotHoutaituiRawRollSmoothApexLeftArm2P5kgPlayEnvCfg(
+    RobotHoutaituiRawRollSmoothApexLeftArm2P5kgEnvCfg
+):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
+        self.episode_length_s = 1e9
