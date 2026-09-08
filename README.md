@@ -276,9 +276,27 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 # 2. Click the mujoco window, and then press 8 to make the robot feet touch the ground.
 # 3. Press [R1 + X] to run the policy.
 # 4. Click the mujoco window, and then press 9 to disable the elastic band.
-# RB + Y → 进入 Stand_LeftArmTrack(站立策略,左臂初始收手在默认位姿)
-# RB + A → 开/关左臂激励(平滑渐入/渐出,1.5s)
-# Passive: LT + B.on_pressed
+#
+# ---- 站立 / 行走 ----
+# Velocity(行走):       RB + X.on_pressed     左摇杆平移, 右摇杆转向
+# Stand_LeftArmTrack:   RB + Y.on_pressed     站立策略, 左臂初始收手在默认位姿
+#   RB + A                                    开/关左臂激励(平滑渐入/渐出, 1.5s)
+#
+# ---- 跑步(可控步态, State_Run) ----
+# Run:                  RB + A.on_pressed     在 FixStand 或 Velocity 下按
+#   左摇杆 = 前后/侧向速度, 右摇杆 = 转向
+#   按住 RT = 允许跑步(解除走路限速, 支撑相可低于 0.5 -> 出现腾空期); 松开 RT 回到走路
+#   步频/支撑相/摆腿高度/躯干高度/俯仰按指令速度自动插值, 不用手调
+#   松开所有摇杆 -> 策略自己减速, 支撑相滑到 1.0 站定
+#   RB + X 回 Velocity: 只在站定后放行(指令速度<0.1 且支撑相>0.95 且关节静止),
+#                       未站定时终端会打印 "switch blocked, release the sticks ..."
+#   限速在 config.yaml 的 FSM.Run.gait.max_lin_vel_x, 首次上机保持 1.5, 确认无误再放到 3.0
+#   详见 deploy/robots/g1_29dof/config/policy/run/README.md
+#
+# ---- 急停 ----
+# Passive: LT + B.on_pressed           任何状态可用; 高速下切阻尼必摔, 优先用松杆停稳
+#
+# ---- Mimic 动作(在 Velocity 下触发) ----
 # Mimic_Houtaitui: LT(2s) + up.on_pressed
 # Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed      改变质量脚不稳
 # Mimic_Pico_Dun: LT(2s) + down.on_pressed    效果可以
@@ -292,6 +310,10 @@ cd unitree_rl_lab/deploy/robots/g1_29dof/build
 # Mimic_Banyun: LT(2s) + RT.on_pressed
 # Mimic_Jump3: LT(2s) + start.on_pressed
 ```
+
+> `g1_ctrl` 启动时会构造 `config.yaml` 里所有启用的状态。任一状态的 `policy_dir` 缺少
+> `exported/policy.onnx` 或 `params/deploy.yaml`，整个控制器都起不来。Run 用的是
+> `config/policy/run/`，由 `scripts/rsl_rl/export_deploy.py` 生成。
 
 ### Sim2Real
 
@@ -304,11 +326,29 @@ cd unitree_rl_lab/deploy/robots/g1_27dof/build
 
 ./g1_ctrl --network enp5s0 # eth0 is the network interface name.
 
-# 1. press [L2 + Up] to set the robot to stand up
-# 2. Click the mujoco window, and then press 8 to make the robot feet touch the ground.
-# 3. Press [R1 + X] to run the policy.
-# 4. Click the mujoco window, and then press 9 to disable the elastic band.
-# Passive: LT + B.on_pressed
+# 1. press [L2 + Up] to set the robot to stand up   (真机没有 mujoco 的弹性带, 无 8/9 两步)
+#
+# ---- 站立 / 行走 ----
+# Velocity(行走):       RB + X.on_pressed     左摇杆平移, 右摇杆转向
+# Stand_LeftArmTrack:   RB + Y.on_pressed     站立策略, 左臂初始收手在默认位姿
+#   RB + A                                    开/关左臂激励(平滑渐入/渐出, 1.5s)
+#
+# ---- 跑步(可控步态, State_Run) ----
+# Run:                  RB + A.on_pressed     在 FixStand 或 Velocity 下按
+#   左摇杆 = 前后/侧向速度, 右摇杆 = 转向
+#   按住 RT = 允许跑步(解除走路限速, 支撑相可低于 0.5 -> 出现腾空期); 松开 RT 回到走路
+#   步频/支撑相/摆腿高度/躯干高度/俯仰按指令速度自动插值, 不用手调
+#   松开所有摇杆 -> 策略自己减速, 支撑相滑到 1.0 站定
+#   RB + X 回 Velocity: 只在站定后放行(指令速度<0.1 且支撑相>0.95 且关节静止),
+#                       未站定时终端会打印 "switch blocked, release the sticks ..."
+#   限速在 config.yaml 的 FSM.Run.gait.max_lin_vel_x, 首次上机保持 1.5, 确认无误再放到 3.0
+#   真机比仿真原厂模型重 12%, 上机优先用 Unitree-G1-29dof-RunWithId 训出的策略
+#   详见 deploy/robots/g1_29dof/config/policy/run/README.md
+#
+# ---- 急停 ----
+# Passive: LT + B.on_pressed           任何状态可用; 高速下切阻尼必摔, 优先用松杆停稳
+#
+# ---- Mimic 动作(在 Velocity 下触发) ----
 # Mimic_Houtaitui: LT(2s) + up.on_pressed
 # Mimic_Pico_Houtaitui4: LT(2s) + left.on_pressed      改变质量脚不稳
 # Mimic_Pico_Dun: LT(2s) + down.on_pressed    效果可以
@@ -322,6 +362,14 @@ cd unitree_rl_lab/deploy/robots/g1_27dof/build
 # Mimic_Banyun: LT(2s) + RT.on_pressed
 # Mimic_Jump3: LT(2s) + start.on_pressed
 ```
+
+首次让机器人跑起来的顺序（详见 [跑步策略部署说明](deploy/robots/g1_29dof/config/policy/run/README.md)）：
+
+1. 导出策略：`python scripts/rsl_rl/export_deploy.py --task Unitree-G1-29dof-Run --load_run <run目录> --out deploy/robots/g1_29dof/config/policy/run/<版本> --reference_steps 40`
+2. 离线对拍（不需要机器人）：`cd deploy/robots/g1_29dof/test && mkdir -p build && cd build && cmake .. && make && ./test_run_policy ../../config/policy/run/<版本>`
+3. 保持 `max_lin_vel_x: 1.5` 且不按 RT，先当走路策略验证，确认与 Velocity 表现一致
+4. 松杆确认能站定，站定后 `RB + X` 能切回 Velocity
+5. 再放开限速、按住 RT 试跑
 
 ## Acknowledgements
 

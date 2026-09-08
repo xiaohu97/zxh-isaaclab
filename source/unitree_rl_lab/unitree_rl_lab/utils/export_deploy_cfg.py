@@ -19,7 +19,13 @@ def format_value(x):
         return x
 
 
-def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir):
+def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir, clip_actions: float | None = None):
+    """导出部署配置 params/deploy.yaml。
+
+    clip_actions: rsl_rl 的 RslRlVecEnvWrapper 在环境之前对原始动作做的裁剪（RunnerCfg.clip_actions）。
+    它不在网络里，ONNX 导出不包含它；写进 actions.*.raw_clip 由部署侧 ActionManager 复现，
+    否则策略偶发的动作尖峰会原样打到电机上。
+    """
     robot_cfg = getattr(getattr(env.cfg, "scene", None), "robot", None)
     if (
         robot_cfg is None
@@ -48,14 +54,24 @@ def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir):
     # --- commands ---
     cfg["commands"] = {}
     if hasattr(env.cfg.commands, "base_velocity"):  # some environments do not have base_velocity command
+        cmd_cfg = env.cfg.commands.base_velocity
         cfg["commands"]["base_velocity"] = {}
-        if hasattr(env.cfg.commands.base_velocity, "limit_ranges"):
-            ranges = env.cfg.commands.base_velocity.limit_ranges.to_dict()
-        else:
-            ranges = env.cfg.commands.base_velocity.ranges.to_dict()
-        for item_name in ["lin_vel_x", "lin_vel_y", "ang_vel_z"]:
-            ranges[item_name] = list(ranges[item_name])
+        ranges_cfg = cmd_cfg.limit_ranges if hasattr(cmd_cfg, "limit_ranges") else cmd_cfg.ranges
+        # 所有区间都转成 list：tuple 会被 yaml.dump 写成 !!python/tuple 标签
+        ranges = {k: (list(v) if isinstance(v, (tuple, list)) else v) for k, v in ranges_cfg.to_dict().items()}
         cfg["commands"]["base_velocity"]["ranges"] = ranges
+        # 可控步态命令（GaitCommandCfg）：部署侧 GaitCommand 要靠这些标量复现斜率限制 / 站立 / 可行性约束
+        if hasattr(cmd_cfg, "slew_rates"):
+            cfg["commands"]["base_velocity"]["gait"] = {
+                "slew_rates": [float(x) for x in cmd_cfg.slew_rates],
+                "standing_threshold": float(cmd_cfg.standing_threshold),
+                "standing_stance_ratio": float(cmd_cfg.standing_stance_ratio),
+                "standing_swing_height_max": float(cmd_cfg.standing_swing_height_max),
+                "settled_stance_ratio": float(cmd_cfg.settled_stance_ratio),
+                "max_stride_length": float(cmd_cfg.max_stride_length),
+                "flight_speed_threshold": float(cmd_cfg.flight_speed_threshold),
+                "running_stance_ratio": float(cmd_cfg.running_stance_ratio),
+            }
 
     # --- actions ---
     action_names = env.action_manager.active_terms
@@ -88,6 +104,8 @@ def export_deploy_cfg(env: ManagerBasedRLEnv, log_dir):
             cfg["actions"][action_name]["joint_ids"] = None
         else:
             cfg["actions"][action_name]["joint_ids"] = action_term._joint_ids
+        if clip_actions is not None:
+            cfg["actions"][action_name]["raw_clip"] = [-float(clip_actions), float(clip_actions)]
 
     # --- observations ---
     obs_names = env.observation_manager.active_terms["policy"]

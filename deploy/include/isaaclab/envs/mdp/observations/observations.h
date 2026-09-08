@@ -136,5 +136,24 @@ REGISTER_OBSERVATION(gait_phase)
     return obs;
 }
 
+// Run 任务：可控步态指令（8 维）与步态时钟（2 维）。状态由 env->gait_command 维护，
+// ManagerBasedRLEnv::step 在观测之前更新一次，这两个项只读。
+// 不能用上面的 gait_phase 代替 gait_clock：那个按固定 period 积分，Run 的步频是可变指令。
+REGISTER_OBSERVATION(gait_commands)
+{
+    if (!env->gait_command) {
+        throw std::runtime_error("observation 'gait_commands' requires commands.base_velocity.gait in deploy.yaml");
+    }
+    return env->gait_command->obs();
+}
+
+REGISTER_OBSERVATION(gait_clock)
+{
+    if (!env->gait_command) {
+        throw std::runtime_error("observation 'gait_clock' requires commands.base_velocity.gait in deploy.yaml");
+    }
+    return env->gait_command->clock();
+}
+
 }
 }

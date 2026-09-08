@@ -5,6 +5,7 @@
 
 #include "isaaclab/envs/manager_based_rl_env.h"
 #include "isaaclab/manager/manager_term_cfg.h"
+#include <algorithm>
 #include <numeric>
 
 namespace isaaclab
@@ -77,6 +78,22 @@ public:
 
     void process_action(std::vector<float> action)
     {
+        // 与训练一致：rsl_rl 的 RslRlVecEnvWrapper 在环境之前裁剪原始动作（RunnerCfg.clip_actions），
+        // 网络/ONNX 里没有这一步。在这里裁而不是在各 term 里裁，是因为 last_action 观测读的就是
+        // _action，训练时它看到的也是裁剪后的值。
+        {
+            int idx = 0;
+            for(size_t t = 0; t < _terms.size(); ++t)
+            {
+                const int dim = _terms[t]->action_dim();
+                if(!_raw_clips[t].empty()) {
+                    for(int i = idx; i < idx + dim; ++i) {
+                        action[i] = std::clamp(action[i], _raw_clips[t][0], _raw_clips[t][1]);
+                    }
+                }
+                idx += dim;
+            }
+        }
         _action = action;
         int idx = 0;
         for(auto & term : _terms)
@@ -120,11 +137,20 @@ private:
 
             auto term = actions_map()[action_name](it->second, env);
             _terms.push_back(std::move(term));
+
+            // 可选 raw_clip: [lo, hi]，对该项的原始网络输出裁剪（deploy.yaml 由 export_deploy_cfg 写入）
+            const YAML::Node term_cfg = it->second;
+            if(term_cfg["raw_clip"] && !term_cfg["raw_clip"].IsNull()) {
+                _raw_clips.push_back(term_cfg["raw_clip"].as<std::vector<float>>());
+            } else {
+                _raw_clips.push_back({});
+            }
         }
     }
 
     std::vector<float> _action;
     std::vector<std::unique_ptr<ActionTerm>> _terms;
+    std::vector<std::vector<float>> _raw_clips;  // 与 _terms 一一对应；空 = 不裁
 };
 
 };

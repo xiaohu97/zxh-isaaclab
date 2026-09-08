@@ -39,6 +39,10 @@ parser.add_argument("--pitch", type=float, default=None, help="躯干俯仰 [rad
 parser.add_argument("--push", action="store_true", help="保留训练时的随机推力")
 parser.add_argument("--steps", type=int, default=0, help="跑多少步后退出，0 = 一直跑")
 parser.add_argument("--real-time", action="store_true", default=False, help="按真实时间播放")
+parser.add_argument(
+    "--big_gpu_buffers", action="store_true",
+    help="用训练那套 PhysX 显存缓冲（默认已缩小以便和训练同时跑；只有报 buffer overflow 时才需要）",
+)
 cli_args.add_rsl_rl_args(parser)
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -111,6 +115,20 @@ def main():
     if not args_cli.push:
         env_cfg.events.push_robot = None
 
+    # PhysX 的 GPU 缓冲是按 4096 个环境的训练配置来的，播几个机器人用不着这么大。
+    # 训练在跑时显存只剩几 GB，不缩会直接 "PxgCudaDeviceMemoryAllocator failed to allocate"
+    # 然后回退 CPU 求解 -> 创建场景失败。这些值对 <=64 个机器人绰绰有余。
+    if not args_cli.big_gpu_buffers:
+        px = env_cfg.sim.physx
+        px.gpu_max_rigid_contact_count = 2**20
+        px.gpu_max_rigid_patch_count = 2**15
+        px.gpu_found_lost_pairs_capacity = 2**19
+        px.gpu_found_lost_aggregate_pairs_capacity = 2**20
+        px.gpu_total_aggregate_pairs_capacity = 2**19
+        px.gpu_collision_stack_size = 2**24
+        px.gpu_heap_capacity = 2**24
+        px.gpu_temp_buffer_capacity = 2**22
+
     log_root_path = os.path.abspath(os.path.join("logs", "rsl_rl", agent_cfg.experiment_name))
     resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
     print(f"[INFO] checkpoint: {resume_path}")
@@ -125,7 +143,10 @@ def main():
     cmd = uenv.command_manager.get_term("base_velocity")
     robot = uenv.scene["robot"]
     sensor = uenv.scene.sensors["contact_forces"]
-    feet, _ = sensor.find_bodies(["left_ankle_roll_link", "right_ankle_roll_link"], preserve_order=True)
+    # 接触传感器和 articulation 各有一套连杆索引，顺序不保证一致，必须分别解析：
+    # 用传感器索引去查 robot.data.body_pos_w 会取到别的连杆（实测足高显示 1.05 m）
+    feet, _ = robot.find_bodies(["left_ankle_roll_link", "right_ankle_roll_link"], preserve_order=True)
+    sfeet, _ = sensor.find_bodies(["left_ankle_roll_link", "right_ankle_roll_link"], preserve_order=True)
     dt = uenv.step_dt
     device = uenv.device
 
@@ -208,7 +229,7 @@ def main():
             cmd.command_b[d] = cmd.target_b[d]  # 摔倒重置后直接给目标指令，不从随机值滑
 
             win_v.append(robot.data.root_lin_vel_b[:, 0].clone())
-            contact = sensor.data.current_contact_time[:, feet] > 0
+            contact = sensor.data.current_contact_time[:, sfeet] > 0
             win_flight.append((~contact).all(-1).float())
             win_footz.append(robot.data.body_pos_w[:, feet, 2].max(-1)[0].clone())
 

@@ -8,6 +8,7 @@
 #include "isaaclab/manager/observation_manager.h"
 #include "isaaclab/manager/action_manager.h"
 #include "isaaclab/envs/mdp/commands/motion_command.h"
+#include "isaaclab/envs/mdp/commands/gait_command.h"
 #include "isaaclab/assets/articulation/articulation.h"
 #include "isaaclab/algorithms/algorithms.h"
 #include <iostream>
@@ -42,6 +43,15 @@ public:
 
         robot->update();
 
+        // 可控步态命令（Run 任务）：deploy.yaml 里有 commands.base_velocity.gait 才创建。
+        // 必须先于 ObservationManager，它构造时会把每个观测项调用一次来填历史。
+        {
+            const YAML::Node c = cfg;  // const 访问不会往 map 里插空节点
+            if (c["commands"] && c["commands"]["base_velocity"] && c["commands"]["base_velocity"]["gait"]) {
+                gait_command = std::make_unique<GaitCommand>(c["commands"]["base_velocity"], this->step_dt);
+            }
+        }
+
         // load managers
         action_manager = std::make_unique<ActionManager>(cfg["actions"], this);
         observation_manager = std::make_unique<ObservationManager>(cfg["observations"], this);
@@ -55,6 +65,9 @@ public:
         if(robot->data.motion_loader) {
             robot->data.motion_loader->reset(robot->data);
         }
+        if(gait_command) {
+            gait_command->reset(robot->data.joystick);
+        }
         action_manager->reset();
         observation_manager->reset();
     }
@@ -65,6 +78,9 @@ public:
         robot->update();
         if(robot->data.motion_loader) {
             robot->data.motion_loader->update(episode_length * step_dt);
+        }
+        if(gait_command) {
+            gait_command->update(robot->data.joystick);  // 观测之前更新，gait_commands/gait_clock 只读
         }
         auto obs = observation_manager->compute();
         auto action = alg->act(obs);
@@ -79,6 +95,7 @@ public:
     std::unique_ptr<ActionManager> action_manager;
     std::shared_ptr<Articulation> robot;
     std::unique_ptr<Algorithms> alg;
+    std::unique_ptr<GaitCommand> gait_command;  // Run 任务的可控步态指令；其它任务为空
     long episode_length = 0;
     float global_phase = 0.0f;
 };
