@@ -514,6 +514,12 @@ def main():
         for event_name in (
             "physics_material",
             "add_joint_default_pos",
+            # ustc1_rightstand splits the calibration term by joint group, so
+            # both halves have to be named here.  hasattr() hides a miss, and a
+            # missed leg term would leave +-0.08 rad of zero-point noise in a
+            # rollout the harness reports as nominal.
+            "add_leg_joint_default_pos",
+            "add_upper_joint_default_pos",
             "base_com",
             "targeted_push_robot",
         ):

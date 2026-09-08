@@ -526,11 +526,48 @@ class EventCfg(PlantRandomizationEventCfg):
         },
     )
 
-    add_joint_default_pos = EventTerm(
+    # Joint zero-point calibration error, split by joint group.
+    #
+    # This is the only startup term that models a *persistent* offset the policy
+    # cannot observe: it shifts ``default_joint_pos``, which is the action
+    # offset, so the encoder reads zero at a pose that is not the true zero and
+    # nothing in the observation reveals it.  Reset randomization is a different
+    # thing -- it perturbs the initial state once per episode and the policy can
+    # correct it back.
+    #
+    # The legs carry +-0.04 rad against +-0.01 elsewhere.  A shared +-0.01
+    # (+-0.57 deg) is narrower than real calibration error on this robot, and the
+    # sagittal leg chain is where it shows: an equal offset on both ankle
+    # pitches tilts the torso by roughly the same angle, with no observation the
+    # policy could use to notice.  The arms and waist do not couple to balance
+    # the same way, so their spread is left alone rather than widened for
+    # symmetry.
+    add_leg_joint_default_pos = EventTerm(
         func=mdp.randomize_joint_default_pos,
         mode="startup",
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[".*_hip_.*", ".*_knee_joint", ".*_ankle_.*"],
+            ),
+            "pos_distribution_params": (-0.04, 0.04),
+            "operation": "add",
+        },
+    )
+
+    add_upper_joint_default_pos = EventTerm(
+        func=mdp.randomize_joint_default_pos,
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[
+                    "waist_yaw_joint",
+                    ".*_shoulder_.*",
+                    ".*_elbow_joint",
+                    ".*_wrist_.*",
+                ],
+            ),
             "pos_distribution_params": (-0.01, 0.01),
             "operation": "add",
         },

@@ -106,8 +106,12 @@ def randomize_joint_default_pos(
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
 
-    # save nominal value for export
-    asset.data.default_joint_pos_nominal = torch.clone(asset.data.default_joint_pos[0])
+    # Save the nominal value for export, once.  This term is applied per joint
+    # group -- legs and upper body carry different calibration spreads -- and an
+    # unconditional clone here would let the second group record the first
+    # group's already-randomized values as "nominal".
+    if not hasattr(asset.data, "default_joint_pos_nominal"):
+        asset.data.default_joint_pos_nominal = torch.clone(asset.data.default_joint_pos[0])
 
     # resolve environment ids
     if env_ids is None:
