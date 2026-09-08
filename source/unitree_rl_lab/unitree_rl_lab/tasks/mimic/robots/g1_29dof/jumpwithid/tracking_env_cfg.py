@@ -22,7 +22,7 @@ from unitree_rl_lab.tasks.mimic.robots.g1_29dof.dance_102.tracking_env_cfg impor
 
 
 _TASK_DIR = os.path.dirname(__file__)
-_URDF_NAME = "g1_29dof_rev_1_0_identified0521.urdf"
+_URDF_NAME = "g1_29dof_rev_1_0_identified0907.urdf"  # 0521 版仍保留在本目录, 改这里即可切回
 _STAGE_DIR = "/tmp/IsaacLab/unitree_rl_lab/jumpwithid"
 
 
@@ -159,9 +159,10 @@ class RobotEnvCfg(BaseRobotEnvCfg):
 
     def __post_init__(self):
         super().__post_init__()
-        # 用本任务目录里的 0521 辨识版 URDF（整机 37.662kg，左右腿不对称），
-        # 也就是 jump1 那批 run 实际训练用的动力学；不走 assets/robots/unitree.py
-        # 全局指向的 g1_29dof_rev_1_0.urdf（那个现在装的是宇树原版 33.341kg）
+        # 用本任务目录里的 0907 辨识版 URDF（整机 37.341kg = 原厂 33.341 + 左手负载 2.5 + 躯干 +1.5；
+        # 腿/骨盆/右臂保持原厂对称值，见文件头注释）。0521 版（37.662kg，左右腿不对称，
+        # jump1 那批 run 实际训练用的动力学）仍在本目录，切回改 _URDF_NAME 即可；
+        # 不走 assets/robots/unitree.py 全局指向的 g1_29dof_rev_1_0.urdf（宇树原版 33.341kg）
         self.scene.robot.spawn.asset_path = _stage_robot_urdf()
 
 
