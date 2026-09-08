@@ -272,6 +272,7 @@ cd unitree_mujoco/simulate/build
 ```bash
 cd unitree_rl_lab/deploy/robots/g1_29dof/build
 ./g1_ctrl --network lo
+$ LD_LIBRARY_PATH=~/ddsfix ./g1_ctrl --network lo
 # 1. press [L2 + Up] to set the robot to stand up
 # 2. Click the mujoco window, and then press 8 to make the robot feet touch the ground.
 # 3. Press [R1 + X] to run the policy.
@@ -323,7 +324,7 @@ You can use this program to control the robot directly, but make sure the on-bor
 cd unitree_rl_lab/deploy/robots/g1_29dof/build
 
 cd unitree_rl_lab/deploy/robots/g1_27dof/build
-
+$ LD_LIBRARY_PATH=~/ddsfix ./g1_ctrl --network enp5s0
 ./g1_ctrl --network enp5s0 # eth0 is the network interface name.
 
 # 1. press [L2 + Up] to set the robot to stand up   (真机没有 mujoco 的弹性带, 无 8/9 两步)

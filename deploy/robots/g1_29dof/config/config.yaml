@@ -149,9 +149,9 @@ FSM:
       Velocity: RB + X.on_pressed
     policy_dir: config/policy/run
     gait:
-      max_lin_vel_x: 1.5      # 总限速。首次上机 1.5; 走路表现和 Velocity 一致、松杆能站定后再放到训练上限 3.0
-      max_lin_vel_y: 0.3
-      max_ang_vel_z: 0.6
+      max_lin_vel_x: 3.0      # 总限速。首次上机 1.5; 走路表现和 Velocity 一致、松杆能站定后再放到训练上限 3.0
+      max_lin_vel_y: 0.5
+      max_ang_vel_z: 0.8
       run_enable: RT          # RT / LT / always / never。Unitree 手柄的 RT 是 0/1 按键, 只能做使能
       walk_max_lin_vel_x: 1.5 # 未按 RT 时的限速, 且支撑相不低于 walk_min_stance_ratio (无腾空)
       walk_min_stance_ratio: 0.5

@@ -517,4 +517,91 @@ UNITREE_G1_29DOF_CFG = UnitreeArticulationCfg(
 )
 
 
+"""G1 29DOF，执行器换成带力矩-转速曲线的真实电机模型。
+
+与 ``UNITREE_G1_29DOF_CFG`` 的差别**只在 actuators**：URDF、初始位姿、PD 增益、joint_sdk_names
+全部相同，可以直接拿来做 A/B 对比（见 tasks/locomotion/robots/g1/runwithid_tn）。
+
+``ImplicitActuatorCfg`` 的力矩上限是常数：膝在 0 rad/s 和 19 rad/s 都能出 139 N·m。真实电机
+不是这样，接近空载转速时力矩掉到 0。``UnitreeActuatorCfg_*``（unitree_actuators.py）实现了
+厂商实测的 T-N 曲线 + 静/动摩擦，参数早已按 G1 的电机型号写好，只是没有任何机器人配置引用过。
+
+四组电机的力矩上限对比（低速段 -> 拐点 -> 空载）::
+
+    型号            隐式常数上限      Y1 同向 / Y2 制动    X1 拐点 -> X2 空载
+    N7520-14.3      88 N·m           71 / 83.3           22.63 -> 35.52 rad/s
+    N7520-22.5      139 N·m          111 / 131           14.5  -> 22.7  rad/s
+    N5020-16        25 N·m           24.8 / 31.9         30.86 -> 40.13 rad/s
+    W4010-25        5 N·m            4.8 / 8.6           15.3  -> 24.76 rad/s
+
+即使在低速段，同向出力也比原来的常数上限低 20%（膝 139 -> 111），高速段还要继续衰减。
+跑步高速档最吃膝关节力矩，所以这个配置下能达到的速度预期会明显低于隐式模型。
+
+``effort_limit_sim`` / ``velocity_limit_sim`` 设成 Y2 / X2：显式执行器的真实限幅在
+``UnitreeActuator._clip_effort`` 里做，写进 PhysX 的值只是不要反过来卡住模型（不设的话会沿用
+URDF 的限值，肩部 25 N·m 会把 Y2=31.9 削掉）。armature 用各型号按转子+齿轮惯量算出的实测值，
+不再是统一的 0.01。
+
+``min_delay``/``max_delay`` 保持默认 0：本配置只改电机力矩模型，动作延迟是另一个 sim2real 项，
+一起打开会让对比结果无法归因。
+"""
+
+UNITREE_G1_29DOF_TN_CFG = UNITREE_G1_29DOF_CFG.copy()
+UNITREE_G1_29DOF_TN_CFG.actuators = {
+    "N7520-14.3": unitree_actuators.UnitreeActuatorCfg_N7520_14p3(
+        joint_names_expr=[".*_hip_pitch_.*", ".*_hip_yaw_.*", "waist_yaw_joint"],
+        effort_limit_sim=83.3,
+        velocity_limit_sim=35.52,
+        stiffness={
+            ".*_hip_.*": 100.0,
+            "waist_yaw_joint": 200.0,
+        },
+        damping={
+            ".*_hip_.*": 2.0,
+            "waist_yaw_joint": 5.0,
+        },
+    ),
+    "N7520-22.5": unitree_actuators.UnitreeActuatorCfg_N7520_22p5(
+        joint_names_expr=[".*_hip_roll_.*", ".*_knee_.*"],
+        effort_limit_sim=131.0,
+        velocity_limit_sim=22.7,
+        stiffness={
+            ".*_hip_roll_.*": 100.0,
+            ".*_knee_.*": 150.0,
+        },
+        damping={
+            ".*_hip_roll_.*": 2.0,
+            ".*_knee_.*": 4.0,
+        },
+    ),
+    "N5020-16": unitree_actuators.UnitreeActuatorCfg_N5020_16(
+        joint_names_expr=[
+            ".*_shoulder_.*",
+            ".*_elbow_.*",
+            ".*_wrist_roll.*",
+            ".*_ankle_.*",
+            "waist_roll_joint",
+            "waist_pitch_joint",
+        ],
+        effort_limit_sim=31.9,
+        velocity_limit_sim=40.13,
+        stiffness=40.0,
+        damping={
+            ".*_shoulder_.*": 1.0,
+            ".*_elbow_.*": 1.0,
+            ".*_wrist_roll.*": 1.0,
+            ".*_ankle_.*": 2.0,
+            "waist_.*_joint": 5.0,
+        },
+    ),
+    "W4010-25": unitree_actuators.UnitreeActuatorCfg_W4010_25(
+        joint_names_expr=[".*_wrist_pitch.*", ".*_wrist_yaw.*"],
+        effort_limit_sim=8.6,
+        velocity_limit_sim=24.76,
+        stiffness=40.0,
+        damping=1.0,
+    ),
+}
+
+
 """Configuration for the Unitree G1 23DOF Humanoid robot."""
