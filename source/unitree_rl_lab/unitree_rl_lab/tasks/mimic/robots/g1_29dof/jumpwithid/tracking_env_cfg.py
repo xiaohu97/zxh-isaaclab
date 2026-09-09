@@ -26,7 +26,7 @@ _URDF_NAME = "g1_29dof_rev_1_0_identified0907.urdf"  # 0521 版仍保留在本�
 _STAGE_DIR = "/tmp/IsaacLab/unitree_rl_lab/jumpwithid"
 
 
-def _stage_robot_urdf() -> str:
+def stage_robot_urdf() -> str:
     """把本目录的 URDF 和 unitree_ros 的 meshes 拼到一个临时目录，再交给 Isaac Lab 转换。
 
     URDF 里的 mesh 写成 ``meshes/xxx.STL``，按 URDF 自身所在目录解析。meshes 有 100MB，
@@ -163,7 +163,7 @@ class RobotEnvCfg(BaseRobotEnvCfg):
         # 腿/骨盆/右臂保持原厂对称值，见文件头注释）。0521 版（37.662kg，左右腿不对称，
         # jump1 那批 run 实际训练用的动力学）仍在本目录，切回改 _URDF_NAME 即可；
         # 不走 assets/robots/unitree.py 全局指向的 g1_29dof_rev_1_0.urdf（宇树原版 33.341kg）
-        self.scene.robot.spawn.asset_path = _stage_robot_urdf()
+        self.scene.robot.spawn.asset_path = stage_robot_urdf()
 
 
 class RobotPlayEnvCfg(RobotEnvCfg):
