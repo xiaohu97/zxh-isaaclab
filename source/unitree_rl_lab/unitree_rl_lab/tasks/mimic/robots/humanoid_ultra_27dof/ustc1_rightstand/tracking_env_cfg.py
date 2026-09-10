@@ -535,33 +535,37 @@ class EventCfg(PlantRandomizationEventCfg):
     # thing -- it perturbs the initial state once per episode and the policy can
     # correct it back.
     #
-    # The legs carry +-0.04 rad against +-0.01 elsewhere.  A shared +-0.01
-    # (+-0.57 deg) is narrower than real calibration error on this robot, and the
-    # sagittal leg chain is where it shows: an equal offset on both ankle
-    # pitches tilts the torso by roughly the same angle, with no observation the
-    # policy could use to notice.  The arms and waist do not couple to balance
-    # the same way, so their spread is left alone rather than widened for
-    # symmetry.
-    add_leg_joint_default_pos = EventTerm(
+    # Knees and ankles carry +-0.03 rad against +-0.01 everywhere else.  A
+    # shared +-0.01 (+-0.57 deg) is narrower than real calibration error on this
+    # robot, and the distal sagittal chain is where it shows: an equal offset on
+    # both ankle pitches tilts the torso by roughly the same angle, with no
+    # observation the policy could use to notice.  The hips stay at +-0.01: the
+    # 2026-09-09 X2 run put +-0.04 on the whole leg and the policy answered by
+    # not lifting (57/100 seeds under that offset), because a hip zero-point
+    # error drifts the anchor into the 0.35 m xy termination as soon as the
+    # foot leaves the ground.  The arms and waist do not couple to balance the
+    # same way, so their spread is left alone rather than widened for symmetry.
+    add_knee_ankle_joint_default_pos = EventTerm(
         func=mdp.randomize_joint_default_pos,
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                joint_names=[".*_hip_.*", ".*_knee_joint", ".*_ankle_.*"],
+                joint_names=[".*_knee_joint", ".*_ankle_.*"],
             ),
-            "pos_distribution_params": (-0.04, 0.04),
+            "pos_distribution_params": (-0.03, 0.03),
             "operation": "add",
         },
     )
 
-    add_upper_joint_default_pos = EventTerm(
+    add_other_joint_default_pos = EventTerm(
         func=mdp.randomize_joint_default_pos,
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 joint_names=[
+                    ".*_hip_.*",
                     "waist_yaw_joint",
                     ".*_shoulder_.*",
                     ".*_elbow_joint",

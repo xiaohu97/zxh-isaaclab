@@ -516,10 +516,10 @@ def main():
             "add_joint_default_pos",
             # ustc1_rightstand splits the calibration term by joint group, so
             # both halves have to be named here.  hasattr() hides a miss, and a
-            # missed leg term would leave +-0.08 rad of zero-point noise in a
-            # rollout the harness reports as nominal.
-            "add_leg_joint_default_pos",
-            "add_upper_joint_default_pos",
+            # missed knee/ankle term would leave +-0.03 rad of zero-point noise
+            # in a rollout the harness reports as nominal.
+            "add_knee_ankle_joint_default_pos",
+            "add_other_joint_default_pos",
             "base_com",
             "targeted_push_robot",
         ):
