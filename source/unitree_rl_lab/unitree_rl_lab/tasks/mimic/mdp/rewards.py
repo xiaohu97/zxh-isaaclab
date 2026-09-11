@@ -10,6 +10,7 @@ from isaaclab.utils.math import quat_error_magnitude
 from unitree_rl_lab.tasks.mimic.mdp.commands import MotionCommand
 
 if TYPE_CHECKING:
+    from isaaclab.assets import Articulation
     from isaaclab.envs import ManagerBasedRLEnv
 
 
@@ -445,3 +446,31 @@ def raw_action_excess(
         columns = [lookup[int(j)] for j in joint_ids]
     raw = term.raw_actions[:, columns]
     return torch.sum(torch.clamp(torch.abs(raw) - threshold, min=0.0), dim=-1)
+
+
+def self_body_clearance(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    other_cfg: SceneEntityCfg,
+    margin: float,
+) -> torch.Tensor:
+    """Penalize ``asset_cfg`` bodies for coming closer than ``margin`` to any ``other_cfg`` body.
+
+    Distances are between body *origins*, not collision surfaces, so ``margin`` has to be
+    calibrated against the reference motion rather than read off the robot's geometry.
+    Measured on jump1_1m.npz: the left hand passes 0.052 m from ``left_hip_roll_link`` at
+    frame 26 (0.52 s), with 26 of 90 frames under 0.15 m -- i.e. the reference clip itself
+    swings the arm through the thigh's personal space, and an arm carrying a payload
+    tracks it badly enough to actually hit.  A margin above that reference minimum is
+    therefore deliberate: it buys clearance by letting the arm deviate from the clip.
+
+    The penalty is the summed depth of violation (zero once every pair is clear), which
+    keeps a gradient before contact happens rather than only after -- contact terms alone
+    give no signal until the collision already occurred.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_pos_w = asset.data.body_pos_w
+    pos_a = body_pos_w[:, asset_cfg.body_ids]
+    pos_b = body_pos_w[:, other_cfg.body_ids]
+    min_dist = torch.cdist(pos_a, pos_b).min(dim=-1).values
+    return torch.sum(torch.clamp(margin - min_dist, min=0.0), dim=-1)
