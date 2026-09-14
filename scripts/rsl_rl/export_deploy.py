@@ -73,12 +73,18 @@ def main():
     env_cfg.scene.num_envs = 1
     env_cfg.seed = 0
     env_cfg.events.push_robot = None
-    env_cfg.events.actuator_gains = None  # 导出标称 kp/kd
-    env_cfg.curriculum.gait_cmd_levels = None
+    # 下面几项是 Run 任务特有的字段；velocity 系列没有 actuator_gains 随机化、没有 gait 课程，
+    # 也没有 randomize_start_phase。用 hasattr 保护，让本脚本对两类任务都能用。
+    # （velocity 的 kp/kd 本来就是 actuator cfg 里的标称值，不需要关随机化。）
+    if hasattr(env_cfg.events, "actuator_gains"):
+        env_cfg.events.actuator_gains = None  # 导出标称 kp/kd
+    if hasattr(env_cfg.curriculum, "gait_cmd_levels"):
+        env_cfg.curriculum.gait_cmd_levels = None
     env_cfg.commands.base_velocity.debug_vis = False
     env_cfg.commands.base_velocity.rel_standing_envs = 0.0
     env_cfg.commands.base_velocity.resampling_time_range = (1e9, 1e9)
-    env_cfg.commands.base_velocity.randomize_start_phase = False
+    if hasattr(env_cfg.commands.base_velocity, "randomize_start_phase"):
+        env_cfg.commands.base_velocity.randomize_start_phase = False
     # 参考轨迹要和 C++ 逐位对拍：观测不能带噪声
     env_cfg.observations.policy.enable_corruption = False
     if args_cli.reference_steps > 0:
