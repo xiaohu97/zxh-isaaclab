@@ -6,7 +6,7 @@ FSM:
       id: 2
     Velocity:
       id: 3
-      type: RLBase
+      type: Walk
 
     Stand_LeftArmTrack:
       id: 4
@@ -129,6 +129,16 @@ FSM:
       Run: RB + A.on_pressed
 
     policy_dir: config/policy/velocity
+    # Background CSV writer; records the first 3 seconds of each walk entry.
+    walk_trace:
+      enabled: true
+      directory: log/walk_handoff
+      duration_s: 3.0
+    walk_entry:
+      blend_time_s: 0.30          # 从新策略首帧实际接入开始计时，期间平滑下发关节目标
+      zero_command_time_s: 0.40   # >= blend_time_s；先以零速度命令接手
+      command_ramp_time_s: 0.50   # 随后渐进恢复摇杆命令
+      inference_timeout_s: 0.20  # 推理/采样超时走 Passive，避免无限保持旧目标
     # policy_dir: ../../../logs/rsl_rl/unitree_g1_29dof_velocity
   Stand_LeftArmTrack:
     # 站立 + 左臂轨迹激励。进入: 在 FixStand/Velocity 下按 RB + Y。

@@ -1,0 +1,70 @@
+{
+  "fresh_threaded.json": {
+    "sha256": "001165ff57f4a7adf96f6e6af3518d84cced299847e742318d63fea742ec5054",
+    "bytes": 2791
+  },
+  "validation.log": {
+    "sha256": "a118140595837fdd36ab51835f34f3310e8fc823bcdd1e1fe14541bfd14780ac",
+    "bytes": 1213
+  },
+  "diagnostics.diff": {
+    "sha256": "28b5dd6162adeb49af05b60867f0552a25e26c7759fb609970fb0fbb975624fc",
+    "bytes": 24448
+  },
+  "README.md": {
+    "sha256": "6925f237b4d61566f5926036517352906f2210057bcd54f596bc5f3864804092",
+    "bytes": 8130
+  },
+  "comparison.png": {
+    "sha256": "6564d14366a63a43cadffe45de09d3a67d145de11f53b7da5002ceaf2dd12af8",
+    "bytes": 200937
+  },
+  "fault_logging.log": {
+    "sha256": "b60e2d0bad72dd94d4eed626b14ea2e87bbf220ce8711311f5e77789ceebc3aa",
+    "bytes": 2572
+  },
+  "fresh_paired_sdk.csv": {
+    "sha256": "a58dbe50b604ff4ccac7a292457dfc3a85ddf24aafc3d99a44ed404f1f4691b2",
+    "bytes": 674
+  },
+  "plot_comparison.py": {
+    "sha256": "943aff6265cf3cd1887524894c8d1a8c723559aefd7f801bdce9e9ba27943aa6",
+    "bytes": 1185
+  },
+  "bounded_sdk.csv": {
+    "sha256": "c003402f7a327253e0fbbb9dbaa4aaa62fb53974a9762e505c825cbe32e95e31",
+    "bytes": 674
+  },
+  "candidate_sources.tgz": {
+    "sha256": "98723f97c56a25b1d3696e8620ac0eff8fc335b12810ce27cc4233250c31abba",
+    "bytes": 21817
+  },
+  "robot_sdk.xml": {
+    "sha256": "e58dd9796b707a6a72373a8ae082201e9c26905d9f3f0c9428f7a5913d34b85f",
+    "bytes": 40632
+  },
+  "robot_matched.xml": {
+    "sha256": "d4ed6f1d460088e9df76f1e38af0c9f6d71c7844fc0cab1db628bdec1506cb82",
+    "bytes": 41941
+  },
+  "scene_sdk.xml": {
+    "sha256": "d55a4fdeb3a42447eddc24af0f5fb8ea582688193d3d2eb17131489a49276e57",
+    "bytes": 887
+  },
+  "latest_traces.tgz": {
+    "sha256": "0c63e9628e18eb86da62e69b09ce6eeb681787deebbdc0f0777c07dae0e8cb37",
+    "bytes": 55008455
+  },
+  "fresh_paired_matched.csv": {
+    "sha256": "598be2c5a767b4d492e22bd374b7c2b8191bbc263cee4e634d5797f9378b2f13",
+    "bytes": 679
+  },
+  "bounded_matched.csv": {
+    "sha256": "9bd2000f0b5c69cc96cc39edf4f8ff29314069d6a96d4909c7d871dd1c3dacfd",
+    "bytes": 673
+  },
+  "scene_matched.xml": {
+    "sha256": "406ad85128bdc20fb12b2d396e07b0089bf810b53a0c61ad2f643651a598c865",
+    "bytes": 891
+  }
+}

@@ -57,6 +57,9 @@ public:
     {
         lowstate->update();
         if(keyboard) keyboard->update();
+        // Optional observer runs on the control thread, before the next command
+        // is written. It can pair measured state with the previously sent target.
+        if (control_observer) control_observer();
     }
 
     void post_run()
@@ -67,4 +70,5 @@ public:
     static std::unique_ptr<LowCmd_t> lowcmd;
     static std::shared_ptr<LowState_t> lowstate;
     static std::shared_ptr<Keyboard> keyboard;
+    inline static std::function<void()> control_observer;
 };

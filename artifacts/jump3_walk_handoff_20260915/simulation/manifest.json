@@ -1,0 +1,10 @@
+{
+  "/home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/src/State_Mimic.cpp": "bc921110e6511afdd391df25b7067f2319624b8b47cf019d6ad93948b2734311",
+  "/home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/src/State_Walk.cpp": "a07ede7eee735e978a11d8909638d3d1b2bef7fe5161000b2313c9de45adf490",
+  "/home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/build/g1_ctrl": "f20e544dcf1f3fa6fb87953167ce21351cfda3732ea01bc380e4f005c05c6344",
+  "/home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/jump3/exported/policy.onnx": "d48f4cb3117873af1bb77f21ce12d88f79193852b556767cbc22328479636c62",
+  "/home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/velocity/exported/policy.onnx": "dac6e8f5bafa8f6b1b46a32502e7f5ed67489f565d66531ffedb99ab909462ad",
+  "/tmp/g1_jump_walk_sim_20260915/scene_matched.xml": "0dfa0904b626062cf9e2da96b45738f203b52bbb673eacf10bf2fc90b0b14300",
+  "/tmp/g1_jump_walk_sim_20260915/robot_matched.xml": "d4ed6f1d460088e9df76f1e38af0c9f6d71c7844fc0cab1db628bdec1506cb82",
+  "/tmp/g1_jump_walk_sim_20260915/sim.cpp": "e168c3be365da633f9d30372806652a8c47d2bd701e8e02a095f28a10970af78"
+}

@@ -4,6 +4,7 @@
 #include "FSM/State_RLBase.h"
 #include "State_Mimic.h"
 #include "State_Run.h"
+#include "State_Walk.h"
 
 std::unique_ptr<LowCmd_t> FSMState::lowcmd = nullptr;
 std::shared_ptr<LowState_t> FSMState::lowstate = nullptr;
@@ -46,6 +47,7 @@ int main(int argc, char** argv)
     }
     
     // Initialize FSM
+    FSMState::control_observer = State_Walk::record_control_frame;
     auto fsm = std::make_unique<CtrlFSM>(param::config["FSM"]);
     fsm->start();
 
@@ -59,4 +61,3 @@ int main(int argc, char** argv)
     
     return 0;
 }
-

@@ -1,0 +1,102 @@
+[
+  {
+    "case": "fresh_sdk_nominal_recovery",
+    "switched": true,
+    "passive": false,
+    "min_z": 0.749911071,
+    "max_tilt": 28.929682833370652,
+    "final_z": 0.778479588,
+    "final_tilt": 3.153482177480792,
+    "first_s_max_target_step": 0.030000030999999927
+  },
+  {
+    "case": "fresh_sdk_real_gyro_recovery",
+    "switched": true,
+    "passive": false,
+    "min_z": 0.697796482,
+    "max_tilt": 29.673436253257886,
+    "final_z": 0.778147007,
+    "final_tilt": 3.5838960430259963,
+    "first_s_max_target_step": 0.030000035999999897
+  },
+  {
+    "case": "fresh_sdk_mirrored_gyro_recovery",
+    "switched": true,
+    "passive": false,
+    "min_z": 0.746255007,
+    "max_tilt": 29.2555514907315,
+    "final_z": 0.778846419,
+    "final_tilt": 3.160853852472945,
+    "first_s_max_target_step": 0.030000002000000026
+  },
+  {
+    "case": "fresh_sdk_strong_roll_recovery",
+    "switched": true,
+    "passive": false,
+    "min_z": 0.669062615,
+    "max_tilt": 29.832928910406626,
+    "final_z": 0.779471105,
+    "final_tilt": 3.236139360837545,
+    "first_s_max_target_step": 0.0300000319999999
+  },
+  {
+    "case": "fresh_sdk_waist_error_recovery",
+    "switched": true,
+    "passive": false,
+    "min_z": 0.685635234,
+    "max_tilt": 32.19651302800864,
+    "final_z": 0.774622231,
+    "final_tilt": 3.8694375300723727,
+    "first_s_max_target_step": 0.03000003299999987
+  },
+  {
+    "case": "fresh_matched_nominal_recovery",
+    "switched": true,
+    "passive": false,
+    "min_z": 0.741742138,
+    "max_tilt": 26.78438308793777,
+    "final_z": 0.777279179,
+    "final_tilt": 3.3903518222928546,
+    "first_s_max_target_step": 0.030000030000000066
+  },
+  {
+    "case": "fresh_matched_real_gyro_recovery",
+    "switched": true,
+    "passive": false,
+    "min_z": 0.70910665,
+    "max_tilt": 28.019352133197895,
+    "final_z": 0.778316738,
+    "final_tilt": 3.415299928760586,
+    "first_s_max_target_step": 0.030000002000000026
+  },
+  {
+    "case": "fresh_matched_mirrored_gyro_recovery",
+    "switched": true,
+    "passive": true,
+    "min_z": 0.196664951,
+    "max_tilt": 110.31421136155089,
+    "final_z": 0.196664951,
+    "final_tilt": 72.17636205664722,
+    "first_s_max_target_step": 0.030000033999999953
+  },
+  {
+    "case": "fresh_matched_strong_roll_recovery",
+    "switched": true,
+    "passive": true,
+    "min_z": 0.0739280615,
+    "max_tilt": 115.95869304816851,
+    "final_z": 0.0739280615,
+    "final_tilt": 105.10887833363147,
+    "first_s_max_target_step": 0.030000036000000008
+  },
+  {
+    "case": "fresh_matched_waist_error_recovery",
+    "switched": true,
+    "passive": true,
+    "min_z": 0.0714022821,
+    "max_tilt": 113.8784935695593,
+    "final_z": 0.0719508418,
+    "final_tilt": 102.36499949556821,
+    "first_s_max_target_step": 0.030000034000000064
+  }
+]

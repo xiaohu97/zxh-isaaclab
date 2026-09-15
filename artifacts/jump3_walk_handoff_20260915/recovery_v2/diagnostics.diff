@@ -1,0 +1,464 @@
+--- include/State_Walk.h
++++ include/State_Walk.h
+@@ -2,6 +2,7 @@
+ 
+ #include "FSM/FSMState.h"
+ #include "walk_policy.h"
++#include "walk_trace.h"
+ #include <atomic>
+ #include <condition_variable>
+ #include <thread>
+@@ -27,6 +28,14 @@
+     std::mutex wake_mutex_;
+     std::condition_variable wake_;
+     bool fault_logged_ = false;
++    std::unique_ptr<g1::WalkTrace> trace_;
++    double trace_duration_ = 2.0, entry_started_at_ = 0, next_trace_at_ = 0;
++    bool tracing_ = false;
++    float peak_target_step_ = 0;
++    g1::JointVector previous_applied_{};
++    std::atomic<double> inference_ms_{0};
++    void record_trace(int event, unsigned reason, double now,
++                      const g1::ControlFrame& frame, const g1::JointVector& applied);
+ };
+ 
+ REGISTER_FSM(State_Walk)
+--- include/walk_handoff.h
++++ include/walk_handoff.h
+@@ -139,6 +139,18 @@
+         return fault_locked(time);
+     }
+ 
++    struct Snapshot {
++        JointVector candidate{}, applied{};
++        double result_age = 0;
++        bool ready = false, failed = false;
++    };
++
++    Snapshot snapshot(double time) const
++    {
++        std::lock_guard<std::mutex> lock(mutex_);
++        return {desired_, applied_, time - (ready_ ? last_result_at_ : entered_at_), ready_, failed_};
++    }
++
+     void fail()
+     {
+         std::lock_guard<std::mutex> lock(mutex_);
+--- include/walk_trace.h
++++ include/walk_trace.h
+@@ -0,0 +1,91 @@
++#pragma once
++
++#include "walk_handoff.h"
++#include <atomic>
++#include <chrono>
++#include <condition_variable>
++#include <filesystem>
++#include <fstream>
++#include <iomanip>
++#include <thread>
++#include <spdlog/spdlog.h>
++
++namespace g1 {
++struct WalkTraceRow {
++    int event = 0;  // 0 sample, 1 begin, 2 end, 3 fault
++    unsigned reason = 0;
++    double elapsed = 0, time = 0, result_age = 0, command_gain = 0, inference_ms = 0, peak_target_step = 0;
++    bool ready = false;
++    ControlFrame frame;
++    JointVector candidate{}, applied{};
++};
++
++// One producer (FSM thread), one consumer (file writer). Control never waits
++// for disk I/O or allocates memory to append a row. If full, drop a trace row.
++class WalkTrace {
++public:
++    explicit WalkTrace(std::filesystem::path directory) : directory_(std::move(directory)), worker_([this]{ write_loop(); }) {}
++    ~WalkTrace() { stopping_ = true; wake_.notify_one(); if (worker_.joinable()) worker_.join(); }
++    void push(const WalkTraceRow& row) {
++        const auto w = written_.load(std::memory_order_relaxed);
++        if (w - read_.load(std::memory_order_acquire) >= capacity) { ++dropped_; return; }
++        rows_[w % capacity] = row;
++        written_.store(w + 1, std::memory_order_release);
++        wake_.notify_one();
++    }
++    unsigned long dropped() const { return dropped_.load(); }
++private:
++    static constexpr unsigned long capacity = 512;
++    std::filesystem::path directory_;
++    std::array<WalkTraceRow, capacity> rows_{};
++    std::atomic<unsigned long> written_{0}, read_{0}, dropped_{0};
++    std::atomic<bool> stopping_{false};
++    std::mutex wake_mutex_;
++    std::condition_variable wake_;
++    std::thread worker_;
++    void write_loop() {
++        try {
++            std::filesystem::create_directories(directory_);
++            std::ofstream out;
++            out.exceptions(std::ios::badbit | std::ios::failbit);
++            unsigned long entry = 0;
++            while (!stopping_.load() || read_.load() != written_.load()) {
++                auto r = read_.load(std::memory_order_relaxed);
++                if (r == written_.load(std::memory_order_acquire)) {
++                    std::unique_lock<std::mutex> lock(wake_mutex_);
++                    wake_.wait_for(lock, std::chrono::milliseconds(50));
++                    continue;
++                }
++                const auto row = rows_[r % capacity];
++                read_.store(r + 1, std::memory_order_release);
++                if (row.event == 1) {
++                    if (out.is_open()) out.close();
++                    const auto stamp = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
++                    const auto path = directory_ / ("walk_" + std::to_string(stamp) + "_" + std::to_string(++entry) + ".csv");
++                    out.open(path);
++                    if (!out) throw std::runtime_error("Cannot open walk trace: " + path.string());
++                    out << std::setprecision(9) << "elapsed_s,steady_s,event,reason_mask,result_age_s,frame_age_s,command_gain,inference_ms,peak_control_target_step_rad,ready,qw,qx,qy,qz,gx,gy,gz,cmd_x,cmd_y,cmd_yaw";
++                    for (const char* group : {"q", "dq", "previous_target", "candidate", "applied"})
++                        for (int m = 0; m < joint_count; ++m) out << ',' << group << m;
++                    out << '\n';
++                    spdlog::info("Velocity trace: {}", path.string());
++                }
++                if (!out.is_open()) continue;
++                out << row.elapsed << ',' << row.time << ',' << row.event << ',' << row.reason << ',' << row.result_age << ',' << row.time - row.frame.time << ',' << row.command_gain << ',' << row.inference_ms << ',' << row.peak_target_step << ',' << row.ready;
++                const auto& q = row.frame.quaternion;
++                out << ',' << q.w() << ',' << q.x() << ',' << q.y() << ',' << q.z();
++                for (int j=0;j<3;++j) out << ',' << row.frame.angular_velocity[j];
++                for (float v : row.frame.command) out << ',' << v;
++                for (const auto* a : {&row.frame.q, &row.frame.dq, &row.frame.previous_target, &row.candidate, &row.applied})
++                    for (float v : *a) out << ',' << v;
++                out << '\n';
++                if (row.event == 2 || row.event == 3) out.flush();
++                if (row.event == 2) {
++                    out.close();
++                    if (dropped_.load()) spdlog::warn("Velocity trace dropped {} rows (control continues independently)", dropped_.load());
++                }
++            }
++        } catch (const std::exception& e) { spdlog::error("Velocity trace writer stopped: {}", e.what()); }
++    }
++};
++}
+--- src/State_Walk.cpp
++++ src/State_Walk.cpp
+@@ -46,25 +46,72 @@
+     policy_ = std::make_unique<g1::WalkPolicy>(YAML::LoadFile(dir / "params/deploy.yaml"));
+     policy_->load((dir / "exported/policy.onnx").string());
+ 
++    const auto trace_cfg = cfg["walk_trace"];
++    if (trace_cfg && trace_cfg["enabled"].as<bool>(false)) {
++        std::filesystem::path directory = trace_cfg["directory"].as<std::string>("log/walk_handoff");
++        if (directory.is_relative()) directory = param::proj_dir / directory;
++        trace_duration_ = trace_cfg["duration_s"].as<double>(2.0);
++        if (!std::isfinite(trace_duration_) || trace_duration_ <= 0 || trace_duration_ > 10) {
++            throw std::invalid_argument("walk_trace duration must be in (0, 10] seconds");
++        }
++        trace_ = std::make_unique<g1::WalkTrace>(directory);
++    }
++
++    // Record the configured Passive condition separately from automatic faults.
++    if (cfg["transitions"] && cfg["transitions"]["Passive"]) {
++        const auto expression = cfg["transitions"]["Passive"].as<std::string>();
++        // The base constructor appends configured transitions before the
++        // lowstate watchdog. Wrap the existing Passive predicate in place.
++        for (auto& check : registered_checks) {
++            if (check.second != FSMStringMap.right.at("Passive")) continue;
++            const auto requested = check.first;
++            check.first = [requested, expression] {
++                const bool triggered = requested();
++                if (triggered) spdlog::warn("Velocity Passive reason=configured_transition condition={}", expression);
++                return triggered;
++            };
++            break;
++        }
++    }
++
+     // Check faults before user transitions; never let a failed/stale inference
+     // jump to another active policy. Existing emergency/lowstate checks remain.
+     registered_checks.insert(registered_checks.begin(), {
+         [this]() {
++            const double now = seconds_now();
++            const auto status = handoff_->snapshot(now);
+             const auto frames = control_history.window(1, policy_->step_dt());
+-            bool bad = handoff_->fault(seconds_now()) || frames.empty();
++            unsigned reason = 0;
++            if (status.failed) reason |= 1;
++            if (status.result_age > entry_cfg_.inference_timeout) reason |= status.ready ? 4 : 2;
++            if (frames.empty()) reason |= 8;
++            double tilt = -1, gyro_norm = -1, frame_age = -1;
+             if (!frames.empty()) {
+                 const auto& f = frames.back();
+-                bad = bad || !f.valid() || seconds_now() - f.time > entry_cfg_.inference_timeout;
++                frame_age = now - f.time;
++                if (!f.valid()) reason |= 16;
++                if (frame_age > entry_cfg_.inference_timeout) reason |= 32;
+                 if (f.valid()) {
+-                    const auto gravity = f.quaternion.normalized().conjugate() * Eigen::Vector3f(0, 0, -1);
+-                    bad = bad || std::acos(std::clamp(-gravity.z(), -1.0f, 1.0f)) > 1.0f;
+-                }
+-            }
+-            if (bad && !fault_logged_) {
+-                spdlog::error("Velocity: invalid/stale inference, sensor frame, or bad orientation; entering Passive");
++                    const Eigen::Vector3f gravity = f.quaternion.normalized().conjugate() * Eigen::Vector3f(0, 0, -1);
++                    tilt = std::acos(std::clamp(-gravity.z(), -1.0f, 1.0f));
++                    gyro_norm = f.angular_velocity.norm();
++                    if (tilt > 1.0) reason |= 64;
++                }
++            }
++            if (lowstate->isTimeout()) reason |= 128;
++            if (reason && !fault_logged_) {
++                std::string names;
++                for (const auto& item : std::vector<std::pair<unsigned, const char*>>{
++                    {1,"inference_failed"},{2,"first_result_timeout"},{4,"result_timeout"},{8,"no_frame"},
++                    {16,"invalid_frame"},{32,"frame_timeout"},{64,"orientation"},{128,"lowstate_timeout"}}) {
++                    if (reason & item.first) { if (!names.empty()) names += '|'; names += item.second; }
++                }
++                spdlog::error("Velocity Passive reason={} mask={} elapsed_ms={:.1f} tilt_rad={:.3f} gyro_norm={:.3f} result_age_ms={:.1f} frame_age_ms={:.1f} last_inference_ms={:.2f}",
++                              names, reason, (now-entry_started_at_)*1000, tilt, gyro_norm, status.result_age*1000, frame_age*1000, inference_ms_.load());
++                if (!frames.empty() && tracing_) record_trace(3, reason, now, frames.back(), status.applied);
+                 fault_logged_ = true;
+             }
+-            return bad;
++            return reason != 0;
+         }, FSMStringMap.right.at("Passive")});
+ }
+ 
+@@ -84,7 +131,14 @@
+     spdlog::info("Velocity entry measured: pelvis_tilt={:.3f} rad, gyro=[{:.3f},{:.3f},{:.3f}] rad/s, max_leg_dq={:.3f} rad/s, max_leg_target_error={:.3f} rad, waist_pitch_q={:.3f}, waist_pitch_last_target={:.3f}",
+                  tilt, frame.angular_velocity.x(), frame.angular_velocity.y(), frame.angular_velocity.z(),
+                  max_leg_speed, max_leg_error, frame.q[14], frame.previous_target[14]);
+-    handoff_->begin(frame.previous_target, seconds_now());
++    entry_started_at_ = seconds_now();
++    handoff_->begin(frame.previous_target, entry_started_at_);
++    previous_applied_ = frame.previous_target;
++    peak_target_step_ = 0;
++    inference_ms_ = 0;
++    tracing_ = static_cast<bool>(trace_);
++    next_trace_at_ = entry_started_at_ + .01;
++    if (tracing_) record_trace(1, 0, entry_started_at_, frame, previous_applied_);
+     fault_logged_ = false;
+     policy_->resume_inference();
+     for (int m = 0; m < g1::joint_count; ++m) {
+@@ -109,7 +163,9 @@
+             while (running_) {
+                 const double now = seconds_now();
+                 if (now - current.time > entry_cfg_.inference_timeout) throw std::runtime_error("Stale walk sensor frame");
++                const double inference_start = seconds_now();
+                 const auto target = policy_->step(current, handoff_->command_gain(now));
++                inference_ms_ = (seconds_now() - inference_start) * 1000;
+                 if (seconds_now() - current.time > entry_cfg_.inference_timeout) {
+                     throw std::runtime_error("Walk inference exceeded the input age limit");
+                 }
+@@ -146,7 +202,22 @@
+ void State_Walk::run()
+ {
+     const auto target = handoff_->sample(seconds_now());
+-    for (int m = 0; m < g1::joint_count; ++m) lowcmd->msg_.motor_cmd()[m].q() = target[m];
++    for (int m = 0; m < g1::joint_count; ++m) {
++        lowcmd->msg_.motor_cmd()[m].q() = target[m];
++        if (tracing_) peak_target_step_ = std::max(peak_target_step_, std::fabs(target[m]-previous_applied_[m]));
++    }
++    if (!tracing_) return;
++    previous_applied_ = target;
++    const double now = seconds_now();
++    if (now >= next_trace_at_) {
++        const auto frames = control_history.window(1, policy_->step_dt());
++        if (frames.empty()) return;
++        const bool end = now - entry_started_at_ >= trace_duration_;
++        record_trace(end ? 2 : 0, 0, now, frames.back(), target);
++        next_trace_at_ = now + .01;
++        peak_target_step_ = 0;
++        if (end) tracing_ = false;
++    }
+ }
+ 
+ void State_Walk::exit()
+@@ -158,4 +229,24 @@
+     if (policy_) policy_->cancel_inference();
+     wake_.notify_all();
+     if (policy_thread_.joinable()) policy_thread_.join();
+-}
++    if (tracing_) {
++        const double now = seconds_now();
++        const auto frames = control_history.window(1, policy_->step_dt());
++        if (!frames.empty()) record_trace(2, 0, now, frames.back(), previous_applied_);
++        tracing_ = false;
++    }
++}
++
++void State_Walk::record_trace(int event, unsigned reason, double now,
++                             const g1::ControlFrame& frame, const g1::JointVector& applied)
++{
++    if (!trace_) return;
++    const auto status = handoff_->snapshot(now);
++    g1::WalkTraceRow row;
++    row.event = event; row.reason = reason; row.time = now; row.elapsed = now - entry_started_at_;
++    row.frame = frame; row.applied = applied; row.candidate = status.candidate;
++    row.result_age = status.result_age; row.ready = status.ready;
++    row.command_gain = handoff_->command_gain(now); row.inference_ms = inference_ms_.load();
++    row.peak_target_step = peak_target_step_;
++    trace_->push(row);
++}
+--- config/config.yaml
++++ config/config.yaml
+@@ -129,6 +129,11 @@
+       Run: RB + A.on_pressed
+ 
+     policy_dir: config/policy/velocity
++    # Background CSV writer; records the first 3 seconds of each walk entry.
++    walk_trace:
++      enabled: true
++      directory: log/walk_handoff
++      duration_s: 3.0
+     walk_entry:
+       blend_time_s: 0.30          # 从新策略首帧实际接入开始计时，期间平滑下发关节目标
+       zero_command_time_s: 0.40   # >= blend_time_s；先以零速度命令接手
+--- test/test_walk_trace.cpp
++++ test/test_walk_trace.cpp
+@@ -0,0 +1,20 @@
++#include "walk_trace.h"
++#include <iostream>
++int main(){
++ const auto id=std::chrono::steady_clock::now().time_since_epoch().count();
++ auto dir=std::filesystem::temp_directory_path()/("g1-walk-trace-test-"+std::to_string(id));
++ {
++  g1::WalkTrace trace(dir);g1::WalkTraceRow row;row.event=1;trace.push(row);
++  for(int i=0;i<200;++i){row.event=0;row.elapsed=i*.01;row.frame.q.fill(i);row.applied.fill(i+.5f);trace.push(row);}
++  row.event=3;row.reason=64;trace.push(row);row.event=2;trace.push(row);
++  if(trace.dropped())throw std::runtime_error("A complete two-second trace did not fit the queue");
++ }
++ int files=0,lines=0;bool fault=false;
++ for(const auto&f:std::filesystem::directory_iterator(dir)){
++  ++files;std::ifstream in(f.path());std::string line;
++  while(std::getline(in,line)){++lines;if(std::count(line.begin(),line.end(),',')!=164)throw std::runtime_error("Incomplete CSV row");if(line.find(",3,64,")!=std::string::npos)fault=true;}
++ }
++ std::filesystem::remove_all(dir);
++ if(files!=1||lines!=204||!fault)throw std::runtime_error("Trace did not preserve samples and fault event on shutdown");
++ std::cout<<"PASS bounded asynchronous trace queue, complete CSV columns, fault event and shutdown flush\n";
++}
+--- test/test_state_walk.cpp
++++ test/test_state_walk.cpp
+@@ -1,5 +1,7 @@
+ #include "State_Walk.h"
+ #include <iostream>
++#include <sstream>
++#include <spdlog/sinks/ostream_sink.h>
+ 
+ std::unique_ptr<LowCmd_t> FSMState::lowcmd;
+ std::shared_ptr<LowState_t> FSMState::lowstate;
+@@ -16,6 +18,7 @@
+         if (argc != 2) throw std::runtime_error("usage: test_state_walk <g1_project_directory>");
+         param::proj_dir = std::filesystem::absolute(argv[1]);
+         param::config = YAML::LoadFile(param::proj_dir / "config/config.yaml");
++        param::config["FSM"]["Velocity"]["walk_trace"]["enabled"] = false; // CSV writer has its own isolated test
+         require(param::config["FSM"]["_"]["Velocity"]["type"].as<std::string>() == "Walk", "Velocity not wired to State_Walk");
+         for (const auto& item : param::config["FSM"]["_"]) {
+             FSMStringMap.insert({item.second["id"].as<int>(), item.first.as<std::string>()});
+@@ -30,6 +33,9 @@
+             FSMState::lowstate->msg_.motors[ids[i]].q() = defaults[i];
+             FSMState::lowcmd->msg_.motors[ids[i]].q() = defaults[i];
+         }
++        std::ostringstream diagnostic_log;
++        auto sink = std::make_shared<spdlog::sinks::ostream_sink_mt>(diagnostic_log);
++        spdlog::default_logger()->sinks().push_back(sink);
+         State_Walk state(3, "Velocity");
+         // Populate real-time history through the production control observer.
+         for (int i = 0; i < 90; ++i) {
+@@ -60,6 +66,17 @@
+                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
+             }
+             require(changed, "inference worker never delivered a live target");
++            if (entry == 2) {
++                {
++                    std::lock_guard<std::mutex> lock(FSMState::lowstate->mutex_);
++                    FSMState::lowstate->msg_.imu.quat = {std::cos(.525f), std::sin(.525f), 0, 0};
++                }
++                state.pre_run();
++                state.run();
++                require(state.registered_checks.front().first(), "orientation protection did not trigger");
++                require(diagnostic_log.str().find("reason=orientation mask=64") != std::string::npos,
++                        "orientation protection was not distinguished from inference/sensor faults");
++            }
+             const auto start = std::chrono::steady_clock::now();
+             state.exit();
+             const auto elapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+--- test/CMakeLists.txt
++++ test/CMakeLists.txt
+@@ -53,3 +53,8 @@
+ if(G1_TEST_RUN_REFERENCE)
+   add_test(NAME run_policy COMMAND test_run_policy ${PROJECT_SOURCE_DIR}/../config/policy/run/0908)
+ endif()
++
++# Background handoff trace must preserve complete rows and flush on shutdown.
++add_executable(test_walk_trace test_walk_trace.cpp)
++target_link_libraries(test_walk_trace fmt pthread)
++add_test(NAME walk_trace COMMAND test_walk_trace)
+--- test/WALK_HANDOFF.md
++++ test/WALK_HANDOFF.md
+@@ -1,4 +1,6 @@
+-# Jump3 → Walk：第一优先修复与验证
++# Jump3 → Walk：交接修复、诊断与验证
++
++**2026-09-15 最新状态：实机交接尚未验证稳定。** 后续物理闭环补测仍存在失稳；首帧连续不能证明落地状态可恢复。新候选控制参数未启用，最新对照结果与解决步骤见 [恢复实验报告](../../../../artifacts/jump3_walk_handoff_20260915/recovery_v2/README.md)。
+ 
+ ## 实现
+ 
+@@ -24,7 +26,7 @@
+ | `command_ramp_time_s` | 0.50 | 随后渐进恢复手柄指令的时间 |
+ | `inference_timeout_s` | 0.20 | 工作线程结果/采样等待上限，触发故障检查 |
+ 
+-这些是本次实现的初始参数，未做真机或物理闭环参数扫描。`zero_command_time_s` 必须不小于 `blend_time_s`。
++这些是首次修复的初始参数。后续参数与物理闭环扫描发现失稳，未把候选参数写入部署配置。`zero_command_time_s` 必须不小于 `blend_time_s`。
+ 
+ 模型文件未修改，SHA-256：
+ 
+@@ -44,7 +46,7 @@
+ ctest --test-dir deploy/robots/g1_29dof/test/build --output-on-failure
+ ```
+ 
+-2026-09-15 结果：**控制器编译成功；默认 CTest 4/4 通过。** 生成控制器为 `deploy/robots/g1_29dof/build/g1_ctrl`，未启动机器人控制或自动重启部署进程。
++首次修复结果：**控制器编译成功；当时默认 CTest 4/4 通过。** 生成控制器为 `deploy/robots/g1_29dof/build/g1_ctrl`，未启动机器人控制或自动重启部署进程。
+ 
+ | 测试 | 验证内容 |
+ | --- | --- |
+@@ -65,7 +67,7 @@
+ 
+ ## 结果边界与下一步
+ 
+-本次完成部署交接机制修复，没有进行物理仿真闭环或真机试跳。现有动作仍按原始动作时长请求退出，尚未增加接触/稳定门槛，也没有修改或训练落地恢复尾段。
++首次修复只验证了部署交接机制；后续已经补做 MuJoCo 连续物理仿真，详见上方最新报告。助手没有进行实机试跳。现有动作仍按原始动作时长请求退出，尚未增加接触/稳定门槛，也没有修改或训练落地恢复尾段。
+ 
+ 末帧仍处于前倾、回弹状态，walk 候选输出仍可能很大。目标插值及历史衔接不能证明该动态状态可恢复，单步候选也不能用于推断真实控制稳定性。下一步应验证同一机器人状态连续执行的 jump→恢复→walk，记录实际 q/dq/姿态、最后 jump 目标、首个 walk 候选及最终发送目标，再评估第二优先的恢复尾段。
+ 
+@@ -84,3 +86,32 @@
+ 再用 `scripts/mimic/csv_to_npz.py --no_ground` 重算刚体状态；命令和验收标准见 recover 任务目录的 README.md。
+ 部署顺序：先换新 jump 策略 + `jump3_waist15_recover.csv`（旧策略不能配新 CSV），验证站稳后再考虑把
+ State_Mimic 的时长退出改成状态门槛（倾角/角速度/腿速连续 100~200 ms 达标）。
++
++
++## 2026-09-15：实机失败后的诊断补充
++
++本次合入只增加诊断；`walk_entry` 参数、策略 ONNX、上一动作编码、姿态阈值与超时阈值沿用原配置。候选限速、短混合、历史预热没有启用。
++
++`FSM.Velocity.walk_trace` 默认启用，`directory: log/walk_handoff` 相对于 G1 部署目录解析，`duration_s: 3.0`。每次进入 Velocity 开始一个独立 CSV，以约 100 Hz 记录：
++
++- q/dq（29 个电机）、IMU 四元数/角速度、手柄命令；
++- previous_target（上一控制目标）、candidate（walk 最新候选）、applied（本轮控制目标）；
++- 推理结果年龄、控制快照年龄、推理耗时、命令恢复比例、两次采样间最大单次控制目标步长；
++- event：0 样本、1 进入、2 结束、3 故障；reason_mask 为故障位或组合。
++
++控制线程只向固定 512 行的队列投递，后台线程写盘。队列满丢记录，退出状态只投递结束记录；进程析构时后台线程排空。文件创建/写入失败会单独报错。`applied` 不代表硬件回执或实测力矩，`frame_age` 不等于 DDS 网络包年龄。
++
++| reason / mask | 含义 |
++| --- | --- |
++| inference_failed / 1 | 推理工作线程异常，关联前一条异常日志 |
++| first_result_timeout / 2 | 首个结果超时 |
++| result_timeout / 4 | 已有结果过期 |
++| no_frame / 8 | 没有控制快照 |
++| invalid_frame / 16 | 非有限输入、无效四元数等 |
++| frame_timeout / 32 | 控制快照过期 |
++| orientation / 64 | 骨盆倾角超过原有 1.0 rad 阈值 |
++| lowstate_timeout / 128 | 原有 lowstate 看门狗超时 |
++
++手柄配置触发 Passive 单独记录 `reason=configured_transition condition=...`。自动故障可以同时含多个原因；原因不是互斥的。
++
++新增 `walk_trace` 测试验证完整 CSV、故障记录及退出排空；`state_walk` 补充真实状态类的倾角故障原因断言。测试使用无网络的假传感器/发布器和实际 ONNX。

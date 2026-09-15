@@ -4,19 +4,21 @@
 #include "isaaclab/envs/mdp/observations/motion_observations.h"
 #include "isaaclab/envs/mdp/actions/joint_actions.h"
 
-static Eigen::Quaternionf init_quat; // TODO: move to env->reset()
+static Eigen::Quaternionf init_quat = Eigen::Quaternionf::Identity(); // only the active Mimic worker uses this
 
 Eigen::Quaternionf torso_quat_w(isaaclab::ManagerBasedRLEnv* env) {
-    using G1Type = unitree::BaseArticulation<LowState_t::SharedPtr>;
-    G1Type* robot = dynamic_cast<G1Type*>(env->robot.get());
-
     auto root_quat = env->robot->data.root_quat_w;
-    auto & motors = robot->lowstate->msg_.motor_state();
+    // Use the same locked sensor snapshot as root_quat, not a concurrently
+    // updated DDS message. joint_pos is policy order, so map waist motor IDs.
+    auto waist_q = [&](int motor) {
+        const auto& ids = env->robot->data.joint_ids_map;
+        return env->robot->data.joint_pos[std::distance(ids.begin(), std::find(ids.begin(), ids.end(), motor))];
+    };
 
     Eigen::Quaternionf torso_quat = root_quat \
-        * Eigen::AngleAxisf(motors[12].q(), Eigen::Vector3f::UnitZ()) \
-        * Eigen::AngleAxisf(motors[13].q(), Eigen::Vector3f::UnitX()) \
-        * Eigen::AngleAxisf(motors[14].q(), Eigen::Vector3f::UnitY()) \
+        * Eigen::AngleAxisf(waist_q(12), Eigen::Vector3f::UnitZ()) \
+        * Eigen::AngleAxisf(waist_q(13), Eigen::Vector3f::UnitX()) \
+        * Eigen::AngleAxisf(waist_q(14), Eigen::Vector3f::UnitY()) \
     ;
     return torso_quat;
 };
@@ -46,7 +48,7 @@ REGISTER_OBSERVATION(motion_anchor_ori_b)
     auto ref_quat_w = anchor_quat_w(env->robot->data.motion_loader);
 
     auto rot_ = (init_quat * ref_quat_w).conjugate() * real_quat_w;
-    auto rot = rot_.toRotationMatrix().transpose();
+    const Eigen::Matrix3f rot = rot_.toRotationMatrix().transpose();
 
     Eigen::Matrix<float, 6, 1> data;
     data << rot(0, 0), rot(0, 1), rot(1, 0), rot(1, 1), rot(2, 0), rot(2, 1);
@@ -77,23 +79,23 @@ State_Mimic::State_Mimic(int state_mode, std::string state_string)
     );
     env->alg = std::make_unique<isaaclab::OrtRunner>(policy_dir / "exported" / "policy.onnx");
 
-    const auto & joy = FSMState::lowstate->joystick;
+    registered_checks.insert(registered_checks.begin(), {
+        [this] { return policy_fault_.load() || bad_orientation_.load(); },
+        FSMStringMap.right.at("Passive")});
     this->registered_checks.emplace_back(
         std::make_pair(
-            [&]()->bool{ return (env->episode_length * env->step_dt) > env->robot->data.motion_loader->duration; }, // time out
+            [this]()->bool{ return elapsed_.load() > env->robot->data.motion_loader->duration; }, // completed policy steps
             FSMStringMap.right.at("Velocity")
-        )
-    );
-    this->registered_checks.emplace_back(
-        std::make_pair(
-            [&]()->bool{ return isaaclab::mdp::bad_orientation(env.get(), 1.0); }, // bad orientation
-            FSMStringMap.right.at("Passive")
         )
     );
 }
 
 void State_Mimic::enter()
 {
+    action_ready_ = false;
+    policy_fault_ = false;
+    bad_orientation_ = false;
+    elapsed_ = 0;
     // set gain
     for (int i = 0; i < env->robot->data.joint_stiffness.size(); ++i)
     {
@@ -104,10 +106,12 @@ void State_Mimic::enter()
     }
 
     env->reset(); // Update robot state for init_quat calculation
+    env->alg->reset_inference_cancel();
     // Start policy thread
     policy_thread_running = true;
     policy_thread = std::thread([this]{
-        using clock = std::chrono::high_resolution_clock;
+        try {
+        using clock = std::chrono::steady_clock;
         const std::chrono::duration<double> desiredDuration(env->step_dt);
         const auto dt = std::chrono::duration_cast<clock::duration>(desiredDuration);
 
@@ -123,10 +127,25 @@ void State_Mimic::enter()
         while (policy_thread_running)
         {
             env->step();
+            const auto target = env->action_manager->processed_actions();
+            if (!std::all_of(target.begin(), target.end(), [](float v) { return std::isfinite(v); })) {
+                throw std::runtime_error("Non-finite Mimic target");
+            }
+            const float gz = env->robot->data.projected_gravity_b.z();
+            bad_orientation_ = !std::isfinite(gz) || std::acos(std::clamp(-gz, -1.0f, 1.0f)) > 1.0f;
+            elapsed_ = env->episode_length * env->step_dt;
+            action_ready_ = true;
 
             // Sleep
-            std::this_thread::sleep_until(sleepTill);
+            std::unique_lock<std::mutex> lock(wake_mutex_);
+            if (wake_.wait_until(lock, sleepTill, [this] { return !policy_thread_running.load(); })) break;
             sleepTill += dt;
+        }
+        } catch (const std::exception& e) {
+            if (policy_thread_running) {
+                policy_fault_ = true;
+                spdlog::error("Mimic inference failed: {}", e.what());
+            }
         }
     });
 }
@@ -134,6 +153,7 @@ void State_Mimic::enter()
 
 void State_Mimic::run()
 {
+    if (!action_ready_ || policy_fault_) return;  // hold the last sent target until the first complete result
     auto action = env->action_manager->processed_actions();
     for(int i(0); i < env->robot->data.joint_ids_map.size(); i++) {
         lowcmd->msg_.motor_cmd()[env->robot->data.joint_ids_map[i]].q() = action[i];

@@ -13,7 +13,10 @@ namespace isaaclab
 class Algorithms
 {
 public:
+    virtual ~Algorithms() = default;
     virtual std::vector<float> act(std::unordered_map<std::string, std::vector<float>> obs) = 0;
+    virtual void cancel_inference() {}
+    virtual void reset_inference_cancel() {}
 
     std::vector<float> get_action()
     {
@@ -29,6 +32,15 @@ protected:
 class OrtRunner : public Algorithms
 {
 public:
+    ~OrtRunner() override
+    {
+        for (auto name : input_names) allocator.Free(const_cast<char*>(name));
+        for (auto name : output_names) allocator.Free(const_cast<char*>(name));
+    }
+    // ONNX Runtime explicitly supports terminating a RunOptions instance from
+    // another thread. Clear only after the previous worker has joined.
+    void cancel_inference() override { run_options.SetTerminate(); }
+    void reset_inference_cancel() override { run_options.UnsetTerminate(); }
     OrtRunner(std::string model_path)
     {
         // Init Model
@@ -78,12 +90,15 @@ public:
         {
             const std::string name_str(input_names[i]);
             auto& input_data = obs.at(name_str);
+            if (input_data.size() != input_sizes[i]) {
+                throw std::runtime_error("Input dimension mismatch for " + name_str);
+            }
             auto input_tensor = Ort::Value::CreateTensor<float>(memory_info, input_data.data(), input_sizes[i], input_shapes[i].data(), input_shapes[i].size());
             input_tensors.push_back(std::move(input_tensor));
         }
 
         // Run the model
-        auto output_tensor = session->Run(Ort::RunOptions{nullptr}, input_names.data(), input_tensors.data(), input_tensors.size(), output_names.data(), 1);
+        auto output_tensor = session->Run(run_options, input_names.data(), input_tensors.data(), input_tensors.size(), output_names.data(), 1);
 
         // Copy output data
         auto floatarr = output_tensor.front().GetTensorMutableData<float>();
@@ -93,6 +108,7 @@ public:
     }
 
 private:
+    Ort::RunOptions run_options;
     Ort::Env env;
     Ort::SessionOptions session_options;
     std::unique_ptr<Ort::Session> session;

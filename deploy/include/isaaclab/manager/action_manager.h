@@ -7,6 +7,9 @@
 #include "isaaclab/manager/manager_term_cfg.h"
 #include <algorithm>
 #include <numeric>
+#include <mutex>
+#include <cmath>
+#include <stdexcept>
 
 namespace isaaclab
 {
@@ -15,6 +18,7 @@ class ActionTerm
 {
 public:
     ActionTerm(YAML::Node cfg, ManagerBasedRLEnv* env): cfg(cfg), env(env) {}
+    virtual ~ActionTerm() = default;
 
     virtual int action_dim() = 0;
     virtual std::vector<float> raw_actions() = 0;
@@ -53,6 +57,7 @@ public:
 
     void reset()
     {
+        std::lock_guard<std::mutex> lock(mutex_);
         _action.assign(total_action_dim(), 0.0f);
         for(auto & term : _terms)
         {
@@ -62,11 +67,13 @@ public:
 
     std::vector<float> action()
     {
+        std::lock_guard<std::mutex> lock(mutex_);
         return _action;
     }
 
     std::vector<float> processed_actions()
     {
+        std::lock_guard<std::mutex> lock(mutex_);
         std::vector<float> actions;
         for(auto & term : _terms)
         {
@@ -78,6 +85,13 @@ public:
 
     void process_action(std::vector<float> action)
     {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (action.size() != _action.size()) {
+            throw std::invalid_argument("Policy action dimension mismatch");
+        }
+        if (!std::all_of(action.begin(), action.end(), [](float value) { return std::isfinite(value); })) {
+            throw std::invalid_argument("Non-finite policy action");
+        }
         // 与训练一致：rsl_rl 的 RslRlVecEnvWrapper 在环境之前裁剪原始动作（RunnerCfg.clip_actions），
         // 网络/ONNX 里没有这一步。在这里裁而不是在各 term 里裁，是因为 last_action 观测读的就是
         // _action，训练时它看到的也是裁剪后的值。
@@ -125,6 +139,7 @@ public:
     ManagerBasedRLEnv* env;
 
 private:
+    std::mutex mutex_;
     void _prepare_terms()
     {
         for(auto it = this->cfg.begin(); it != this->cfg.end(); ++it)

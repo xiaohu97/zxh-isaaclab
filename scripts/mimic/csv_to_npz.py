@@ -29,6 +29,13 @@ parser.add_argument(
 )
 parser.add_argument("--output_name", type=str, help="The name of the motion npz file.")
 parser.add_argument("--output_fps", type=int, default=50, help="The fps of the output motion.")
+parser.add_argument(
+    "--no_ground",
+    action="store_true",
+    default=False,
+    help="Skip the ground plane and sky light (both come from the Isaac Nucleus server). Only the robot is spawned;"
+    " FK / recorded body states do not depend on them, so this is the offline-safe way to convert.",
+)
 
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
@@ -80,6 +87,13 @@ class ReplayMotionsSceneCfg(InteractiveSceneCfg):
     )
 
     # articulation
+    robot: ArticulationCfg = ROBOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+@configclass
+class ReplayMotionsRobotOnlySceneCfg(InteractiveSceneCfg):
+    """Same conversion without any Nucleus-hosted asset (``--no_ground``)."""
+
     robot: ArticulationCfg = ROBOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
@@ -315,7 +329,8 @@ def main():
     sim_cfg.dt = 1.0 / args_cli.output_fps
     sim = SimulationContext(sim_cfg)
     # Design scene
-    scene_cfg = ReplayMotionsSceneCfg(num_envs=1, env_spacing=2.0)
+    scene_cls = ReplayMotionsRobotOnlySceneCfg if args_cli.no_ground else ReplayMotionsSceneCfg
+    scene_cfg = scene_cls(num_envs=1, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
     # Play the simulator
     sim.reset()

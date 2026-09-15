@@ -77,7 +77,9 @@ public:
 
     void reset()
     {
-        _raw_actions.assign(_action_dim, 0.0f);
+        // Reset the physical targets as well as raw actions; never retain an
+        // earlier episode's output. FSM entry still needs a first-result gate.
+        process_actions(std::vector<float>(_action_dim, 0.0f));
     }
 
 protected:
