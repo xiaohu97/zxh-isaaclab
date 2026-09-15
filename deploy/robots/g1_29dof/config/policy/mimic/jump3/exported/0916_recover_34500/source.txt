@@ -1,0 +1,7 @@
+task: Unitree-G1-29dof-Mimic-Jump1-1mWithIdRecover
+checkpoint: /home/zxh/unitree_rl_lab/logs/rsl_rl/unitree_g1_29dof_mimic_jump1_1mwithid/2026-09-15_18-28-51_recover/model_34500.pt
+motion: jump1_1m_waist15_recover.npz (180 帧 / 3.60s)
+deploy_csv: params/jump3_waist15_recover.csv (430 行 / 3.575s) —— 必须与本策略配套使用
+note: 训练未结束时导出(当时 34500, 目标 48000; 32k 后指标已走平)。
+      ONNX 由 scripts/rsl_rl/export_onnx_nosim.py 生成(无仿真)。
+      选点依据: 128env 扫描, 收尾达标率 66.0%, tilt终止 0.0006, 成功率 0.9946。

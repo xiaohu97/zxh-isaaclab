@@ -1,0 +1,6 @@
+task: Unitree-G1-29dof-VelocityWithIdYawRobust
+checkpoint: /home/zxh/unitree_rl_lab/logs/rsl_rl/unitree_g1_29dof_velocitywithidyaw/2026-09-15_18-29-21_robust/model_21700.pt
+clip_actions: 10.0
+note: 训练未结束时的中间导出(目标 29999)；ONNX 由 scripts/rsl_rl/export_onnx_nosim.py 生成,
+      已用 model_14999 对 0914_yawfix/exported/policy.onnx 做回归, 最大绝对误差 0.000e+00。
+      deploy.yaml 与 0914_yawfix/params/deploy.yaml 逐字节相同(robust 只改 events)。
