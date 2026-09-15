@@ -244,7 +244,7 @@ FSM:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
     fps: 120
-    motion_file: config/policy/mimic/jump3/params/jump3.csv
+    motion_file: config/policy/mimic/jump3/params/jump3_waist15.csv
     policy_dir: config/policy/mimic/jump3/
   Mimic_Banyun:
     transitions:

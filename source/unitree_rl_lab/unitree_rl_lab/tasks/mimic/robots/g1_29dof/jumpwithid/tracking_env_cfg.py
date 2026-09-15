@@ -26,7 +26,7 @@ _URDF_NAME = "g1_29dof_rev_1_0_identified0907.urdf"  # 0521 版仍保留在本�
 _STAGE_DIR = "/tmp/IsaacLab/unitree_rl_lab/jumpwithid"
 
 
-def stage_robot_urdf() -> str:
+def stage_robot_urdf(urdf_path: str | None = None) -> str:
     """把本目录的 URDF 和 unitree_ros 的 meshes 拼到一个临时目录，再交给 Isaac Lab 转换。
 
     URDF 里的 mesh 写成 ``meshes/xxx.STL``，按 URDF 自身所在目录解析。meshes 有 100MB，
@@ -47,15 +47,20 @@ def stage_robot_urdf() -> str:
     if not os.path.isdir(meshes_src):
         raise RuntimeError(f"G1 meshes directory not found: {meshes_src}")
 
-    os.makedirs(_STAGE_DIR, exist_ok=True)
-    meshes_link = os.path.join(_STAGE_DIR, "meshes")
+    # 不传参 = 用本目录 _URDF_NAME（jumpwithid / stage2 共用）；传参 = 该任务自己的 URDF，
+    # stage 目录按文件名区分，互不覆盖
+    src = os.path.join(_TASK_DIR, _URDF_NAME) if urdf_path is None else urdf_path
+    stage_dir = _STAGE_DIR if urdf_path is None else os.path.join(
+        os.path.dirname(_STAGE_DIR), os.path.splitext(os.path.basename(urdf_path))[0])
+    os.makedirs(stage_dir, exist_ok=True)
+    meshes_link = os.path.join(stage_dir, "meshes")
     # islink 要放在前面：悬空软链的 os.path.exists() 是 False，但 symlink() 仍会报 FileExistsError
     if os.path.islink(meshes_link) or os.path.exists(meshes_link):
         os.remove(meshes_link)
     os.symlink(meshes_src, meshes_link)
 
-    staged_urdf = os.path.join(_STAGE_DIR, _URDF_NAME)
-    shutil.copyfile(os.path.join(_TASK_DIR, _URDF_NAME), staged_urdf)
+    staged_urdf = os.path.join(stage_dir, os.path.basename(src))
+    shutil.copyfile(src, staged_urdf)
     return staged_urdf
 
 

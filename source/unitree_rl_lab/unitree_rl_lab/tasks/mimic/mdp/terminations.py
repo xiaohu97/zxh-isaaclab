@@ -115,3 +115,28 @@ def bad_swing_foot_height(
     reference_in_swing = reference_z > reference_height_threshold
     height_shortfall = reference_z - actual_z
     return torch.any(reference_in_swing & (height_shortfall > max_height_shortfall), dim=-1)
+
+
+def bad_body_orientation_in_motion_window(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    asset_cfg: SceneEntityCfg,
+    threshold: float,
+    frame_range: tuple[int, int],
+) -> torch.Tensor:
+    """Terminate when a body's *absolute* tilt from vertical exceeds ``threshold`` while the
+    motion clip is inside ``frame_range`` (inclusive).
+
+    ``bad_anchor_ori`` only bounds the orientation error *relative to the reference*; on a clip
+    whose reference torso already sits at 56 deg the relative error can be tiny while the robot
+    is a few degrees from the deploy-side Passive guard. This term bounds the absolute angle
+    instead, and only over the phase where that matters (landing/stance), so the deliberately
+    deep forward lean of the take-off segment is left alone.
+    """
+    asset = env.scene[asset_cfg.name]
+    quat = asset.data.body_quat_w[:, asset_cfg.body_ids[0]]
+    gravity_b = quat_apply_inverse(quat, asset.data.GRAVITY_VEC_W)
+    tilt = torch.arccos(torch.clamp(-gravity_b[:, 2], -1.0, 1.0))
+    t = env.command_manager.get_term(command_name).time_steps
+    in_window = (t >= frame_range[0]) & (t <= frame_range[1])
+    return in_window & (tilt > threshold)

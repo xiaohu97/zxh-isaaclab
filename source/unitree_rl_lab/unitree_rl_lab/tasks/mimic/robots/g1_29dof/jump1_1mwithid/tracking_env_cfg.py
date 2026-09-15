@@ -4,12 +4,16 @@ import os
 
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
+from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
 import unitree_rl_lab.tasks.mimic.mdp as mdp
 from unitree_rl_lab.tasks.mimic.agents.rsl_rl_ppo_cfg import BasePPORunnerCfg
 from unitree_rl_lab.tasks.mimic.robots.g1_29dof.jumpwithid.tracking_env_cfg import stage_robot_urdf
+from unitree_rl_lab.tasks.mimic.robots.g1_29dof.dance_102.g1 import G1_ACTION_SCALE
 from unitree_rl_lab.tasks.mimic.robots.g1_29dof.dance_102.tracking_env_cfg import (
+    ActionsCfg as BaseActionsCfg,
+    TerminationsCfg as BaseTerminationsCfg,
     RewardsCfg as BaseRewardsCfg,
     VELOCITY_RANGE,
     RobotEnvCfg as BaseRobotEnvCfg,
@@ -20,6 +24,21 @@ from unitree_rl_lab.tasks.mimic.robots.g1_29dof.dance_102.tracking_env_cfg impor
 # 2.67kg（左手 2.5kg 负载），摆臂惯量涨了 15 倍，跟踪误差随之放大 —— 而参考动作在
 # 0.52s 处左手离左髋只有 5.2cm(原点距)，碰撞网格实测表面间隙仅 0.6mm，
 # 空手勉强擦过去，手里再拿个 20cm 的球就直接穿进大腿 9.3cm。
+# 第一轮改动（2026-09-14）——落地前倾过大 + 手撞腿，四件事一起改：
+#   A  参考动作 jump1_1m_waist15.npz：落地段(52~89帧)和起始站姿(0~21帧)腰前折从 29.8°(=机械限位)
+#      压到 15°，起跳段(22~51)不动；落地躯干绝对倾角 56° -> 41°。骨盆不动，所以腰的静态重力矩
+#      基本没变(24.4->23.9 Nm)，冲击力矩仍会打满 25 Nm —— 这一项解决的是"参考骑在限位/软限位上"
+#      和"躯干贴 57.3° 保护线"，不是腰的力矩。
+#   B  动作 clip：腰/踝俯仰的目标位置钳在硬限位内。原策略把腰目标当力矩杠杆用(落地时下发 -25~-75°，
+#      37% 时间越过 -30° 硬限位)，部署侧 clip: null 原样下发。训练和部署两侧同时钳。
+#   D  torso_tilt_landing 终止：落地窗口内躯干绝对倾角 > 0.9 rad(51.6°) 终止。bad_anchor_ori 只约束
+#      相对参考的误差，参考自己 56° 时相对误差小 != 安全。只在 52~89 帧生效，起跳段的深前倾不管。
+#   E① URDF g1_29dof_rev_1_0_identified0914_ball.urdf：左手 2.5kg 球按真实位置建模——球心在手系
+#      (0.12,0,0)，质心 0.116m(0907 是 0.054)，惯量 0.0101/0.0108/0.0108(0907 是 0.0017)。
+#      没加碰撞球：参考起始姿态(帧0)球就陷在左髋里 9cm，加了碰撞体 reset 时就会被弹飞。
+BALL_CENTER_IN_HAND = (0.12, 0.0, 0.0)   # 球心在 left_rubber_hand 系的位置(m)，假设球贴掌心握持
+_URDF_BALL = os.path.join(os.path.dirname(__file__), "g1_29dof_rev_1_0_identified0914_ball.urdf")
+
 LEFT_ARM_BODIES = ["left_rubber_hand", "left_wrist_yaw_link", "left_wrist_pitch_link"]
 LEG_BODIES = [
     "left_hip_pitch_link",
@@ -39,7 +58,7 @@ class CommandsCfg:
 
     motion = mdp.MotionCommandCfg(
         asset_name="robot",
-        motion_file=f"{os.path.dirname(__file__)}/../jump1_1m/jump1_1m.npz",
+        motion_file=f"{os.path.dirname(__file__)}/jump1_1m_waist15.npz",
         anchor_body_name="torso_link",
         resampling_time_range=(1.0e9, 1.0e9),
         debug_vis=True,
@@ -73,6 +92,36 @@ class CommandsCfg:
 
 
 @configclass
+class ActionsCfg(BaseActionsCfg):
+    """腰/踝俯仰的目标位置钳在 URDF 硬限位内（训练侧）；export 会把同一组数写进 deploy.yaml 的
+    actions.JointPositionAction.clip，部署侧 joint_actions.h 用它做同样的 clamp。"""
+
+    JointPositionAction = mdp.JointPositionActionCfg(
+        asset_name="robot",
+        joint_names=[".*"],
+        scale=G1_ACTION_SCALE,
+        use_default_offset=True,
+        clip={
+            "waist_pitch_joint": (-0.52, 0.52),
+            ".*_ankle_pitch_joint": (-0.87267, 0.5236),
+        },
+    )
+
+
+@configclass
+class TerminationsCfg(BaseTerminationsCfg):
+    torso_tilt_landing = DoneTerm(
+        func=mdp.bad_body_orientation_in_motion_window,
+        params={
+            "command_name": "motion",
+            "asset_cfg": SceneEntityCfg("robot", body_names=["torso_link"]),
+            "threshold": 0.9,        # 51.6°；新参考落地躯干 41°，留 10°；对应骨盆约 37°，离部署保护 57.3° 有余量
+            "frame_range": (52, 89),  # 落地/站立段；起跳段(22~51)参考躯干 70~75°，不能管
+        },
+    )
+
+
+@configclass
 class RewardsCfg(BaseRewardsCfg):
     """在基类之上只加"别拿左手撞腿"这一件事。
 
@@ -86,11 +135,23 @@ class RewardsCfg(BaseRewardsCfg):
     且被 14 个 body 平摊。
     """
 
+    ball_leg_clearance = RewTerm(
+        func=mdp.self_body_clearance,
+        weight=-20.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=["left_rubber_hand"]),
+            "other_cfg": SceneEntityCfg("robot", body_names=LEG_BODIES),
+            "offset_a": BALL_CENTER_IN_HAND,
+            # 球心到腿 link 原点的距离。按碰撞网格在新参考上反推：球面刚好不碰腿所需的
+            # 球心-原点距 max 0.215(帧0, 起始姿态球陷在左髋里) / p90 0.179；取 0.25 留 3.5cm。
+            "margin": 0.25,
+        },
+    )
     left_arm_leg_clearance = RewTerm(
         func=mdp.self_body_clearance,
         weight=-20.0,
         params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=LEFT_ARM_BODIES),
+            "asset_cfg": SceneEntityCfg("robot", body_names=["left_wrist_yaw_link", "left_wrist_pitch_link"]),
             "other_cfg": SceneEntityCfg("robot", body_names=LEG_BODIES),
             # 原点间距，不是表面间距，数值由碰撞网格实测反推：
             #   空手时 left_wrist_yaw_link 到腿的最小表面间隙只有 0.6mm(第25帧)，
@@ -128,13 +189,15 @@ class RobotEnvCfg(BaseRobotEnvCfg):
     """
 
     commands: CommandsCfg = CommandsCfg()
+    actions: ActionsCfg = ActionsCfg()
     rewards: RewardsCfg = RewardsCfg()
+    terminations: TerminationsCfg = TerminationsCfg()
 
     def __post_init__(self):
         super().__post_init__()
         # 与 jumpwithid / jumpwithid_stage2 共用同一个 URDF 文件，切版本只改
         # jumpwithid/tracking_env_cfg.py 里的 _URDF_NAME，三个任务一起变
-        self.scene.robot.spawn.asset_path = stage_robot_urdf()
+        self.scene.robot.spawn.asset_path = stage_robot_urdf(_URDF_BALL)
 
 
 class RobotPlayEnvCfg(RobotEnvCfg):
@@ -147,4 +210,4 @@ class RobotPlayEnvCfg(RobotEnvCfg):
 @configclass
 class Jump1_1mWithIdPPORunnerCfg(BasePPORunnerCfg):
     experiment_name = "unitree_g1_29dof_mimic_jump1_1mwithid"
-    run_name = "identified"
+    run_name = "round1"

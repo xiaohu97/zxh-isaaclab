@@ -13,36 +13,7 @@ default_joint_pos: [-0.0902, -0.107, 0.00124, 0.000442, 0.00489, 0.00191, 0.0092
 commands: {}
 actions:
   JointPositionAction:
-    clip:
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-0.52, 0.52]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-0.873, 0.524]
-    - [-0.873, 0.524]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
-    - [-.inf, .inf]
+    clip: null
     joint_names: [.*]
     scale: [0.548, 0.548, 0.548, 0.351, 0.351, 0.439, 0.548, 0.548, 0.439, 0.351,
       0.351, 0.439, 0.439, 0.439, 0.439, 0.439, 0.439, 0.439, 0.439, 0.439, 0.439,

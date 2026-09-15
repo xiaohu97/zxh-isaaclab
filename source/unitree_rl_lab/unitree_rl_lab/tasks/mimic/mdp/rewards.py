@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
-from isaaclab.utils.math import quat_error_magnitude
+from isaaclab.utils.math import quat_apply, quat_error_magnitude
 
 from unitree_rl_lab.tasks.mimic.mdp.commands import MotionCommand
 
@@ -453,6 +453,7 @@ def self_body_clearance(
     asset_cfg: SceneEntityCfg,
     other_cfg: SceneEntityCfg,
     margin: float,
+    offset_a: tuple[float, float, float] | None = None,
 ) -> torch.Tensor:
     """Penalize ``asset_cfg`` bodies for coming closer than ``margin`` to any ``other_cfg`` body.
 
@@ -467,10 +468,20 @@ def self_body_clearance(
     The penalty is the summed depth of violation (zero once every pair is clear), which
     keeps a gradient before contact happens rather than only after -- contact terms alone
     give no signal until the collision already occurred.
+
+    ``offset_a`` moves each group-A point from the body origin to a fixed point in that
+    body's frame (e.g. the centre of a ball held in the hand), so ``margin`` can be set from
+    the ball radius instead of from the hand geometry.
     """
     asset: Articulation = env.scene[asset_cfg.name]
     body_pos_w = asset.data.body_pos_w
     pos_a = body_pos_w[:, asset_cfg.body_ids]
+    if offset_a is not None:
+        # 把 A 组 body 原点换成其局部系里的一个点（例如手里那个球的球心），
+        # 原点到腿的距离对一个伸出手掌 12cm 的 20cm 球没有意义
+        quat_a = asset.data.body_quat_w[:, asset_cfg.body_ids]
+        off = torch.tensor(offset_a, device=pos_a.device, dtype=pos_a.dtype).expand(*quat_a.shape[:2], 3)
+        pos_a = pos_a + quat_apply(quat_a.reshape(-1, 4), off.reshape(-1, 3)).reshape(pos_a.shape)
     pos_b = body_pos_w[:, other_cfg.body_ids]
     min_dist = torch.cdist(pos_a, pos_b).min(dim=-1).values
     return torch.sum(torch.clamp(margin - min_dist, min=0.0), dim=-1)
