@@ -93,3 +93,101 @@
 [2026-09-15 16:43:40] [info] Velocity first inference ready: candidate max |q_target - last_sent| = 0.7848 rad at motor 27, max_leg_delta=0.6790 rad, max_kp_delta=97.18 Nm, waist_pitch_candidate=-0.833 rad (before blend; not applied torque)
 [2026-09-15 16:43:41] [error] Velocity: invalid/stale inference, sensor frame, or bad orientation; entering Passive
 [2026-09-15 16:43:41] [info] FSM: Change state from Velocity to Passive
+[2026-09-15 23:17:16] [info] Waiting for connection to robot...
+[2026-09-15 23:17:17] [info] Connected to robot.
+[2026-09-15 23:17:17] [info] Initializing State_Passive ...
+[2026-09-15 23:17:17] [info] Initializing State_FixStand ...
+[2026-09-15 23:17:17] [info] Initializing State_Velocity ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/velocity
+[2026-09-15 23:17:17] [info] Initializing State_Stand_LeftArmTrack ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/stand_leftarm
+[2026-09-15 23:17:17] [info] Initializing State_Run ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/run/0908
+[2026-09-15 23:17:17] [info] GaitCommand: vx cap 3.00 (train max 3.00), run enable = RT, walk cap 1.50, 5 preset knots
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Houtaitui ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/houtaitui/
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Pico_Houtaitui4 ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/pico_houtaitui4/
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Pico_Dun ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/pico_dun/
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Pico_Taitui ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/pico_taitui/
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Pico_Houtaitui ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/pico_houtaitui/
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Pico_Righttaitui ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/pico_righttaitui/
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Dun ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/dun/
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Neutral_Walk_Forward ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/neutral_walk_forward/
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Jump ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/jump/
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Banyun ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/banyun/
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Jump1 ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/jump1/
+[2026-09-15 23:17:17] [info] Initializing State_Mimic_Jump3 ...
+[2026-09-15 23:17:17] [info] Policy directory: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/config/policy/mimic/jump3/
+[2026-09-15 23:17:17] [info] FSM: Start Passive
+[2026-09-15 23:17:17] [info] FSM: Change state from Passive to FixStand
+[2026-09-15 23:17:33] [info] FSM: Change state from FixStand to Velocity
+[2026-09-15 23:17:33] [info] Velocity entry measured: pelvis_tilt=0.158 rad, gyro=[0.003,-0.039,0.074] rad/s, max_leg_dq=0.065 rad/s, max_leg_target_error=0.234 rad, waist_pitch_q=-0.002, waist_pitch_last_target=0.000
+[2026-09-15 23:17:33] [info] Velocity entry: hold last sent target until inference ready; blend 0.3 s, zero command 0.4 s, ramp 0.5 s
+[2026-09-15 23:17:33] [info] Velocity trace: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/log/walk_handoff/walk_1789485453384645_1.csv
+[2026-09-15 23:17:33] [info] Velocity first inference ready: candidate max |q_target - last_sent| = 0.4425 rad at motor 13, max_leg_delta=0.2471 rad, max_kp_delta=30.02 Nm, waist_pitch_candidate=-0.141 rad (before blend; not applied torque)
+[2026-09-15 23:19:05] [info] FSM: Change state from Velocity to Mimic_Jump3
+[2026-09-15 23:19:08] [info] FSM: Change state from Mimic_Jump3 to Velocity
+[2026-09-15 23:19:08] [info] Velocity entry measured: pelvis_tilt=0.055 rad, gyro=[0.023,0.017,0.025] rad/s, max_leg_dq=0.075 rad/s, max_leg_target_error=0.130 rad, waist_pitch_q=0.004, waist_pitch_last_target=-0.040
+[2026-09-15 23:19:08] [info] Velocity entry: hold last sent target until inference ready; blend 0.3 s, zero command 0.4 s, ramp 0.5 s
+[2026-09-15 23:19:08] [info] Velocity trace: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/log/walk_handoff/walk_1789485548705695_2.csv
+[2026-09-15 23:19:08] [info] Velocity first inference ready: candidate max |q_target - last_sent| = 0.2114 rad at motor 13, max_leg_delta=0.1320 rad, max_kp_delta=12.57 Nm, waist_pitch_candidate=0.065 rad (before blend; not applied torque)
+[2026-09-15 23:21:15] [info] FSM: Change state from Velocity to Mimic_Jump3
+[2026-09-15 23:21:19] [info] FSM: Change state from Mimic_Jump3 to Velocity
+[2026-09-15 23:21:19] [info] Velocity entry measured: pelvis_tilt=0.054 rad, gyro=[0.020,-0.027,0.029] rad/s, max_leg_dq=0.164 rad/s, max_leg_target_error=0.171 rad, waist_pitch_q=-0.015, waist_pitch_last_target=-0.061
+[2026-09-15 23:21:19] [info] Velocity entry: hold last sent target until inference ready; blend 0.3 s, zero command 0.4 s, ramp 0.5 s
+[2026-09-15 23:21:19] [info] Velocity trace: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/log/walk_handoff/walk_1789485679264664_3.csv
+[2026-09-15 23:21:19] [info] Velocity first inference ready: candidate max |q_target - last_sent| = 0.1650 rad at motor 14, max_leg_delta=0.1336 rad, max_kp_delta=15.65 Nm, waist_pitch_candidate=0.104 rad (before blend; not applied torque)
+[2026-09-15 23:21:31] [info] FSM: Change state from Velocity to Mimic_Jump3
+[2026-09-15 23:21:35] [info] FSM: Change state from Mimic_Jump3 to Velocity
+[2026-09-15 23:21:35] [info] Velocity entry measured: pelvis_tilt=0.040 rad, gyro=[-0.007,0.029,0.013] rad/s, max_leg_dq=0.062 rad/s, max_leg_target_error=0.127 rad, waist_pitch_q=0.021, waist_pitch_last_target=-0.128
+[2026-09-15 23:21:35] [info] Velocity entry: hold last sent target until inference ready; blend 0.3 s, zero command 0.4 s, ramp 0.5 s
+[2026-09-15 23:21:35] [info] Velocity first inference ready: candidate max |q_target - last_sent| = 0.2178 rad at motor 13, max_leg_delta=0.1606 rad, max_kp_delta=12.43 Nm, waist_pitch_candidate=0.045 rad (before blend; not applied torque)
+[2026-09-15 23:21:35] [info] Velocity trace: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/log/walk_handoff/walk_1789485695284701_4.csv
+[2026-09-15 23:21:39] [info] FSM: Change state from Velocity to Mimic_Jump3
+[2026-09-15 23:21:43] [info] FSM: Change state from Mimic_Jump3 to Velocity
+[2026-09-15 23:21:43] [info] Velocity entry measured: pelvis_tilt=0.060 rad, gyro=[-0.000,0.011,-0.029] rad/s, max_leg_dq=0.022 rad/s, max_leg_target_error=0.131 rad, waist_pitch_q=0.019, waist_pitch_last_target=-0.073
+[2026-09-15 23:21:43] [info] Velocity entry: hold last sent target until inference ready; blend 0.3 s, zero command 0.4 s, ramp 0.5 s
+[2026-09-15 23:21:43] [info] Velocity trace: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/log/walk_handoff/walk_1789485703564676_5.csv
+[2026-09-15 23:21:43] [info] Velocity first inference ready: candidate max |q_target - last_sent| = 0.1949 rad at motor 13, max_leg_delta=0.1209 rad, max_kp_delta=12.60 Nm, waist_pitch_candidate=0.083 rad (before blend; not applied torque)
+[2026-09-15 23:28:03] [info] FSM: Change state from Velocity to Mimic_Jump3
+[2026-09-15 23:28:07] [info] FSM: Change state from Mimic_Jump3 to Velocity
+[2026-09-15 23:28:07] [info] Velocity entry measured: pelvis_tilt=0.042 rad, gyro=[-0.002,0.016,-0.006] rad/s, max_leg_dq=0.048 rad/s, max_leg_target_error=0.124 rad, waist_pitch_q=0.005, waist_pitch_last_target=-0.078
+[2026-09-15 23:28:07] [info] Velocity entry: hold last sent target until inference ready; blend 0.3 s, zero command 0.4 s, ramp 0.5 s
+[2026-09-15 23:28:07] [info] Velocity trace: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/log/walk_handoff/walk_1789486087122898_6.csv
+[2026-09-15 23:28:07] [info] Velocity first inference ready: candidate max |q_target - last_sent| = 0.1366 rad at motor 14, max_leg_delta=0.1071 rad, max_kp_delta=16.07 Nm, waist_pitch_candidate=0.059 rad (before blend; not applied torque)
+[2026-09-15 23:29:07] [info] FSM: Change state from Velocity to Mimic_Jump3
+[2026-09-15 23:29:11] [info] FSM: Change state from Mimic_Jump3 to Velocity
+[2026-09-15 23:29:11] [info] Velocity entry measured: pelvis_tilt=0.046 rad, gyro=[0.033,-0.007,0.006] rad/s, max_leg_dq=0.099 rad/s, max_leg_target_error=0.116 rad, waist_pitch_q=-0.089, waist_pitch_last_target=0.014
+[2026-09-15 23:29:11] [info] Velocity entry: hold last sent target until inference ready; blend 0.3 s, zero command 0.4 s, ramp 0.5 s
+[2026-09-15 23:29:11] [info] Velocity trace: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/log/walk_handoff/walk_1789486151062660_7.csv
+[2026-09-15 23:29:11] [info] Velocity first inference ready: candidate max |q_target - last_sent| = 0.2266 rad at motor 13, max_leg_delta=0.1773 rad, max_kp_delta=26.59 Nm, waist_pitch_candidate=0.122 rad (before blend; not applied torque)
+[2026-09-15 23:29:18] [info] FSM: Change state from Velocity to Mimic_Jump3
+[2026-09-15 23:29:22] [info] FSM: Change state from Mimic_Jump3 to Velocity
+[2026-09-15 23:29:22] [info] Velocity entry measured: pelvis_tilt=0.060 rad, gyro=[0.019,-0.038,-0.006] rad/s, max_leg_dq=0.105 rad/s, max_leg_target_error=0.262 rad, waist_pitch_q=-0.073, waist_pitch_last_target=-0.055
+[2026-09-15 23:29:22] [info] Velocity entry: hold last sent target until inference ready; blend 0.3 s, zero command 0.4 s, ramp 0.5 s
+[2026-09-15 23:29:22] [info] Velocity trace: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/log/walk_handoff/walk_1789486162081651_8.csv
+[2026-09-15 23:29:22] [info] Velocity first inference ready: candidate max |q_target - last_sent| = 0.2143 rad at motor 13, max_leg_delta=0.1477 rad, max_kp_delta=22.16 Nm, waist_pitch_candidate=0.137 rad (before blend; not applied torque)
+[2026-09-15 23:29:33] [info] FSM: Change state from Velocity to Mimic_Jump3
+[2026-09-15 23:29:37] [info] FSM: Change state from Mimic_Jump3 to Velocity
+[2026-09-15 23:29:37] [info] Velocity entry measured: pelvis_tilt=0.051 rad, gyro=[0.037,0.077,0.127] rad/s, max_leg_dq=0.129 rad/s, max_leg_target_error=0.217 rad, waist_pitch_q=-0.008, waist_pitch_last_target=-0.122
+[2026-09-15 23:29:37] [info] Velocity entry: hold last sent target until inference ready; blend 0.3 s, zero command 0.4 s, ramp 0.5 s
+[2026-09-15 23:29:37] [info] Velocity trace: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/log/walk_handoff/walk_1789486177341673_9.csv
+[2026-09-15 23:29:37] [info] Velocity first inference ready: candidate max |q_target - last_sent| = 0.2422 rad at motor 13, max_leg_delta=0.1346 rad, max_kp_delta=15.36 Nm, waist_pitch_candidate=0.113 rad (before blend; not applied torque)
+[2026-09-15 23:29:42] [info] FSM: Change state from Velocity to Mimic_Jump3
+[2026-09-15 23:29:45] [info] FSM: Change state from Mimic_Jump3 to Velocity
+[2026-09-15 23:29:45] [info] Velocity entry measured: pelvis_tilt=0.099 rad, gyro=[0.184,-0.063,0.083] rad/s, max_leg_dq=0.435 rad/s, max_leg_target_error=0.241 rad, waist_pitch_q=-0.002, waist_pitch_last_target=-0.085
+[2026-09-15 23:29:45] [info] Velocity entry: hold last sent target until inference ready; blend 0.3 s, zero command 0.4 s, ramp 0.5 s
+[2026-09-15 23:29:45] [info] Velocity trace: /home/ustczxh/humanoid/zxh-isaaclab/deploy/robots/g1_29dof/log/walk_handoff/walk_1789486185621671_10.csv
+[2026-09-15 23:29:45] [info] Velocity first inference ready: candidate max |q_target - last_sent| = 0.2778 rad at motor 13, max_leg_delta=0.1768 rad, max_kp_delta=13.40 Nm, waist_pitch_candidate=0.087 rad (before blend; not applied torque)
+[2026-09-15 23:31:11] [warning] Velocity Passive reason=configured_transition condition=LT + B.on_pressed
+[2026-09-15 23:31:11] [info] FSM: Change state from Velocity to Passive
