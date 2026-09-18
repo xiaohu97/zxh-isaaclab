@@ -87,3 +87,17 @@ class PerceptiveDepthDistillationRunnerCfg(RslRlOnPolicyRunnerCfg):
     resume = False
     load_run = ".*"
     load_checkpoint = "model_.*.pt"
+
+
+@configclass
+class PerceptiveHeightScanHardPPORunnerCfg(PerceptiveHeightScanPPORunnerCfg):
+    """硬地形（台阶 0.20~0.30 m、坡 24°、踏石、gap）。单独的实验目录，别和旧地形混在一起。"""
+
+    experiment_name = PERCEPTIVE_EXPERIMENT_NAME + "_hard"
+
+
+@configclass
+class PerceptiveBlindHardPPORunnerCfg(PerceptiveBlindPPORunnerCfg):
+    """硬地形上的盲走基线。"""
+
+    experiment_name = PERCEPTIVE_EXPERIMENT_NAME + "_hard_blind"

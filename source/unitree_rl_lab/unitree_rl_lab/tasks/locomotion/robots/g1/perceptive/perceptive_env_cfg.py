@@ -40,6 +40,13 @@
     depth_image 2304 (64×36) ×1
     Blind actor 480 / HeightScan actor 667 / Depth 学生 2784
 
+硬地形变体（``...Hard``，2026-09-18）
+-----------------------------------
+上面那份地形盲走也能过（400 个 episode 只摔 11 次），高程图只把摔倒率 9.5% 压到 2.2%，
+期望回报差不到 1%，所以策略 3000 迭代就平台期。硬地形把台阶提到 0.20~0.30 m、坡度上限
+提到 0.45（24°），并加入踏石和 gap，见 ``perception_cfg.G1_PERCEPTIVE_HARD_TERRAINS_CFG``。
+奖励里只有 ``base_height`` 换成空洞安全版（见 ``HardRewardsCfg``），其余完全一致。
+
 怎么训
 ------
 ::
@@ -80,6 +87,7 @@ from . import perceptive_mdp as pmdp
 from .perception_cfg import (
     DEPTH_CAMERA_CFG,
     DEPTH_MAX_DISTANCE,
+    G1_PERCEPTIVE_HARD_TERRAINS_CFG,
     G1_PERCEPTIVE_TERRAINS_CFG,
     HEIGHT_SCAN_OFFSET,
     HEIGHT_SCANNER_CFG,
@@ -282,6 +290,47 @@ def _apply_play_settings(cfg: PerceptiveBlindEnvCfg) -> None:
     cfg.commands.base_velocity.ranges = cfg.commands.base_velocity.limit_ranges
 
 
+# ---------------------------------------------------------------------------
+# 硬地形变体（2026-09-18）
+# ---------------------------------------------------------------------------
+@configclass
+class HardSceneCfg(PerceptiveSceneCfg):
+    """地形换成 ``G1_PERCEPTIVE_HARD_TERRAINS_CFG``，其余（传感器、噪声）不变。"""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.terrain.terrain_generator = copy.deepcopy(G1_PERCEPTIVE_HARD_TERRAINS_CFG)
+        # 台阶 0.20 m 起步，热启动的策略也得从最低档重新爬
+        self.terrain.max_init_terrain_level = 1
+
+
+@configclass
+class HardRewardsCfg(PerceptiveRewardsCfg):
+    """``base_height`` 换成空洞安全版：gap 打空成 inf、踏石的洞在 −10 m，
+    Isaac Lab 自带的 ``base_height_l2`` 对射线取均值且无防护，会直接把奖励打成 NaN。
+    顺带修掉它在楼梯上目标偏 0.3 m 的问题（改用躯干正下方最近的有效地面）。"""
+
+    base_height = RewTerm(
+        func=pmdp.base_height_terrain,
+        weight=-10,
+        params={"target_height": 0.78, "sensor_cfg": SceneEntityCfg("height_scanner")},
+    )
+
+
+@configclass
+class PerceptiveBlindHardEnvCfg(PerceptiveBlindEnvCfg):
+    """硬地形上的盲走基线：只用来量"没有高程图能走多远"，不一定训得动。"""
+
+    scene: HardSceneCfg = HardSceneCfg(num_envs=4096, env_spacing=2.5)
+    rewards: HardRewardsCfg = HardRewardsCfg()
+
+
+@configclass
+class PerceptiveHeightScanHardEnvCfg(PerceptiveHeightScanEnvCfg):
+    scene: HardSceneCfg = HardSceneCfg(num_envs=4096, env_spacing=2.5)
+    rewards: HardRewardsCfg = HardRewardsCfg()
+
+
 @configclass
 class PerceptiveBlindPlayEnvCfg(PerceptiveBlindEnvCfg):
     def __post_init__(self):
@@ -298,6 +347,20 @@ class PerceptiveHeightScanPlayEnvCfg(PerceptiveHeightScanEnvCfg):
 
 @configclass
 class PerceptiveDepthPlayEnvCfg(PerceptiveDepthEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_play_settings(self)
+
+
+@configclass
+class PerceptiveBlindHardPlayEnvCfg(PerceptiveBlindHardEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        _apply_play_settings(self)
+
+
+@configclass
+class PerceptiveHeightScanHardPlayEnvCfg(PerceptiveHeightScanHardEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         _apply_play_settings(self)

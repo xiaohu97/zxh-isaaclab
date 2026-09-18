@@ -1,0 +1,17 @@
+task: Unitree-G1-29dof-Mimic-Jump1-1mWithIdFar-C1S
+checkpoint: /home/zxh/unitree_rl_lab/logs/rsl_rl/unitree_g1_29dof_mimic_jump1_1mwithid/2026-09-18_16-16-11_far_c1s/model_48998.pt
+motion: jump1_1m_ball125_p18.npz (183 帧 / 3.66s) —— 与 C1F 同一参考
+deploy_csv: params/jump3_c1f.csv (437 行) —— 与 C1F 版通用，无需更换
+deploy.yaml: 与 0918_c1f_44999 逐字节相同
+
+本版解决的问题: 劈叉落地。新增 feet_symmetry 奖励(权重 30/std 0.2,跟踪左减右足端向量,
+含 z 所以起跳落地都要齐),从 C1F 44999 热启动训 4000 迭代(45000->48998)。
+
+干净测量对比 (eval_sym.py, 128 env, 固定帧 0 起跳, 关随机化, 只统计起跳回合):
+                左脚     右脚   中点@触地   劈叉    触地Δ   蹬伸两脚高差  起跳率
+C1F 44999     1.434  1.182   1.308  0.252  38.6ms   0.083     86%
+C1S 48998     1.301  1.178   1.240  0.123   4.8ms   0.034     86%
+参考             1.359  1.348   1.354  0.010   0ms         -
+
+代价: 中点距离 -6.8 cm。劈叉缩小全靠左脚回收(1.434->1.301),右脚没动(1.182->1.178)。
+后续 C2S 用 feet_worst(最差脚全局跟踪,max 而非 mean)+ ballistic130 参考(1.413)找回距离。

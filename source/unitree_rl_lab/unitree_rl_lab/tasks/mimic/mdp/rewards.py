@@ -538,3 +538,57 @@ def flight_clearance_in_motion_window(
     t = env.command_manager.get_term(command_name).time_steps
     in_window = ((t >= frame_range[0]) & (t <= frame_range[1])).float()
     return (clearance / target_clearance).clamp(max=1.0) * in_window
+
+
+def feet_relative_pose_in_motion_window(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    body_names: list[str],
+    frame_range: tuple[int, int],
+    std: float,
+) -> torch.Tensor:
+    """exp(-|d - d_ref|^2 / std^2) for the left-minus-right foot vector, gated to ``frame_range``.
+
+    Addresses the split landing measured on far_c1f@44999: left foot 25 cm ahead of the right and
+    the right foot touching down 39 ms earlier in 100 % of episodes, while the reference is
+    symmetric (1 cm split, same-frame touchdown). The 29-joint exp-kernel tracking terms tolerate
+    that much on two hip joints; this term looks only at the one vector the split shows up in.
+    ``d_ref`` comes from ``body_pos_relative_w`` (reference rotated into the robot's anchor yaw
+    frame), so heading error does not leak in, and z is included so the two feet also have to
+    leave and reach the ground together. ``body_names`` is [left, right].
+    """
+    command: MotionCommand = env.command_manager.get_term(command_name)
+    li, ri = _get_body_indexes(command, body_names)
+    d_ref = command.body_pos_relative_w[:, li] - command.body_pos_relative_w[:, ri]
+    d = command.robot_body_pos_w[:, li] - command.robot_body_pos_w[:, ri]
+    error = torch.sum(torch.square(d - d_ref), dim=-1)
+    t = command.time_steps
+    in_window = ((t >= frame_range[0]) & (t <= frame_range[1])).float()
+    return torch.exp(-error / std**2) * in_window
+
+
+def feet_worst_global_position_error_exp(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    body_names: list[str],
+    frame_range: tuple[int, int],
+    std: float,
+) -> torch.Tensor:
+    """exp of the *worst* of the two feet's global position error -- the better foot cannot carry it.
+
+    ``feet_symmetry`` only constrains the left-minus-right vector, and the cheapest way to satisfy it
+    is to retract the foot that leads. Measured on far_c1s: the split fell 0.252 -> 0.123 m entirely
+    because the left foot came back (1.434 -> 1.301) while the right stayed put (1.182 -> 1.178), and
+    the midpoint lost 6.8 cm with it. Taking ``max`` over the two feet instead of ``mean`` makes the
+    trailing foot the binding constraint, so the way to score is to push it forward. Global (not
+    anchor-relative) positions, like ``motion_global_anchor_position_error_exp``, so this rewards
+    travel rather than splay -- ``feet_symmetry`` already covers splay.
+    """
+    command: MotionCommand = env.command_manager.get_term(command_name)
+    body_indexes = _get_body_indexes(command, body_names)
+    error = torch.sum(
+        torch.square(command.body_pos_w[:, body_indexes] - command.robot_body_pos_w[:, body_indexes]), dim=-1
+    )
+    t = command.time_steps
+    in_window = ((t >= frame_range[0]) & (t <= frame_range[1])).float()
+    return torch.exp(-error.max(dim=-1).values / std**2) * in_window

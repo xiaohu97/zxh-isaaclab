@@ -34,3 +34,26 @@ gym.register(
         "rsl_rl_cfg_entry_point": f"{__name__}.rsl_rl_ppo_cfg:PerceptiveDepthDistillationRunnerCfg",
     },
 )
+
+# ---- 硬地形变体（台阶 0.20~0.30 m、坡 24°、踏石、gap）----
+gym.register(
+    id="Unitree-G1-29dof-PerceptiveBlindHard",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.perceptive_env_cfg:PerceptiveBlindHardEnvCfg",
+        "play_env_cfg_entry_point": f"{__name__}.perceptive_env_cfg:PerceptiveBlindHardPlayEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{__name__}.rsl_rl_ppo_cfg:PerceptiveBlindHardPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="Unitree-G1-29dof-PerceptiveHeightScanHard",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.perceptive_env_cfg:PerceptiveHeightScanHardEnvCfg",
+        "play_env_cfg_entry_point": f"{__name__}.perceptive_env_cfg:PerceptiveHeightScanHardPlayEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{__name__}.rsl_rl_ppo_cfg:PerceptiveHeightScanHardPPORunnerCfg",
+    },
+)

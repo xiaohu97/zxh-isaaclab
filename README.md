@@ -285,6 +285,12 @@ $ LD_LIBRARY_PATH=~/ddsfix ./g1_ctrl --network lo
 #   没有图会按平地填充并在终端告警 "Height map none/stale"; 正常应看到 "Height map live"
 #   楼梯/障碍在 scene_g1_29dof_terrain.xml 里: 0.15 m 台阶在 y=4 (x 1.2~3.0), 方块/圆柱在 x=1.5
 #   用 tools/height_map_echo.py --interface lo --domain 0 可以看模拟器发出的高程图
+#
+# ---- MuJoCo 窗口里的感知可视化(点击窗口后按键) ----
+# M: 高程图开关   策略实际消费的 17x11 网格画在地形上; 蓝=低 绿=平 红=高(相对躯干正下方地面), 未知格不画
+# C: 深度相机视野开关  D435 安装位姿(87x58 deg, 俯仰 47.6 deg)的针孔射线; 青=打到地形 橙=打到机器人自己 黄=视锥边
+#   两者默认都开, 在 unitree_mujoco/simulate/config.yaml 的 overlay_* 里改默认值和分辨率
+#   深度相机只是训练框架里的预留通路(策略不消费), 画出来是为了看安装位姿的覆盖范围
 # Stand_LeftArmTrack:   RB + Y.on_pressed     站立策略, 左臂初始收手在默认位姿
 #   RB + A                                    开/关左臂激励(平滑渐入/渐出, 1.5s)
 #
@@ -341,6 +347,12 @@ $ LD_LIBRARY_PATH=~/ddsfix ./g1_ctrl --network enp5s0
 #   没有图会按平地填充并在终端告警 "Height map none/stale"; 正常应看到 "Height map live"
 #   楼梯/障碍在 scene_g1_29dof_terrain.xml 里: 0.15 m 台阶在 y=4 (x 1.2~3.0), 方块/圆柱在 x=1.5
 #   用 tools/height_map_echo.py --interface lo --domain 0 可以看模拟器发出的高程图
+#
+# ---- MuJoCo 窗口里的感知可视化(点击窗口后按键) ----
+# M: 高程图开关   策略实际消费的 17x11 网格画在地形上; 蓝=低 绿=平 红=高(相对躯干正下方地面), 未知格不画
+# C: 深度相机视野开关  D435 安装位姿(87x58 deg, 俯仰 47.6 deg)的针孔射线; 青=打到地形 橙=打到机器人自己 黄=视锥边
+#   两者默认都开, 在 unitree_mujoco/simulate/config.yaml 的 overlay_* 里改默认值和分辨率
+#   深度相机只是训练框架里的预留通路(策略不消费), 画出来是为了看安装位姿的覆盖范围
 # Stand_LeftArmTrack:   RB + Y.on_pressed     站立策略, 左臂初始收手在默认位姿
 #   RB + A                                    开/关左臂激励(平滑渐入/渐出, 1.5s)
 #

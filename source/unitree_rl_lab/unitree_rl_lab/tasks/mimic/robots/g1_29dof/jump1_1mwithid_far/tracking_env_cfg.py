@@ -91,6 +91,17 @@ STAGES = {
     # 起跳 vz 从 0.62 提到 1.16、足端高 0.503，但位移没涨——因为 c1u 的参考只要求 0.99 m。
     # 膝仍剩 22~37% 力矩、46% 速度余量，所以这一级把距离要求提上去，让腿把余量用掉。
     "c1f": dict(npz="jump1_1m_ball125_p18.npz", window=None, clearance=0.05, hard=False, lift_w=60.0, run_name="far_c1f"),
+    # c1s：同 c1f 参考，从 far_c1f@44999 热启动，加双脚相对向量跟踪(feet_symmetry)。
+    # 44999 干净测量：触地时左脚比右脚远 0.252 m、右脚早 39 ms 着地(100 % 回合)，参考本身劈叉 0.010 m。
+    # 去掉左手球后劈叉降到 0.084 m —— 2/3 来自球，策略用两腿不对称去抵消偏心负载。
+    # 窗口 = 蓄力前 4 帧 ~ 触地后 15 帧，起跳和落地都要齐。
+    "c1s": dict(npz="jump1_1m_ball125_p18.npz", window=None, clearance=0.05, hard=False, lift_w=60.0,
+                run_name="far_c1s", sym_w=30.0, sym_std=0.2),
+    # c2s：从 far_c1s@48998 热启动，"齐且远"。参考换 ballistic130（实测中点 1.413，ball125_p18 是 1.354），
+    # 保留 feet_symmetry，再加 feet_worst（最差脚全局跟踪）。c1s 的教训：只罚左右之差时，策略靠把
+    # 领先的左脚收回来达标（左 1.434->1.301、右 1.182->1.178），中点反而掉了 6.8 cm。
+    "c2s": dict(npz="jump1_1m_ballistic130.npz", window=None, clearance=0.05, hard=False, lift_w=60.0,
+                run_name="far_c2s", sym_w=30.0, sym_std=0.2, far_w=40.0, far_std=0.20),
     "c2": dict(npz="jump1_1m_ballistic115.npz", window=None, clearance=0.08, hard=True, lift_w=30.0, run_name="far_c2"),
     "c3": dict(npz="jump1_1m_ballistic130.npz", window=(53, 65), clearance=0.10, hard=True, lift_w=20.0, run_name="far_v2"),
 }
@@ -122,6 +133,20 @@ def _flight_window(npz_path: str, clearance: float = 0.15) -> tuple[int, int]:
         return (53, 65)
 
 
+def _touchdown_frame(npz_path: str) -> int:
+    """腾空后双脚最低点首次回到起始高度 +2 cm 的帧。"""
+    try:
+        import numpy as np
+
+        P = np.load(npz_path)["body_pos_w"]
+        fz = np.minimum(P[:, 18, 2], P[:, 19, 2])
+        z0 = fz[:10].min()
+        apex = int(np.where(fz - z0 >= 0.15)[0].max())
+        return apex + int(np.argmax(fz[apex:] < z0 + 0.02))
+    except Exception:  # noqa: BLE001
+        return 70
+
+
 def _num_frames(npz_path: str, fallback: int = 184) -> int:
     try:
         import numpy as np
@@ -143,6 +168,10 @@ def make_stage(stage: str, prefix: str):
     # 定向重置指向"蓄力最低点前 4 帧 ~ 离地首帧"：要学的是蹬地，就得多采到正处在蹬地的样本。
     # 之前指向落地段(48,173)、概率 0.3，等于 70 % 的样本落在站着不动的尾段，蹬伸段几乎采不到。
     PUSH_WINDOW = (max(st["crouch"] - 4, 0), st["lift"])
+    TOUCHDOWN = _touchdown_frame(MOTION_FILE)
+    SYM_WINDOW = (PUSH_WINDOW[0], min(TOUCHDOWN + 15, LAST_FRAME))
+    # 距离在触地那一刻定死，所以从离地罚到触地后 10 帧
+    FAR_WINDOW = (st["lift"], min(TOUCHDOWN + 10, LAST_FRAME))
 
     @configclass
     class CommandsCfg(_RecoverCommandsCfg):
@@ -188,6 +217,28 @@ def make_stage(stage: str, prefix: str):
                 "asset_cfg": SceneEntityCfg("robot", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]),
                 "frame_range": JUMP_WINDOW,
                 "target_clearance": 0.20,
+            },
+        )
+        feet_symmetry = None if st.get("sym_w", 0.0) <= 0 else RewTerm(
+            func=mdp.feet_relative_pose_in_motion_window,
+            weight=st["sym_w"],
+            params={
+                "command_name": "motion",
+                "body_names": ["left_ankle_roll_link", "right_ankle_roll_link"],
+                "frame_range": SYM_WINDOW,
+                # 44999 的落地误差约 0.27 m -> 0.16 分；0.10 m -> 0.78；0.05 m -> 0.94
+                "std": st.get("sym_std", 0.2),
+            },
+        )
+        feet_worst = None if st.get("far_w", 0.0) <= 0 else RewTerm(
+            func=mdp.feet_worst_global_position_error_exp,
+            weight=st["far_w"],
+            params={
+                "command_name": "motion",
+                "body_names": ["left_ankle_roll_link", "right_ankle_roll_link"],
+                "frame_range": FAR_WINDOW,
+                # c1s@48998 触地时最差脚(右)差参考 0.17 m -> 0.49 分；0.10 m -> 0.78；0.05 m -> 0.94
+                "std": st.get("far_std", 0.20),
             },
         )
         torque_headroom = RewTerm(
@@ -243,5 +294,7 @@ def make_stage(stage: str, prefix: str):
 C1_EnvCfg, C1_PlayEnvCfg, C1_RunnerCfg = make_stage("c1", "C1")
 C1U_EnvCfg, C1U_PlayEnvCfg, C1U_RunnerCfg = make_stage("c1u", "C1U")
 C1F_EnvCfg, C1F_PlayEnvCfg, C1F_RunnerCfg = make_stage("c1f", "C1F")
+C1S_EnvCfg, C1S_PlayEnvCfg, C1S_RunnerCfg = make_stage("c1s", "C1S")
+C2S_EnvCfg, C2S_PlayEnvCfg, C2S_RunnerCfg = make_stage("c2s", "C2S")
 C2_EnvCfg, C2_PlayEnvCfg, C2_RunnerCfg = make_stage("c2", "C2")
 RobotEnvCfg, RobotPlayEnvCfg, Jump1_1mWithIdFarPPORunnerCfg = make_stage("c3", "C3")

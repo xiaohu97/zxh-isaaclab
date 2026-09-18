@@ -128,8 +128,9 @@ class _RepeatedBoxesTerrainCfg(terrain_gen.MeshRepeatedBoxesTerrainCfg):
     platform_height: float = -1.0
 
 
-# 台阶高度上限 0.15 m 对应真实楼梯；先不放 gap / pit（射线打空会出 NaN，部署侧高程图也常缺失），
-# 等雷达通路跑通再加。
+# 台阶高度上限 0.15 m 对应真实楼梯；不放 gap / pit（射线打空会出 NaN，部署侧高程图也常缺失）。
+# **这份配置对应已经导出到 config/policy/velocity_rough 的部署策略，不要改动**；
+# 更难的地形见下面的 G1_PERCEPTIVE_HARD_TERRAINS_CFG。
 G1_PERCEPTIVE_TERRAINS_CFG = terrain_gen.TerrainGeneratorCfg(
     curriculum=True,
     size=(8.0, 8.0),
@@ -184,6 +185,98 @@ G1_PERCEPTIVE_TERRAINS_CFG = terrain_gen.TerrainGeneratorCfg(
             ),
             object_params_end=terrain_gen.MeshRepeatedBoxesTerrainCfg.ObjectCfg(
                 num_objects=8, height=0.20, size=(0.8, 0.8)
+            ),
+            platform_width=2.0,
+        ),
+    },
+)
+
+
+# ---------------------------------------------------------------------------
+# 硬地形（2026-09-18）：让盲走过不去，感知的收益才进得了回报大头
+# ---------------------------------------------------------------------------
+# 为什么要另起一份：在上面那份地形上，盲走策略 400 个 episode 只摔 11 次（台阶 0.15 m、
+# 坡 16°、障碍 0.2 m 都能靠鲁棒步态硬闯），高程图只把摔倒率从 9.5% 压到 2.2%，
+# 期望回报差不到 1%，淹没在 PPO 优势估计的噪声里 —— 策略 3000 迭代就平台期，再训无效。
+#
+# 相对上面那份改了四处：
+#   * 台阶 0.05~0.15 -> **0.20~0.30 m**（难度 0 就是 0.20 m），踏面放宽到 0.35 m
+#   * 坡度上限 0.30 -> **0.45**（16.7° -> 24.2°），并把中心平台缩到 1.5 m 让坡更长
+#   * 新增 **踏石**：石宽 0.55 -> 0.30 m、石距 0.05 -> 0.30 m 随难度变化（洞在 −10 m）
+#   * 新增 **gap**：缺口 0.15 -> 0.45 m 随难度变化（缺口处没有几何体，射线打空成 inf）
+# 保留 20% 平地 + 碎石当"安全区"，否则课程最低档也没有可站的地方，热启动的策略会直接崩。
+#
+# 两种新地形都会制造"没有地面"的射线，所有用到射线的奖励 / 终止项必须走 perceptive_mdp 里
+# 空洞安全的版本（``base_height_terrain`` / ``ground_under_point``），不能用 Isaac Lab 自带的
+# ``base_height_l2``（它对 ray_hits_w 取均值且无防护，一条 inf 就能让奖励变 NaN）。
+G1_PERCEPTIVE_HARD_TERRAINS_CFG = terrain_gen.TerrainGeneratorCfg(
+    curriculum=True,
+    size=(8.0, 8.0),
+    border_width=20.0,
+    num_rows=10,
+    num_cols=20,
+    horizontal_scale=0.1,
+    vertical_scale=0.005,
+    slope_threshold=0.75,
+    difficulty_range=(0.0, 1.0),
+    use_cache=False,
+    sub_terrains={
+        "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.08),
+        "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
+            proportion=0.10, noise_range=(-0.02, 0.06), noise_step=0.02, border_width=0.25
+        ),
+        # 0.20~0.30 m：G1 大腿一半高，盲走靠迈步高度硬闯会踢到立面
+        "pyramid_stairs": terrain_gen.MeshPyramidStairsTerrainCfg(
+            proportion=0.12,
+            step_height_range=(0.20, 0.30),
+            step_width=0.35,
+            platform_width=2.0,
+            border_width=1.0,
+            holes=False,
+        ),
+        "inv_pyramid_stairs": terrain_gen.MeshInvertedPyramidStairsTerrainCfg(
+            proportion=0.12,
+            step_height_range=(0.20, 0.30),
+            step_width=0.35,
+            platform_width=2.0,
+            border_width=1.0,
+            holes=False,
+        ),
+        # 坡度是"高度变化 / 水平距离"之比：0.45 = 24.2°；平台缩到 1.5 m，连续爬坡距离更长
+        "slope": terrain_gen.HfPyramidSlopedTerrainCfg(
+            proportion=0.08, slope_range=(0.10, 0.45), border_width=1.0, platform_width=1.5
+        ),
+        "inv_slope": terrain_gen.HfInvertedPyramidSlopedTerrainCfg(
+            proportion=0.08, slope_range=(0.10, 0.45), border_width=1.0, platform_width=1.5, inverted=True
+        ),
+        # 踏石：难度越高石头越窄、间距越大（石宽从 range[1] 往 range[0] 走，石距反过来）
+        # 石宽 0.30 m 对 G1 的脚（0.24 x 0.11 m）已经是勉强踩得下
+        "stepping_stones": terrain_gen.HfSteppingStonesTerrainCfg(
+            proportion=0.14,
+            stone_height_max=0.0,
+            stone_width_range=(0.30, 0.55),
+            stone_distance_range=(0.05, 0.30),
+            holes_depth=-10.0,
+            platform_width=2.0,
+            border_width=1.0,
+        ),
+        # gap：缺口 0.15~0.45 m，必须看到才敢跨
+        "gap": terrain_gen.MeshGapTerrainCfg(proportion=0.10, gap_width_range=(0.15, 0.45), platform_width=2.0),
+        "discrete_obstacles": terrain_gen.HfDiscreteObstaclesTerrainCfg(
+            proportion=0.09,
+            obstacle_width_range=(0.4, 1.2),
+            obstacle_height_range=(0.10, 0.30),
+            num_obstacles=8,
+            platform_width=2.0,
+            border_width=0.25,
+        ),
+        "boxes": _RepeatedBoxesTerrainCfg(
+            proportion=0.09,
+            object_params_start=terrain_gen.MeshRepeatedBoxesTerrainCfg.ObjectCfg(
+                num_objects=4, height=0.10, size=(0.5, 0.5)
+            ),
+            object_params_end=terrain_gen.MeshRepeatedBoxesTerrainCfg.ObjectCfg(
+                num_objects=8, height=0.30, size=(0.8, 0.8)
             ),
             platform_width=2.0,
         ),
