@@ -102,6 +102,13 @@ STAGES = {
     # 领先的左脚收回来达标（左 1.434->1.301、右 1.182->1.178），中点反而掉了 6.8 cm。
     "c2s": dict(npz="jump1_1m_ballistic130.npz", window=None, clearance=0.05, hard=False, lift_w=60.0,
                 run_name="far_c2s", sym_w=30.0, sym_std=0.2, far_w=40.0, far_std=0.20),
+    # c3s：在 c2s 基础上补上缺失的骨盆倾角约束。部署侧 State_Mimic.cpp:135 用 IMU(骨盆)的重力投影
+    # 算绝对倾角，>1.0 rad(57.3°) 直接切 Passive，全程生效；而训练侧从来没有任何一项约束骨盆的
+    # 绝对倾角——torso_tilt_landing 管的是 torso_link 且只在落地窗口，bad_anchor_ori 管的是相对
+    # 参考的误差。结果 c2s 50500 装到 sim2sim 后在腾空中段(约 1.2 s)就触发保护进阻尼。
+    # 窗口从离地帧起（参考骨盆峰值 38.7°，留 12.9°），阈值 0.90 rad(51.6°)，比部署线低 5.7°。
+    "c3s": dict(npz="jump1_1m_ballistic130.npz", window=None, clearance=0.05, hard=False, lift_w=60.0,
+                run_name="far_c3s", sym_w=30.0, sym_std=0.2, far_w=40.0, far_std=0.20, pelvis_tilt=0.90),
     "c2": dict(npz="jump1_1m_ballistic115.npz", window=None, clearance=0.08, hard=True, lift_w=30.0, run_name="far_c2"),
     "c3": dict(npz="jump1_1m_ballistic130.npz", window=(53, 65), clearance=0.10, hard=True, lift_w=20.0, run_name="far_v2"),
 }
@@ -193,6 +200,17 @@ def make_stage(stage: str, prefix: str):
                 # 跳到参考六成高度(recover 在旧参考上的水平)就能过，贴地挪(4.5~6 cm)必死
                 "frame_range": JUMP_WINDOW,
                 "min_clearance": st["clearance"],
+            },
+        )
+        pelvis_tilt = None if not st.get("pelvis_tilt") else DoneTerm(
+            func=mdp.bad_body_orientation_in_motion_window,
+            params={
+                "command_name": "motion",
+                "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis"]),
+                # 镜像部署侧 1.0 rad 的 Passive 保护，留 5.7° 余量；只从离地帧起，
+                # 不碰蓄力段（参考自己在第 31 帧就有 51.6°，全程生效会把参考本身判死）
+                "threshold": st["pelvis_tilt"],
+                "frame_range": (st["lift"], LAST_FRAME),
             },
         )
         torso_tilt_landing = DoneTerm(
@@ -296,5 +314,6 @@ C1U_EnvCfg, C1U_PlayEnvCfg, C1U_RunnerCfg = make_stage("c1u", "C1U")
 C1F_EnvCfg, C1F_PlayEnvCfg, C1F_RunnerCfg = make_stage("c1f", "C1F")
 C1S_EnvCfg, C1S_PlayEnvCfg, C1S_RunnerCfg = make_stage("c1s", "C1S")
 C2S_EnvCfg, C2S_PlayEnvCfg, C2S_RunnerCfg = make_stage("c2s", "C2S")
+C3S_EnvCfg, C3S_PlayEnvCfg, C3S_RunnerCfg = make_stage("c3s", "C3S")
 C2_EnvCfg, C2_PlayEnvCfg, C2_RunnerCfg = make_stage("c2", "C2")
 RobotEnvCfg, RobotPlayEnvCfg, Jump1_1mWithIdFarPPORunnerCfg = make_stage("c3", "C3")

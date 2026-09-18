@@ -8,6 +8,7 @@ for _id, _env, _play, _runner in (
     ("Unitree-G1-29dof-Mimic-Jump1-1mWithIdFar-C1F", "C1F_EnvCfg", "C1F_PlayEnvCfg", "C1F_RunnerCfg"),
     ("Unitree-G1-29dof-Mimic-Jump1-1mWithIdFar-C1S", "C1S_EnvCfg", "C1S_PlayEnvCfg", "C1S_RunnerCfg"),
     ("Unitree-G1-29dof-Mimic-Jump1-1mWithIdFar-C2S", "C2S_EnvCfg", "C2S_PlayEnvCfg", "C2S_RunnerCfg"),
+    ("Unitree-G1-29dof-Mimic-Jump1-1mWithIdFar-C3S", "C3S_EnvCfg", "C3S_PlayEnvCfg", "C3S_RunnerCfg"),
     ("Unitree-G1-29dof-Mimic-Jump1-1mWithIdFar-C2", "C2_EnvCfg", "C2_PlayEnvCfg", "C2_RunnerCfg"),
     ("Unitree-G1-29dof-Mimic-Jump1-1mWithIdFar", "RobotEnvCfg", "RobotPlayEnvCfg", "Jump1_1mWithIdFarPPORunnerCfg"),
 ):

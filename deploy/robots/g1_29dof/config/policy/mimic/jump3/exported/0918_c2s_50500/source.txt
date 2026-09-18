@@ -1,0 +1,20 @@
+task: Unitree-G1-29dof-Mimic-Jump1-1mWithIdFar-C2S
+checkpoint: .../2026-09-18_20-28-20_far_c2s/model_50500.pt  (训练中途取的, 目标 52998)
+motion: jump1_1m_ballistic130.npz (184 帧 / 3.68s, 参考中点 1.413)
+deploy_csv: params/jump3_c2s.csv (440 行 / 3.658s) —— 参考换了, 必须与本策略配套,
+            不能用 jump3_c1f.csv (437 行, ball125_p18)
+config.yaml: Mimic_Jump3.motion_file 已改为 jump3_c2s.csv
+deploy.yaml: 与 0918_c1f_44999 / 0918_c1s_48998 逐字节相同
+
+本版在 C1S 基础上解决"修对称丢距离": 新增 feet_worst (权重 40/std 0.20,
+mdp.feet_worst_global_position_error_exp, 两脚全局跟踪误差取 max 而非 mean),
+参考换 ballistic130 抬天花板。从 C1S 48998 热启动。
+
+干净测量 (eval_sym.py, 128 env, 固定帧 0 起跳, 关随机化, 只统计起跳回合):
+                    左脚     右脚   中点@触地    劈叉    触地Δ   起跳率
+C1F 44999         1.434  1.182   1.308  0.252   38.6ms   86%
+C1S 48998         1.301  1.178   1.240  0.123    4.8ms   86%
+C2S 50500         1.381  1.333   1.357  0.048    1.4ms   85%
+参考 ballistic130   1.437  1.388   1.413  0.049      0ms
+
+右脚 1.178 -> 1.333 (+15.5cm) 是距离回来的原因: feet_worst 让"推右脚"比"收左脚"划算。
