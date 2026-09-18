@@ -122,6 +122,22 @@ REGISTER_OBSERVATION(velocity_commands)
     return obs;
 }
 
+// 高程扫描（感知任务 Unitree-G1-29dof-PerceptiveHeightScan 的第 7 项观测，187 = 17×11）。
+// 与 isaaclab 的 height_scan 同公式：torso_z − ground_z − offset。data.height_map 存的是
+// ground_z − torso_z，所以是 −h − offset；clip / scale 由 ObservationManager 按 deploy.yaml 复现。
+// data.height_map 为空说明这个状态没有接建图源，直接抛错让控制器在启动时失败，而不是喂零。
+REGISTER_OBSERVATION(height_scan)
+{
+    const auto& height_map = env->robot->data.height_map;
+    if (height_map.empty()) {
+        throw std::runtime_error("observation 'height_scan' requires the articulation to provide data.height_map");
+    }
+    const float offset = params["offset"].as<float>(0.5f);
+    std::vector<float> obs(height_map.size());
+    for (std::size_t i = 0; i < height_map.size(); ++i) obs[i] = -height_map[i] - offset;
+    return obs;
+}
+
 REGISTER_OBSERVATION(gait_phase)
 {
     float period = params["period"].as<float>();

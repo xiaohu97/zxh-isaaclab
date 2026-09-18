@@ -280,6 +280,11 @@ $ LD_LIBRARY_PATH=~/ddsfix ./g1_ctrl --network lo
 #
 # ---- 站立 / 行走 ----
 # Velocity(行走):       RB + X.on_pressed     左摇杆平移, 右摇杆转向
+# Velocity_Rough(感知行走): RB + B.on_pressed  在 FixStand 或 Velocity 下按; 摇杆同上; RB + X 回 Velocity
+#   策略多看 187 维高程图(config/policy/velocity_rough), 模拟器 config.yaml 里 enable_height_map: 1 才有图,
+#   没有图会按平地填充并在终端告警 "Height map none/stale"; 正常应看到 "Height map live"
+#   楼梯/障碍在 scene_g1_29dof_terrain.xml 里: 0.15 m 台阶在 y=4 (x 1.2~3.0), 方块/圆柱在 x=1.5
+#   用 tools/height_map_echo.py --interface lo --domain 0 可以看模拟器发出的高程图
 # Stand_LeftArmTrack:   RB + Y.on_pressed     站立策略, 左臂初始收手在默认位姿
 #   RB + A                                    开/关左臂激励(平滑渐入/渐出, 1.5s)
 #
@@ -331,6 +336,11 @@ $ LD_LIBRARY_PATH=~/ddsfix ./g1_ctrl --network enp5s0
 #
 # ---- 站立 / 行走 ----
 # Velocity(行走):       RB + X.on_pressed     左摇杆平移, 右摇杆转向
+# Velocity_Rough(感知行走): RB + B.on_pressed  在 FixStand 或 Velocity 下按; 摇杆同上; RB + X 回 Velocity
+#   策略多看 187 维高程图(config/policy/velocity_rough), 模拟器 config.yaml 里 enable_height_map: 1 才有图,
+#   没有图会按平地填充并在终端告警 "Height map none/stale"; 正常应看到 "Height map live"
+#   楼梯/障碍在 scene_g1_29dof_terrain.xml 里: 0.15 m 台阶在 y=4 (x 1.2~3.0), 方块/圆柱在 x=1.5
+#   用 tools/height_map_echo.py --interface lo --domain 0 可以看模拟器发出的高程图
 # Stand_LeftArmTrack:   RB + Y.on_pressed     站立策略, 左臂初始收手在默认位姿
 #   RB + A                                    开/关左臂激励(平滑渐入/渐出, 1.5s)
 #

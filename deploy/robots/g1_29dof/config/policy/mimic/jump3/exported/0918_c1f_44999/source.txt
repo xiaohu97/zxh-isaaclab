@@ -1,0 +1,7 @@
+task: Unitree-G1-29dof-Mimic-Jump1-1mWithIdFar-C1F
+checkpoint: /home/zxh/unitree_rl_lab/logs/rsl_rl/unitree_g1_29dof_mimic_jump1_1mwithid/2026-09-18_00-28-21_far_c1f/model_44999.pt
+motion: jump1_1m_ball125_p18.npz (183 帧 / 3.66s, 躯干 18°, 目标 1.25m)
+deploy_csv: params/jump3_c1f.csv (437 行 / 3.633s) —— 必须与本策略配套
+干净测量: 位移 1.330 m, 足端高 0.482, 起跳率 88%, vz 1.18
+电机: 腰俯仰蹬伸饱和 34.2%(C1 是 91.5%), 膝 τ 76% / ω 96%(已撞转速墙)
+课程: recover34500 -> C1(1.20m) -> C1U(0.99m,躯干18°) -> C1F(1.25m,躯干18°+蹲深6cm)

@@ -16,6 +16,13 @@ FSM:
       id: 5
       type: Run
 
+    # 感知版 walk（高程图进 actor，任务 Unitree-G1-29dof-PerceptiveHeightScan）。
+    # 策略在 config/policy/velocity_rough（2026-09-18 导出 heightscan_warm/model_3100）。
+    # 需要建图节点在 rt/perceptive/height_map 上发高程图；没有的话按平地填充并告警，见 velocity_rough/README.md。
+    Velocity_Rough:
+      id: 6
+      type: Walk
+
     Mimic_Houtaitui:
       id: 101
       type: Mimic
@@ -87,6 +94,7 @@ FSM:
       Velocity: RB + X.on_pressed
       Stand_LeftArmTrack: RB + Y.on_pressed
       Run: RB + A.on_pressed
+      Velocity_Rough: RB + B.on_pressed
     kp: [
       100., 100., 100., 150., 40., 40.,
       100., 100., 100., 150., 40., 40.,
@@ -127,6 +135,7 @@ FSM:
       Mimic_Banyun: LT(2s) + RT.on_pressed
       Mimic_Jump3: LT(2s) + start.on_pressed
       Run: RB + A.on_pressed
+      Velocity_Rough: RB + B.on_pressed
 
     policy_dir: config/policy/velocity
     # Background CSV writer; records the first 3 seconds of each walk entry.
@@ -140,6 +149,35 @@ FSM:
       command_ramp_time_s: 0.50   # 随后渐进恢复摇杆命令
       inference_timeout_s: 0.20  # 推理/采样超时走 Passive，避免无限保持旧目标
     # policy_dir: ../../../logs/rsl_rl/unitree_g1_29dof_velocity
+  Velocity_Rough:
+    # 感知版 walk：观测 = Velocity 的六项 × 5 帧 + 187 维高程图 × 1 帧，其余（步频、限速、切换）与 Velocity 相同。
+    # 高程图由外部建图节点通过 DDS 发布，消息类型复用 unitree_go::msg::dds_::HeightMap_，
+    # 网格约定见 include/height_map_gate.h 和 config/policy/velocity_rough/README.md。
+    # 没收到 / 超时 / 尺寸不对时按平地（躯干高 nominal_torso_height）填充并告警，不切 Passive：
+    # 楼梯中途切阻尼比"以为是平地"更危险。
+    transitions:
+      Passive: LT + B.on_pressed
+      Velocity: RB + X.on_pressed
+    policy_dir: config/policy/velocity_rough
+    walk_trace:
+      enabled: true
+      directory: log/walk_handoff
+      duration_s: 3.0
+    walk_entry:
+      blend_time_s: 0.30
+      zero_command_time_s: 0.40
+      command_ramp_time_s: 0.50
+      inference_timeout_s: 0.20
+    height_map:
+      topic: rt/perceptive/height_map
+      timeout_s: 0.3               # 建图节点 ≥ 5 Hz；超过这个时长没有新图就退回平地
+      nominal_torso_height: 0.78   # 平地站立时躯干离地高度，= 训练里 base_height 的目标
+      max_abs_height: 3.0          # |地面 − 躯干| 超过它的格子视为未知
+      grid:                        # 必须和训练的 HEIGHT_SCANNER_CFG 一致：17×11 @ 0.1 m，x 变化最快
+        width: 17
+        height: 11
+        resolution: 0.1
+        origin: [-0.8, -0.5]
   Stand_LeftArmTrack:
     # 站立 + 左臂轨迹激励。进入: 在 FixStand/Velocity 下按 RB + Y。
     # 左臂激励开关: 按 RB + A (见 deploy.yaml 的 arm_command.toggle)。
@@ -254,7 +292,7 @@ FSM:
       Passive: LT + B.on_pressed
       Velocity: RB + X.on_pressed
     fps: 120
-    motion_file: config/policy/mimic/jump3/params/jump3_waist15_recover.csv
+    motion_file: config/policy/mimic/jump3/params/jump3_c1f.csv
     policy_dir: config/policy/mimic/jump3/
   Mimic_Banyun:
     transitions:

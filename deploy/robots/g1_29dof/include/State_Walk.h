@@ -18,6 +18,9 @@ public:
     void run() override;
     void exit() override;
     static void record_control_frame();
+    // "unconfigured" when no Walk state owns a height-map source, otherwise the
+    // HeightMapGate source name of the most recent control frame ("none" until one is recorded).
+    static std::string height_map_status();
 
 private:
     g1::WalkEntryConfig entry_cfg_;

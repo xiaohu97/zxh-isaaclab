@@ -41,6 +41,12 @@ struct ArticulationData
     unitree::common::UnitreeJoystick* joystick = nullptr;
 
     isaaclab::MotionLoader* motion_loader = nullptr;
+
+    // 外感知：策略网格布局的高程图，每格 = 地面高度 − 躯干高度 [m]
+    // （Isaac Lab GridPattern "xy" 序，x 变化最快：data[iy * width + ix]）。
+    // 空 = 本体感知策略 / 没有建图源。由 Articulation::update() 的实现负责填充，
+    // 提供方保证无 NaN、维度与策略一致（G1 walk 里是 HeightMapGate）。
+    std::vector<float> height_map;
 };
 
 class Articulation

@@ -1,0 +1,59 @@
+{
+ "input_npz": "source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/g1_29dof/jump1_1mwithid_recover/jump1_1m_waist15_recover.npz",
+ "output_csv": "source/unitree_rl_lab/unitree_rl_lab/tasks/mimic/robots/g1_29dof/jump1_1mwithid_far/jump1_1m_ball125_p18.csv",
+ "fps": 50.0,
+ "frames": {
+  "total": 184,
+  "crouch": 34,
+  "crouch_extra": 6,
+  "push": 8,
+  "flight": 23,
+  "tail": 113
+ },
+ "takeoff": {
+  "pose_pitch_deg": -20.02359908130466,
+  "pitch_target_err_deg": 2.02359908130466,
+  "knee_deg": [
+   1.9844118095530747,
+   40.872657654690556
+  ],
+  "push_angle_deg": 48.886984489027526,
+  "v_actual": [
+   -0.5183741595233889,
+   -1.9489296824577762,
+   2.3107153501323374
+  ],
+  "v_mag": 3.066992681074371,
+  "push_seconds": 0.16,
+  "push_travel_m": 0.2587303671630527,
+  "push_travel_target": 0.34,
+  "accel_m_s2": 18.178082860748596,
+  "max_leg_qdot_rad_s": 14.436353624641468,
+  "foot_drift_mm": 9.937718973706519e-05,
+  "pose_leg_drift_mm": 74.41386135385805,
+  "outer_iters": 3
+ },
+ "flight": {
+  "seconds": 0.46,
+  "vertical_accel_fit": -9.810000000000006,
+  "horiz_speed_min_max": [
+   2.016690029832679,
+   2.0166900298326857
+  ],
+  "apex_root_z": 0.9656395233274343,
+  "touchdown_root_z": 0.7186269003565484
+ },
+ "tail": {
+  "vertical_gap_m": 0.004300399463909255,
+  "blend_frames": 10
+ },
+ "distance": {
+  "target_m": 1.25,
+  "achieved_m": 1.2415964140470963,
+  "original_m": 1.4005454778671265
+ },
+ "joint_speed": {
+  "max_rad_s": 22.93279618024826,
+  "max_joint": "left_knee_joint"
+ }
+}

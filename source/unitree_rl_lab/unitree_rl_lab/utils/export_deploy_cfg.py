@@ -11,6 +11,11 @@ from isaaclab.utils.string import resolve_matching_names
 def format_value(x):
     if isinstance(x, float):
         return float(f"{x:.3g}")
+    elif isinstance(x, slice):
+        # SceneEntityCfg 的 joint_ids/body_ids 默认是 slice(None)，yaml.dump 会写成
+        # !!python/object/apply:builtins.slice，safe_load 和 yaml-cpp 都不认；观测项参数里带
+        # sensor_cfg（如感知任务的 height_scan）时会出现，导出成 null 即可
+        return None
     elif isinstance(x, list):
         return [format_value(i) for i in x]
     elif isinstance(x, dict):

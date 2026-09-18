@@ -23,6 +23,9 @@ struct ControlFrame
     Eigen::Quaternionf quaternion = Eigen::Quaternionf::Identity();
     Eigen::Vector3f angular_velocity = Eigen::Vector3f::Zero();
     std::array<float, 3> command{};  // already filtered joystick: ly, -lx, -rx
+    // Exteroception in policy layout: z_ground - z_torso per cell (see HeightMapGate).
+    // Empty when no height-map source is configured; a perceptive policy rejects such frames.
+    std::vector<float> height_map;
 
     bool valid() const
     {
@@ -30,7 +33,7 @@ struct ControlFrame
             return std::all_of(values.begin(), values.end(), [](float v) { return std::isfinite(v); });
         };
         return std::isfinite(time) && finite(q) && finite(dq) && finite(previous_target)
-            && finite(command) && quaternion.coeffs().allFinite()
+            && finite(command) && finite(height_map) && quaternion.coeffs().allFinite()
             && quaternion.norm() > 1e-6f && angular_velocity.allFinite();
     }
 };

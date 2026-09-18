@@ -58,3 +58,21 @@ endif()
 add_executable(test_walk_trace test_walk_trace.cpp)
 target_link_libraries(test_walk_trace fmt pthread)
 add_test(NAME walk_trace COMMAND test_walk_trace)
+
+# ---- 感知版 walk（高程图通路）----
+# 合成策略夹具由 fixtures/make_velocity_rough_fixture.py 生成（已提交）；不是训练结果。
+set(ROUGH_FIXTURE ${PROJECT_SOURCE_DIR}/fixtures/velocity_rough_synthetic)
+
+add_executable(test_height_map_gate test_height_map_gate.cpp)
+add_test(NAME height_map_gate COMMAND test_height_map_gate)
+
+add_executable(test_walk_policy_rough test_walk_policy_rough.cpp)
+target_link_libraries(test_walk_policy_rough yaml-cpp fmt pthread ${ORT_DIR}/lib/libonnxruntime.so.1.22.0)
+set_target_properties(test_walk_policy_rough PROPERTIES BUILD_RPATH ${ORT_DIR}/lib)
+add_test(NAME walk_policy_rough COMMAND test_walk_policy_rough ${ROUGH_FIXTURE} ${PROJECT_SOURCE_DIR}/../config/policy/velocity)
+
+add_executable(test_state_walk_rough test_state_walk_rough.cpp ../src/State_Walk.cpp)
+target_include_directories(test_state_walk_rough BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/fakes)
+target_link_libraries(test_state_walk_rough yaml-cpp fmt pthread Boost::program_options ${ORT_DIR}/lib/libonnxruntime.so.1.22.0)
+set_target_properties(test_state_walk_rough PROPERTIES BUILD_RPATH ${ORT_DIR}/lib)
+add_test(NAME state_walk_rough COMMAND test_state_walk_rough ${PROJECT_SOURCE_DIR}/.. ${ROUGH_FIXTURE})

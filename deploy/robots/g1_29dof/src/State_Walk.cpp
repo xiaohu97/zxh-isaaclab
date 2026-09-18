@@ -1,11 +1,74 @@
 #include "State_Walk.h"
+#include "dds_height_map_source.h"  // tests substitute test/fakes/dds_height_map_source.h
+#include "height_map_gate.h"
 #include <chrono>
+#include <optional>
 
 namespace
 {
 using Clock = std::chrono::steady_clock;
 double seconds_now() { return std::chrono::duration<double>(Clock::now().time_since_epoch()).count(); }
 g1::ControlHistory control_history;
+
+// 高程图来源 + 门。record_control_frame 是所有 Walk 状态共用的静态观测器，所以这里也是
+// 文件级单例，由配置了 height_map 的 Walk 状态（感知版 walk）在构造时创建。
+struct HeightMapProvider
+{
+    std::shared_ptr<g1::DdsHeightMapSource> source;
+    std::unique_ptr<g1::HeightMapGate> gate;
+    std::optional<g1::HeightMapGate::Source> last;  // 1 kHz 线程上只在状态切换时打日志
+};
+std::unique_ptr<HeightMapProvider> height_map_provider;
+
+g1::HeightMapGateConfig parse_height_map_config(const YAML::Node& node)
+{
+    g1::HeightMapGateConfig cfg;
+    if (node["timeout_s"]) cfg.timeout = node["timeout_s"].as<double>();
+    if (node["nominal_torso_height"]) cfg.nominal_torso_height = node["nominal_torso_height"].as<float>();
+    if (node["max_abs_height"]) cfg.max_abs_height = node["max_abs_height"].as<float>();
+    if (const auto grid = node["grid"]) {
+        if (grid["width"]) cfg.width = grid["width"].as<std::uint32_t>();
+        if (grid["height"]) cfg.height = grid["height"].as<std::uint32_t>();
+        if (grid["resolution"]) cfg.resolution = grid["resolution"].as<float>();
+        if (grid["origin"]) {
+            const auto origin = grid["origin"].as<std::vector<float>>();
+            if (origin.size() != 2) throw std::invalid_argument("height_map.grid.origin must be [x, y]");
+            cfg.origin = {origin[0], origin[1]};
+        }
+    }
+    cfg.validate();
+    return cfg;
+}
+
+void attach_height_map(g1::ControlFrame& frame)
+{
+    if (!height_map_provider) return;
+    auto& provider = *height_map_provider;
+    g1::HeightMapGrid grid;
+    const bool received = provider.source->latest(grid);
+    g1::HeightMapGate::Source source;
+    frame.height_map = provider.gate->resolve(received ? &grid : nullptr, frame.time, source);
+    if (provider.last && *provider.last == source) return;
+    provider.last = source;
+    const auto& cfg = provider.gate->config();
+    if (source == g1::HeightMapGate::Source::live) {
+        spdlog::info("Height map live: {}x{} cells from '{}'", cfg.width, cfg.height, provider.source->topic());
+        return;
+    }
+    std::string why;
+    if (!received) why = "nothing received on '" + provider.source->topic() + "'";
+    else if (source == g1::HeightMapGate::Source::stale) why = "older than " + std::to_string(cfg.timeout) + " s";
+    else provider.gate->matches(grid, &why);
+    spdlog::warn("Height map {}: {}; policy sees flat ground at torso height {:.2f} m",
+                 g1::HeightMapGate::name(source), why, cfg.nominal_torso_height);
+}
+}
+
+std::string State_Walk::height_map_status()
+{
+    if (!height_map_provider) return "unconfigured";
+    if (!height_map_provider->last) return "none";
+    return g1::HeightMapGate::name(*height_map_provider->last);
 }
 
 void State_Walk::record_control_frame()
@@ -26,6 +89,7 @@ void State_Walk::record_control_frame()
     // Both joystick updates and lowcmd writes belong to this control thread.
     frame.command = {lowstate->joystick.ly(), -lowstate->joystick.lx(), -lowstate->joystick.rx()};
     for (int m = 0; m < g1::joint_count; ++m) frame.previous_target[m] = lowcmd->msg_.motor_cmd()[m].q();
+    attach_height_map(frame);
     control_history.push(frame);
 }
 
@@ -45,6 +109,31 @@ State_Walk::State_Walk(int state_mode, std::string state_string)
     const auto dir = param::parser_policy_dir(cfg["policy_dir"].as<std::string>());
     policy_ = std::make_unique<g1::WalkPolicy>(YAML::LoadFile(dir / "params/deploy.yaml"));
     policy_->load((dir / "exported/policy.onnx").string());
+
+    // 感知版 walk：策略观测里有 height_scan，就必须配一个建图源；网格尺寸要和策略一致。
+    if (policy_->uses_height_scan()) {
+        const auto hm = cfg["height_map"];
+        if (!hm) {
+            throw std::invalid_argument(state_string + ": the policy observes height_scan but FSM." + state_string
+                                        + ".height_map is not configured");
+        }
+        const auto gate_cfg = parse_height_map_config(hm);
+        if (gate_cfg.size() != policy_->height_scan_size()) {
+            throw std::invalid_argument(state_string + ": height_map grid " + std::to_string(gate_cfg.width) + "x"
+                                        + std::to_string(gate_cfg.height) + " = " + std::to_string(gate_cfg.size())
+                                        + " cells, but the policy expects " + std::to_string(policy_->height_scan_size()));
+        }
+        auto provider = std::make_unique<HeightMapProvider>();
+        provider->source = std::make_shared<g1::DdsHeightMapSource>(hm["topic"].as<std::string>("rt/perceptive/height_map"));
+        provider->gate = std::make_unique<g1::HeightMapGate>(gate_cfg);
+        if (height_map_provider) spdlog::warn("{}: replacing the height map source of another Walk state", state_string);
+        height_map_provider = std::move(provider);
+        spdlog::info("{}: height map {}x{} @ {:.2f} m from '{}', timeout {:.2f} s, flat fallback at torso height {:.2f} m",
+                     state_string, gate_cfg.width, gate_cfg.height, gate_cfg.resolution,
+                     height_map_provider->source->topic(), gate_cfg.timeout, gate_cfg.nominal_torso_height);
+    } else if (cfg["height_map"]) {
+        spdlog::info("{}: height_map is configured but the policy is proprioceptive; ignored", state_string);
+    }
 
     const auto trace_cfg = cfg["walk_trace"];
     if (trace_cfg && trace_cfg["enabled"].as<bool>(false)) {
@@ -131,6 +220,7 @@ void State_Walk::enter()
     spdlog::info("Velocity entry measured: pelvis_tilt={:.3f} rad, gyro=[{:.3f},{:.3f},{:.3f}] rad/s, max_leg_dq={:.3f} rad/s, max_leg_target_error={:.3f} rad, waist_pitch_q={:.3f}, waist_pitch_last_target={:.3f}",
                  tilt, frame.angular_velocity.x(), frame.angular_velocity.y(), frame.angular_velocity.z(),
                  max_leg_speed, max_leg_error, frame.q[14], frame.previous_target[14]);
+    if (policy_->uses_height_scan()) spdlog::info("Velocity entry height map: {}", height_map_status());
     entry_started_at_ = seconds_now();
     handoff_->begin(frame.previous_target, entry_started_at_);
     previous_applied_ = frame.previous_target;

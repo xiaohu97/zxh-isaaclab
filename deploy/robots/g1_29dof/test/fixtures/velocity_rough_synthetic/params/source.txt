@@ -1,0 +1,1 @@
+synthetic fixture from make_velocity_rough_fixture.py; layout = velocity deploy.yaml + height_scan(187, history 1)

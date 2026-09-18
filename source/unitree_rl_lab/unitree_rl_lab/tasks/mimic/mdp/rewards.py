@@ -485,3 +485,56 @@ def self_body_clearance(
     pos_b = body_pos_w[:, other_cfg.body_ids]
     min_dist = torch.cdist(pos_a, pos_b).min(dim=-1).values
     return torch.sum(torch.clamp(margin - min_dist, min=0.0), dim=-1)
+
+
+def torque_headroom_in_motion_window(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    command_name: str,
+    frame_range: tuple[int, int],
+    start_ratio: float = 0.8,
+) -> torch.Tensor:
+    """Penalize joints that run out of torque headroom during a phase of the clip.
+
+    Measured on the deployed jump policy: in the landing window ``waist_pitch`` sits at its
+    25 N·m ceiling 67% of the time and both ``ankle_pitch`` 11-16%, i.e. the joints that hold the
+    torso up are already saturated. The torso then keeps rotating forward and the deploy-side
+    Passive guard trips. ``joint_torques_l2`` does not fix this: it charges a fixed price per N·m
+    everywhere, so it also fights the (legitimate) large torques of the push-off, and it says
+    nothing about how close a joint is to *its own* limit.
+
+    This term charges only the part above ``start_ratio`` of each joint's effort limit, squared,
+    and only while the clip is inside ``frame_range`` -- so the take-off may use the full envelope
+    while the landing is pushed to keep a margin and absorb with hip/knee flexion instead.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    tau = asset.data.applied_torque[:, asset_cfg.joint_ids].abs()
+    lim = asset.data.joint_effort_limits[:, asset_cfg.joint_ids]
+    over = (tau / lim.clamp(min=1.0e-6) - start_ratio).clamp(min=0.0)
+    t = env.command_manager.get_term(command_name).time_steps
+    in_window = ((t >= frame_range[0]) & (t <= frame_range[1])).float()
+    return torch.sum(over**2, dim=1) * in_window
+
+
+def flight_clearance_in_motion_window(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    asset_cfg: SceneEntityCfg,
+    frame_range: tuple[int, int],
+    target_clearance: float,
+    sole_height: float = 0.0332,
+) -> torch.Tensor:
+    """Dense reward for lifting the feet during the clip's flight phase: min(clearance, target)/target.
+
+    Companion of ``feet_grounded_in_motion_window``. The termination makes "not jumping" fatal, but a
+    policy that cannot jump yet gets no learning signal from a termination alone (94 % of episodes die
+    at the window start), and the exp-kernel tracking rewards are ~flat once the feet are far from
+    the reference. This term is linear in clearance up to ``target_clearance``, so every centimetre of
+    lift is rewarded and the gradient points off the ground.
+    """
+    asset = env.scene[asset_cfg.name]
+    foot_z = asset.data.body_pos_w[:, asset_cfg.body_ids, 2] - env.scene.env_origins[:, 2:3]
+    clearance = (foot_z.min(dim=1).values - sole_height).clamp(min=0.0)
+    t = env.command_manager.get_term(command_name).time_steps
+    in_window = ((t >= frame_range[0]) & (t <= frame_range[1])).float()
+    return (clearance / target_clearance).clamp(max=1.0) * in_window

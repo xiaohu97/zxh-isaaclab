@@ -140,3 +140,33 @@ def bad_body_orientation_in_motion_window(
     t = env.command_manager.get_term(command_name).time_steps
     in_window = (t >= frame_range[0]) & (t <= frame_range[1])
     return in_window & (tilt > threshold)
+
+
+def feet_grounded_in_motion_window(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    asset_cfg: SceneEntityCfg,
+    frame_range: tuple[int, int],
+    min_clearance: float,
+    sole_height: float = 0.0332,
+) -> torch.Tensor:
+    """Terminate when the feet are still (near) the ground while the clip is in its flight phase.
+
+    Why this exists (2026-09-16, jump1_1mwithid_far): warm-starting on a reference whose push-off the
+    policy could not execute, the robot completed the whole 3.7 s clip *without ever leaving the
+    ground* (jump rate 0 %, feet max 4.5-6 cm), and nothing in the MDP objected: the exp-kernel
+    tracking rewards saturate to ~0 (and ~0 gradient) once the feet are far from the flight path,
+    ``bad_anchor_pos_z_only`` ignores horizontal drift, ``ee_body_pos`` only fired 10-15 %, and
+    ``motion_end`` counts a ground shuffle as success. PPO then locked onto that local optimum while
+    every logged curve kept improving. This term makes "not jumping" fatal instead of safe.
+
+    ``sole_height`` is the ankle_roll origin height when standing flat (0.0332 m for G1), so the
+    clearance compared with ``min_clearance`` is the true sole-to-ground gap. Pick ``frame_range``
+    strictly inside the reference's flight so the constraint is satisfiable.
+    """
+    asset = env.scene[asset_cfg.name]
+    foot_z = asset.data.body_pos_w[:, asset_cfg.body_ids, 2] - env.scene.env_origins[:, 2:3]
+    clearance = foot_z.min(dim=1).values - sole_height
+    t = env.command_manager.get_term(command_name).time_steps
+    in_window = (t >= frame_range[0]) & (t <= frame_range[1])
+    return in_window & (clearance < min_clearance)
